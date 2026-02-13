@@ -1,0 +1,241 @@
+import { useState } from 'react';
+import { RoleLayout } from '@/components/layout/RoleLayout';
+import { useAuth } from '@/context/AuthContext';
+import { usePendingCollectionOrders, useUpdateOrder } from '@/hooks/useOrders';
+import { useCreateSample } from '@/hooks/useSamples';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { TestTube, Check, Printer, QrCode, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { OrderWithDetails } from '@/hooks/useOrders';
+
+export default function CollectSamplesPage() {
+  const { profile, user } = useAuth();
+  const { data: pendingOrders, isLoading } = usePendingCollectionOrders();
+  const updateOrder = useUpdateOrder();
+  const createSample = useCreateSample();
+
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [collectedSampleId, setCollectedSampleId] = useState<string | null>(null);
+
+  const handleCollectSample = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      // Create sample record
+      const sample = await createSample.mutateAsync({
+        order_id: selectedOrder.id,
+        patient_id: selectedOrder.patient_id,
+        sample_id: '', // Will be generated
+        sample_type: 'blood', // Could be derived from tests
+        collected_by: user?.id || null,
+      });
+
+      // Update order status
+      await updateOrder.mutateAsync({
+        id: selectedOrder.id,
+        updates: {
+          status: 'collected',
+          collected_at: new Date().toISOString(),
+          collected_by: user?.id || null,
+        },
+      });
+
+      setCollectedSampleId(sample.sample_id);
+      setShowConfirmModal(true);
+      toast.success(`Sample ${sample.sample_id} collected`);
+    } catch (error) {
+      toast.error('Failed to collect sample');
+    }
+  };
+
+  const handleDone = () => {
+    setShowConfirmModal(false);
+    setCollectedSampleId(null);
+    setSelectedOrder(null);
+  };
+
+  const priorityOrder = { stat: 0, urgent: 1, routine: 2 };
+  const sortedOrders = pendingOrders?.sort((a, b) => 
+    priorityOrder[a.priority] - priorityOrder[b.priority]
+  );
+
+  return (
+    <RoleLayout 
+      title="Collect Samples" 
+      subtitle="Sample collection and labeling"
+      role="lab-tech"
+      userName={profile?.full_name}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pending Orders List */}
+        <div className="lg:col-span-2">
+          <div className="bg-card border rounded-lg">
+            <div className="px-4 py-3 border-b">
+              <h3 className="font-semibold">Pending Sample Collection</h3>
+              <p className="text-sm text-muted-foreground">{pendingOrders?.length || 0} orders waiting</p>
+            </div>
+            
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="divide-y max-h-[600px] overflow-y-auto">
+                {sortedOrders?.map(order => (
+                  <button
+                    key={order.id}
+                    className={cn(
+                      'w-full px-4 py-4 text-left hover:bg-muted/50 transition-colors',
+                      selectedOrder?.id === order.id && 'bg-primary/5 border-l-4 border-primary'
+                    )}
+                    onClick={() => setSelectedOrder(order)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold">{order.patients.first_name} {order.patients.last_name}</p>
+                          <Badge variant="outline" className={cn(
+                            'text-xs',
+                            order.priority === 'stat' ? 'bg-status-critical/10 text-status-critical border-status-critical/20' :
+                            order.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning border-status-warning/20' :
+                            'bg-muted text-muted-foreground'
+                          )}>
+                            {order.priority.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-1">{order.patients.patient_id}</p>
+                        <p className="text-sm font-medium">
+                          {order.order_tests.map(t => t.test_code).join(', ')}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Ordered: {new Date(order.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono text-sm">{order.order_number}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+                {(!sortedOrders || sortedOrders.length === 0) && (
+                  <div className="px-4 py-12 text-center text-muted-foreground">
+                    <TestTube className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">No pending samples</p>
+                    <p className="text-sm">All samples have been collected</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Collection Panel */}
+        <div className="lg:col-span-1">
+          <div className="bg-card border rounded-lg p-4 sticky top-6">
+            <h3 className="font-semibold mb-4">Collection Details</h3>
+            
+            {selectedOrder ? (
+              <div className="space-y-4">
+                <div className="bg-muted rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground">Patient</p>
+                  <p className="font-semibold text-lg">
+                    {selectedOrder.patients.first_name} {selectedOrder.patients.last_name}
+                  </p>
+                  <p className="text-sm">{selectedOrder.patients.patient_id}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Tests to Collect</p>
+                  <div className="space-y-2">
+                    {selectedOrder.order_tests.map(test => (
+                      <div key={test.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
+                        <TestTube className="w-4 h-4 text-primary" />
+                        <div>
+                          <p className="font-medium text-sm">{test.test_code}</p>
+                          <p className="text-xs text-muted-foreground">{test.test_name}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t space-y-3">
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    onClick={handleCollectSample}
+                    disabled={createSample.isPending || updateOrder.isPending}
+                  >
+                    {(createSample.isPending || updateOrder.isPending) && (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    )}
+                    <Check className="w-4 h-4 mr-2" />
+                    Mark as Collected
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    <QrCode className="w-4 h-4 mr-2" />
+                    Print Label
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Select an order to collect</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sample Collected</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="bg-status-normal/10 rounded-lg p-4 text-center mb-4">
+              <Check className="w-12 h-12 text-status-normal mx-auto mb-2" />
+              <p className="font-bold text-lg">{collectedSampleId}</p>
+              <p className="text-sm text-muted-foreground">Sample ID</p>
+            </div>
+
+            {selectedOrder && (
+              <div className="bg-muted rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Patient</span>
+                  <span className="font-medium">
+                    {selectedOrder.patients.first_name} {selectedOrder.patients.last_name}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Order</span>
+                  <span className="font-mono">{selectedOrder.order_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Collected By</span>
+                  <span>{profile?.full_name}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" className="flex-1">
+              <Printer className="w-4 h-4 mr-2" />
+              Print Label
+            </Button>
+            <Button onClick={handleDone} className="flex-1">
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </RoleLayout>
+  );
+}
