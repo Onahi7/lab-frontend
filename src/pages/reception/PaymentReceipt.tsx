@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { useOrder } from '@/hooks/useOrders';
+import { getPatientName } from '@/utils/orderHelpers';
 
 interface ReceiptData {
   receiptNumber: string;
@@ -45,9 +46,9 @@ export default function PaymentReceipt() {
   const receiptData: ReceiptData | null = order ? {
     receiptNumber: `RCP-${format(new Date(), 'yyyyMMdd')}-${order.order_number.split('-').pop()}`,
     orderNumber: order.order_number,
-    patientName: `${order.patients.first_name} ${order.patients.last_name}`,
-    patientId: order.patients.patient_id,
-    patientPhone: order.patients.phone || undefined,
+    patientName: getPatientName(order),
+    patientId: (order.patient || order.patients)?.patientId || (order.patient || order.patients)?.patient_id || 'Unknown',
+    patientPhone: (order.patient || order.patients)?.phone || undefined,
     tests: (order.order_tests || []).map((ot: any) => ({
       code: ot.test_catalog?.code || 'N/A',
       name: ot.test_catalog?.name || 'Unknown Test',
@@ -345,8 +346,7 @@ export default function PaymentReceipt() {
       {/* Header */}
       <div className="header">
         <div className="logo">🏥</div>
-        <div className="company-name">HARBOUR MEDICAL</div>
-        <div className="company-name">DIAGNOSTIC</div>
+        <div className="company-name">HABOUR</div>
         <div className="company-info">114 Fourah Bay Road</div>
         <div className="company-info">Freetown, Sierra Leone</div>
         <div className="company-info">Tel: 075 766461, 031-551811</div>

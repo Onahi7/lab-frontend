@@ -86,12 +86,12 @@ export function OrderCancellationDialog({
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Patient</span>
                     <span className="font-medium">
-                      {order.patients.first_name} {order.patients.last_name}
+                      {`${(order.patient || order.patients)?.firstName || (order.patient || order.patients)?.first_name || ''} ${(order.patient || order.patients)?.lastName || (order.patient || order.patients)?.last_name || ''}`.trim() || 'Unknown Patient'}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tests</span>
-                    <span>{order.order_tests.length} test(s)</span>
+                    <span>{(order.tests || order.order_tests || []).length} test(s)</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total</span>

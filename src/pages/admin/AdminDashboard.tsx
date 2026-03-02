@@ -9,6 +9,7 @@ import { useRealtimeResults } from '@/hooks/useRealtimeResults';
 import { useRealtimePatients } from '@/hooks/useRealtimePatients';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { Button } from '@/components/ui/button';
+import { getPatientName, getTestCodes, getOrderNumber } from '@/utils/orderHelpers';
 import { 
   Users, 
   ClipboardList, 
@@ -40,24 +41,24 @@ export default function AdminDashboard() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  const todayPatients = patients.filter(p => new Date(p.created_at) >= todayStart).length;
-  const todayOrders = orders.filter(o => new Date(o.created_at) >= todayStart).length;
+  const todayPatients = patients.filter(p => new Date(p.createdAt) >= todayStart).length;
+  const todayOrders = orders.filter(o => new Date(o.createdAt) >= todayStart).length;
   const completedOrders = orders.filter(o => o.status === 'completed').length;
   const pendingOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length;
   const criticalResults = results.filter(r => r.flag === 'critical_high' || r.flag === 'critical_low').length;
   const todayRevenue = orders
-    .filter(o => new Date(o.created_at) >= todayStart && o.payment_status === 'paid')
-    .reduce((sum, o) => sum + o.total, 0);
+    .filter(o => new Date(o.createdAt) >= todayStart && o.paymentStatus === 'paid')
+    .reduce((sum, o) => sum + Number(o.total || o.totalAmount || 0), 0);
   const onlineMachines = machines?.filter((m: any) => m.status === 'online' || m.status === 'processing').length || 0;
   const totalMachines = machines?.length || 0;
   
   // Calculate average turnaround time (in minutes)
-  const completedOrdersWithTime = orders.filter(o => o.status === 'completed' && o.completed_at);
+  const completedOrdersWithTime = orders.filter(o => o.status === 'completed' && o.completedAt);
   const avgTAT = completedOrdersWithTime.length > 0
     ? Math.round(
         completedOrdersWithTime.reduce((sum, o) => {
-          const start = new Date(o.created_at).getTime();
-          const end = new Date(o.completed_at!).getTime();
+          const start = new Date(o.createdAt).getTime();
+          const end = new Date(o.completedAt!).getTime();
           return sum + (end - start) / (1000 * 60); // Convert to minutes
         }, 0) / completedOrdersWithTime.length
       )
@@ -176,11 +177,11 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {orders.slice(-5).reverse().map(order => (
-                  <tr key={order.id}>
-                    <td className="font-mono text-sm">{order.order_number}</td>
-                    <td>{order.patients.first_name} {order.patients.last_name}</td>
-                    <td>{(order.order_tests || []).map((t: any) => t.test_code).join(', ')}</td>
-                    <td className="font-medium">Le {order.total.toLocaleString()}</td>
+                  <tr key={order.id || order._id}>
+                    <td className="font-mono text-sm">{getOrderNumber(order)}</td>
+                    <td>{getPatientName(order)}</td>
+                    <td>{getTestCodes(order)}</td>
+                    <td className="font-medium">Le {(order.total || order.totalAmount || 0).toLocaleString()}</td>
                     <td>
                       <span className={cn(
                         'status-badge capitalize',

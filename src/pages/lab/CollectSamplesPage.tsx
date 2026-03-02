@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { usePendingCollectionOrders, useUpdateOrder } from '@/hooks/useOrders';
+import { usePendingCollectionOrders, useCollectOrder } from '@/hooks/useOrders';
 import { useCreateSample } from '@/hooks/useSamples';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,12 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import { TestTube, Check, Printer, QrCode, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getPatient, getOrderId, getPatientName, getPatientId, getOrderNumber, getOrderTests, getCreatedAt } from '@/utils/orderHelpers';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 
 export default function CollectSamplesPage() {
   const { profile, user } = useAuth();
   const { data: pendingOrders, isLoading } = usePendingCollectionOrders();
-  const updateOrder = useUpdateOrder();
+  const collectOrder = useCollectOrder();
   const createSample = useCreateSample();
 
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
@@ -25,28 +26,29 @@ export default function CollectSamplesPage() {
     if (!selectedOrder) return;
 
     try {
-      // Create sample record
+      // Get the correct IDs
+      const orderId = getOrderId(selectedOrder);
+      const patient = getPatient(selectedOrder);
+      const patientId = patient?._id || patient?.id;
+
+      if (!orderId || !patientId) {
+        toast.error('Missing order or patient information');
+        return;
+      }
+
+      // Create sample record with correct field names
       const sample = await createSample.mutateAsync({
-        order_id: selectedOrder.id,
-        patient_id: selectedOrder.patient_id,
-        sample_id: '', // Will be generated
-        sample_type: 'blood', // Could be derived from tests
-        collected_by: user?.id || null,
+        orderId: orderId,
+        patientId: patientId,
+        sampleType: 'blood', // Could be derived from tests
       });
 
-      // Update order status
-      await updateOrder.mutateAsync({
-        id: selectedOrder.id,
-        updates: {
-          status: 'collected',
-          collected_at: new Date().toISOString(),
-          collected_by: user?.id || null,
-        },
-      });
+      // Collect order using the correct endpoint
+      await collectOrder.mutateAsync(orderId);
 
-      setCollectedSampleId(sample.sample_id);
+      setCollectedSampleId(sample.sampleId || sample.sample_id);
       setShowConfirmModal(true);
-      toast.success(`Sample ${sample.sample_id} collected`);
+      toast.success(`Sample ${sample.sampleId || sample.sample_id} collected`);
     } catch (error) {
       toast.error('Failed to collect sample');
     }
@@ -97,26 +99,30 @@ export default function CollectSamplesPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold">{order.patients.first_name} {order.patients.last_name}</p>
+                          <p className="font-semibold">
+                            {getPatientName(order)}
+                          </p>
                           <Badge variant="outline" className={cn(
                             'text-xs',
                             order.priority === 'stat' ? 'bg-status-critical/10 text-status-critical border-status-critical/20' :
                             order.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning border-status-warning/20' :
                             'bg-muted text-muted-foreground'
                           )}>
-                            {order.priority.toUpperCase()}
+                            {order.priority?.toUpperCase() || 'ROUTINE'}
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-1">{order.patients.patient_id}</p>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          {getPatientId(order)}
+                        </p>
                         <p className="text-sm font-medium">
-                          {order.order_tests.map(t => t.test_code).join(', ')}
+                          {getOrderTests(order).map(t => t.testCode || t.test_code || 'Unknown').join(', ')}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Ordered: {new Date(order.created_at).toLocaleString()}
+                          Ordered: {new Date(getCreatedAt(order)).toLocaleString()}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-mono text-sm">{order.order_number}</p>
+                        <p className="font-mono text-sm">{getOrderNumber(order)}</p>
                       </div>
                     </div>
                   </button>
@@ -143,20 +149,22 @@ export default function CollectSamplesPage() {
                 <div className="bg-muted rounded-lg p-4">
                   <p className="text-sm text-muted-foreground">Patient</p>
                   <p className="font-semibold text-lg">
-                    {selectedOrder.patients.first_name} {selectedOrder.patients.last_name}
+                    {getPatientName(selectedOrder)}
                   </p>
-                  <p className="text-sm">{selectedOrder.patients.patient_id}</p>
+                  <p className="text-sm">
+                    {getPatientId(selectedOrder)}
+                  </p>
                 </div>
 
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Tests to Collect</p>
                   <div className="space-y-2">
-                    {selectedOrder.order_tests.map(test => (
-                      <div key={test.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
+                    {(selectedOrder.tests || selectedOrder.order_tests || []).map(test => (
+                      <div key={test.id || test._id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
                         <TestTube className="w-4 h-4 text-primary" />
                         <div>
-                          <p className="font-medium text-sm">{test.test_code}</p>
-                          <p className="text-xs text-muted-foreground">{test.test_name}</p>
+                          <p className="font-medium text-sm">{test.testCode || test.test_code || 'Unknown'}</p>
+                          <p className="text-xs text-muted-foreground">{test.testName || test.test_name || 'Unknown Test'}</p>
                         </div>
                       </div>
                     ))}
@@ -168,9 +176,9 @@ export default function CollectSamplesPage() {
                     className="w-full" 
                     size="lg" 
                     onClick={handleCollectSample}
-                    disabled={createSample.isPending || updateOrder.isPending}
+                    disabled={createSample.isPending || collectOrder.isPending}
                   >
-                    {(createSample.isPending || updateOrder.isPending) && (
+                    {(createSample.isPending || collectOrder.isPending) && (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     )}
                     <Check className="w-4 h-4 mr-2" />
@@ -210,12 +218,12 @@ export default function CollectSamplesPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Patient</span>
                   <span className="font-medium">
-                    {selectedOrder.patients.first_name} {selectedOrder.patients.last_name}
+                    {getPatientName(selectedOrder)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Order</span>
-                  <span className="font-mono">{selectedOrder.order_number}</span>
+                  <span className="font-mono">{getOrderNumber(selectedOrder)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Collected By</span>

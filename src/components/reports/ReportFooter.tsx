@@ -1,8 +1,10 @@
 import { LaboratoryInfo, ReportMetadata } from '../../hooks/useLabReport';
+import { ReportTemplate } from '../../hooks/useReportTemplates';
 
 interface ReportFooterProps {
   laboratoryInfo: LaboratoryInfo;
   reportMetadata: ReportMetadata;
+  template?: ReportTemplate;
 }
 
 function formatDateTime(dateString: string): string {
@@ -16,59 +18,62 @@ function formatDateTime(dateString: string): string {
   });
 }
 
-export function ReportFooter({ laboratoryInfo, reportMetadata }: ReportFooterProps) {
+export function ReportFooter({ laboratoryInfo, reportMetadata, template }: ReportFooterProps) {
+  const footerSettings = template?.footerSettings;
+  const footer = template?.footer;
+  const colors = template?.colors;
+  const styling = template?.styling;
+
+  const showWave = footerSettings?.showWave ?? footer?.showWaveDesign ?? true;
+  const primaryColor = footer?.waveColor1 || colors?.primary || styling?.primaryColor || '#1e40af';
+  const secondaryColor = footer?.waveColor2 || colors?.secondary || styling?.secondaryColor || '#10b981';
+  const disclaimerText =
+    footerSettings?.disclaimerText ||
+    footer?.disclaimerText ||
+    'All tests conducted using calibrated, automated systems ensuring high accuracy and precision. For detailed interpretation, kindly consult your healthcare provider.';
+  const footerText = footer?.footerText || 'OPEN 24/7 | ONSITE & ONLINE ACCESS | TRUSTED BY CLINICS & HOSPITALS';
+  
   return (
-    <div className="report-footer mt-8 pt-6 border-t-2 border-gray-300">
+    <div className="report-footer mt-6 pt-2">
       {/* Decorative wave */}
-      <div className="decorative-wave mb-4">
-        <svg 
-          viewBox="0 0 1200 100" 
-          className="w-full h-8 text-blue-600"
-          preserveAspectRatio="none"
-        >
-          <path 
-            d="M0,50 Q300,0 600,50 T1200,50 L1200,100 L0,100 Z" 
-            fill="currentColor"
-            opacity="0.2"
-          />
-        </svg>
-      </div>
+      {showWave && (
+        <div className="decorative-wave mb-2">
+          <svg 
+            viewBox="0 0 1200 100" 
+            className="w-full h-10"
+            preserveAspectRatio="none"
+          >
+            <path 
+              d="M0,40 Q300,0 600,35 T1200,40 L1200,100 L0,100 Z"
+              fill={primaryColor}
+              opacity="0.9"
+            />
+            <path
+              d="M0,60 Q300,20 600,55 T1200,60 L1200,100 L0,100 Z"
+              fill={secondaryColor}
+              opacity="0.95"
+            />
+          </svg>
+        </div>
+      )}
 
-      {/* Disclaimers */}
-      <div className="disclaimer text-xs text-gray-700 space-y-2 mb-4">
-        <p>
-          <strong>CONFIDENTIALITY NOTICE:</strong> This report contains confidential patient 
-          health information and is intended solely for the use of the requesting physician 
-          and patient. Unauthorized disclosure or distribution is prohibited.
-        </p>
-        <p>
-          <strong>CRITICAL RESULTS:</strong> Results marked as CRITICAL require immediate 
-          clinical attention and have been communicated to the ordering physician.
-        </p>
-      </div>
-
-      {/* Laboratory credentials */}
-      <div className="text-xs text-gray-600 space-y-1 mb-4">
-        {laboratoryInfo.accreditation && (
-          <p className="accreditation">
-            <strong>Accreditation:</strong> {laboratoryInfo.accreditation}
-          </p>
+      <div className="grid grid-cols-2 gap-8 items-end">
+        {footerSettings?.showDisclaimer !== false && footer?.showDisclaimer !== false ? (
+          <div className="text-[11px] text-gray-700 leading-relaxed">
+            <p className="font-semibold">Disclaimer:</p>
+            <p>{disclaimerText}</p>
+          </div>
+        ) : (
+          <div />
         )}
-        {laboratoryInfo.licenseNumber && (
-          <p className="license">
-            <strong>License No:</strong> {laboratoryInfo.licenseNumber}
-          </p>
-        )}
+
+        <div className="text-right text-[11px] font-semibold tracking-wide text-white bg-blue-900/80 px-3 py-1 rounded-sm">
+          {footerText}
+        </div>
       </div>
 
-      {/* Generation info */}
-      <p className="generation-info text-xs text-gray-600 mb-2">
-        Report generated on: {formatDateTime(reportMetadata.generatedAt)}
-      </p>
-
-      {/* End marker */}
-      <p className="end-marker text-center text-sm font-bold text-gray-700 mt-4">
-        *** END OF REPORT ***
+      <p className="generation-info text-[10px] text-gray-500 mt-2 text-right">
+        Generated: {formatDateTime(reportMetadata.generatedAt)}
       </p>
     </div>
   );

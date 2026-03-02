@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useLabReport } from '../../hooks/useLabReport';
+import { useReportTemplates } from '../../hooks/useReportTemplates';
 import { ReportHeader } from './ReportHeader';
 import { PatientInfoSection } from './PatientInfoSection';
 import { ResultsSection } from './ResultsSection';
@@ -44,7 +45,16 @@ interface LabResultReportProps {
  */
 export function LabResultReport({ orderId, onPrintComplete }: LabResultReportProps) {
   const { reportData, loading, error, refetch } = useLabReport(orderId);
+  const { template, loading: templateLoading } = useReportTemplates();
   const printRef = useRef<HTMLDivElement>(null);
+  const margins = template?.margins;
+  const paperSettings = template?.paperSettings;
+
+  const marginTop = margins?.top ?? paperSettings?.marginTop ?? 10;
+  const marginRight = margins?.right ?? paperSettings?.marginRight ?? 10;
+  const marginBottom = margins?.bottom ?? paperSettings?.marginBottom ?? 12;
+  const marginLeft = margins?.left ?? paperSettings?.marginLeft ?? 10;
+  const pageSize = 'A4';
 
   const handlePrint = () => {
     window.print();
@@ -61,7 +71,7 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
     }
   };
 
-  if (loading) {
+  if (loading || templateLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -132,18 +142,26 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
       {/* Report content */}
       <div 
         ref={printRef} 
-        className="report-container max-w-4xl mx-auto bg-white p-8 print:p-0"
+        className="report-container w-full max-w-[210mm] min-h-[297mm] mx-auto bg-white p-8 print:p-0"
       >
-        <ReportHeader laboratoryInfo={reportData.laboratoryInfo} />
+        <ReportHeader 
+          laboratoryInfo={reportData.laboratoryInfo} 
+          template={template}
+        />
         <PatientInfoSection 
           patientInfo={reportData.patientInfo} 
-          orderInfo={reportData.orderInfo} 
+          orderInfo={reportData.orderInfo}
+          template={template}
         />
-        <ResultsSection resultsByCategory={reportData.resultsByCategory} />
+        <ResultsSection 
+          resultsByCategory={reportData.resultsByCategory}
+          template={template}
+        />
         <VerificationSection verificationInfo={reportData.verificationInfo} />
         <ReportFooter 
           laboratoryInfo={reportData.laboratoryInfo} 
-          reportMetadata={reportData.reportMetadata} 
+          reportMetadata={reportData.reportMetadata}
+          template={template}
         />
       </div>
 
@@ -153,6 +171,8 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           body {
             margin: 0;
             padding: 0;
+            font-size: 10.5pt;
+            line-height: 1.25;
           }
           
           .no-print {
@@ -162,18 +182,57 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           .report-container {
             max-width: 100%;
             margin: 0;
-            padding: 20mm;
+            padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
             box-shadow: none;
+          }
+
+          .report-header {
+            margin-bottom: 3.5mm;
+            padding-bottom: 2mm;
+          }
+
+          .report-header h1 {
+            font-size: 18pt;
+            line-height: 1.05;
+          }
+
+          .patient-info-section {
+            margin-bottom: 3.5mm;
+          }
+
+          .category-section h3 {
+            font-size: 16pt;
+            margin-bottom: 1.5mm;
+          }
+
+          .results-table {
+            font-size: 10pt;
+          }
+
+          .results-table th,
+          .results-table td {
+            padding-top: 1.2mm;
+            padding-bottom: 1.2mm;
           }
           
           .page-break-inside-avoid {
             page-break-inside: avoid;
             break-inside: avoid;
           }
+
+          .category-page-break {
+            page-break-before: always;
+            break-before: page;
+          }
+
+          .panel-page-break {
+            page-break-before: always;
+            break-before: page;
+          }
           
           @page {
-            size: A4;
-            margin: 15mm;
+            size: ${pageSize} portrait;
+            margin: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
           }
           
           /* Ensure colors print */

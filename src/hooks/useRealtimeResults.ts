@@ -13,14 +13,12 @@ export function useRealtimeResults() {
 
     // Result created
     socket.on('result:created', (result) => {
-      console.log('Result created:', result);
       queryClient.invalidateQueries({ queryKey: ['results'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     });
 
     // Critical result alert
     socket.on('result:critical', (result) => {
-      console.log('Critical result:', result);
       queryClient.invalidateQueries({ queryKey: ['results'] });
       
       toast.error(`Critical Result: ${result.testName}`, {
@@ -32,7 +30,6 @@ export function useRealtimeResults() {
 
     // Result verified
     socket.on('result:verified', (result) => {
-      console.log('Result verified:', result);
       queryClient.invalidateQueries({ queryKey: ['results'] });
     });
 

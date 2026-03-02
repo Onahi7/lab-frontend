@@ -15,7 +15,9 @@ import {
   BarChart3,
   Shield,
   LucideIcon,
-  LogOut
+  LogOut,
+  Calculator,
+  FileEdit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -33,6 +35,9 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/admin/users', icon: Shield, label: 'User Management' },
     { to: '/admin/reports', icon: BarChart3, label: 'Reports' },
+    { to: '/admin/reconciliation', icon: Calculator, label: 'Reconciliation' },
+    { to: '/admin/payments', icon: CreditCard, label: 'Payments' },
+    { to: '/admin/report-template', icon: FileEdit, label: 'Report Template' },
     { to: '/admin/test-catalog', icon: FlaskConical, label: 'Test Catalog' },
     { to: '/admin/patients', icon: Users, label: 'All Patients' },
     { to: '/admin/orders', icon: ClipboardList, label: 'All Orders' },
@@ -47,7 +52,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/reception/new-order', icon: ClipboardList, label: 'New Order' },
     { to: '/reception/orders', icon: FileText, label: 'Orders' },
     { to: '/reception/payments', icon: CreditCard, label: 'Payments' },
-    { to: '/reception/enter-results', icon: FlaskConical, label: 'Enter Results' },
+    { to: '/reception/reconciliation', icon: Calculator, label: 'Reconciliation' },
+    { to: '/reception/enter-results', icon: FlaskConical, label: 'Quick Entry' },
     { to: '/reception/results', icon: FileCheck, label: 'View Results' },
   ],
   'lab-tech': [

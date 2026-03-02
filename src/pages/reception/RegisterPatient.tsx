@@ -10,6 +10,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { UserPlus, ArrowRight, Loader2 } from 'lucide-react';
 
+type AgeUnit = 'years' | 'months' | 'weeks' | 'days';
+
+const convertAgeToYears = (ageValue: number, ageUnit: AgeUnit): number => {
+  switch (ageUnit) {
+    case 'months':
+      return Number((ageValue / 12).toFixed(2));
+    case 'weeks':
+      return Number((ageValue / 52.1429).toFixed(2));
+    case 'days':
+      return Number((ageValue / 365.25).toFixed(2));
+    case 'years':
+    default:
+      return ageValue;
+  }
+};
+
+const normalizeSierraLeonePhone = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const digitsOnly = trimmed.replace(/\D/g, '');
+
+  if (!digitsOnly) {
+    return '';
+  }
+
+  if (digitsOnly.startsWith('232')) {
+    return `+${digitsOnly}`;
+  }
+
+  if (digitsOnly.startsWith('0')) {
+    return `+232${digitsOnly.slice(1)}`;
+  }
+
+  return `+232${digitsOnly}`;
+};
+
 export default function RegisterPatient() {
   const { profile } = useAuth();
   const createPatient = useCreatePatient();
@@ -19,6 +58,7 @@ export default function RegisterPatient() {
     firstName: '',
     lastName: '',
     age: '',
+    ageUnit: 'years' as AgeUnit,
     gender: '' as 'M' | 'F' | 'O' | '',
     phone: '',
     email: '',
@@ -35,19 +75,29 @@ export default function RegisterPatient() {
       return;
     }
 
-    const ageNum = parseInt(formData.age);
-    if (isNaN(ageNum) || ageNum < 0 || ageNum > 150) {
-      toast.error('Please enter a valid age (0-150)');
+    const ageValue = Number(formData.age);
+    if (isNaN(ageValue) || ageValue < 0) {
+      toast.error('Please enter a valid age value');
+      return;
+    }
+
+    const normalizedAge = convertAgeToYears(ageValue, formData.ageUnit);
+    if (normalizedAge > 150) {
+      toast.error('Age exceeds allowed limit (150 years)');
       return;
     }
 
     try {
+      const normalizedPhone = normalizeSierraLeonePhone(formData.phone);
+
       const newPatient = await createPatient.mutateAsync({
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
-        age: ageNum,
+        age: normalizedAge,
+        ageValue,
+        ageUnit: formData.ageUnit,
         gender: formData.gender as 'M' | 'F' | 'O',
-        phone: formData.phone.trim() || undefined,
+        phone: normalizedPhone || undefined,
         email: formData.email.trim() || undefined,
         address: formData.address.trim() || undefined,
       });
@@ -65,6 +115,7 @@ export default function RegisterPatient() {
       firstName: '',
       lastName: '',
       age: '',
+      ageUnit: 'years',
       gender: '',
       phone: '',
       email: '',
@@ -153,16 +204,32 @@ export default function RegisterPatient() {
             {/* Age */}
             <div className="space-y-2">
               <Label htmlFor="age">Age *</Label>
-              <Input
-                id="age"
-                type="number"
-                min="0"
-                max="150"
-                value={formData.age}
-                onChange={e => setFormData(prev => ({ ...prev, age: e.target.value }))}
-                placeholder="Enter age"
-                required
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  id="age"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.age}
+                  onChange={e => setFormData(prev => ({ ...prev, age: e.target.value }))}
+                  placeholder="Enter value"
+                  required
+                />
+                <Select
+                  value={formData.ageUnit}
+                  onValueChange={value => setFormData(prev => ({ ...prev, ageUnit: value as AgeUnit }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="years">Years</SelectItem>
+                    <SelectItem value="months">Months</SelectItem>
+                    <SelectItem value="weeks">Weeks</SelectItem>
+                    <SelectItem value="days">Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Gender */}
@@ -191,7 +258,7 @@ export default function RegisterPatient() {
                 type="tel"
                 value={formData.phone}
                 onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="+234 XXX XXX XXXX"
+                placeholder="+232 XX XXXXXX"
               />
             </div>
 

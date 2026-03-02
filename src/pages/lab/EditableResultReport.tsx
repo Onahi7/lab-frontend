@@ -93,8 +93,6 @@ export default function EditableResultReport() {
 
   const handleSave = () => {
     setIsEditing(false);
-    // Here you would typically save to backend
-    console.log('Saving report...', { patientInfo, testSections, verifiedBy, disclaimer });
   };
 
   const updateTestValue = (sectionIndex: number, testId: string, field: keyof TestResult, value: string) => {
@@ -163,8 +161,7 @@ export default function EditableResultReport() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">HARBOUR</h1>
-                <p className="text-lg text-gray-700">Medical Diagnostic</p>
+                <h1 className="text-2xl font-bold text-gray-900">HABOUR</h1>
                 <p className="text-xs text-gray-500 italic">Motto: Automated Precision...</p>
               </div>
             </div>

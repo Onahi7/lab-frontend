@@ -1,6 +1,19 @@
 import { testCatalogAPI } from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+interface ReferenceRangeItem {
+  ageGroup?: string;
+  ageMin?: number;
+  ageMax?: number;
+  gender?: 'M' | 'F' | 'all';
+  pregnancy?: boolean;
+  condition?: string;
+  range: string;
+  unit?: string;
+  criticalLow?: string;
+  criticalHigh?: string;
+}
+
 interface TestCatalog {
   id: string;
   name: string;
@@ -11,6 +24,9 @@ interface TestCatalog {
   description?: string;
   sampleType?: string;
   turnaroundTime?: number;
+  unit?: string;
+  referenceRange?: string;
+  referenceRanges?: ReferenceRangeItem[];
   createdAt: string;
   updatedAt: string;
 }

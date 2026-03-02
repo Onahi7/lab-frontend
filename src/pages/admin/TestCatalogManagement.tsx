@@ -69,11 +69,11 @@ export default function TestCatalogManagement() {
       name: test.name,
       category: test.category,
       price: test.price.toString(),
-      turnaround_time: test.turnaround_time?.toString() || '60',
-      sample_type: test.sample_type,
-      reference_range: test.reference_range || '',
+      turnaround_time: test.turnaroundTime?.toString() || '60',
+      sample_type: test.sampleType,
+      reference_range: test.referenceRange || '',
       unit: test.unit || '',
-      is_active: test.is_active
+      is_active: test.isActive
     });
     setShowDialog(true);
   };
@@ -90,11 +90,11 @@ export default function TestCatalogManagement() {
         name: formData.name,
         category: formData.category,
         price: parseFloat(formData.price),
-        turnaround_time: parseInt(formData.turnaround_time),
-        sample_type: formData.sample_type,
-        reference_range: formData.reference_range || null,
+        turnaroundTime: parseInt(formData.turnaround_time),
+        sampleType: formData.sample_type,
+        referenceRange: formData.reference_range || null,
         unit: formData.unit || null,
-        is_active: formData.is_active
+        isActive: formData.is_active
       };
 
       if (editingTest) {
@@ -125,9 +125,9 @@ export default function TestCatalogManagement() {
     try {
       await updateTest.mutateAsync({
         id: test.id,
-        updates: { is_active: !test.is_active }
+        updates: { isActive: !test.isActive }
       });
-      toast.success(`Test ${test.is_active ? 'deactivated' : 'activated'}`);
+      toast.success(`Test ${test.isActive ? 'deactivated' : 'activated'}`);
     } catch (error) {
       toast.error('Failed to update test status');
     }
@@ -182,13 +182,13 @@ export default function TestCatalogManagement() {
         <div className="bg-card border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">Active Tests</p>
           <p className="text-2xl font-bold text-status-normal">
-            {tests?.filter(t => t.is_active).length || 0}
+            {tests?.filter(t => t.isActive).length || 0}
           </p>
         </div>
         <div className="bg-card border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">Inactive Tests</p>
           <p className="text-2xl font-bold text-muted-foreground">
-            {tests?.filter(t => !t.is_active).length || 0}
+            {tests?.filter(t => !t.isActive).length || 0}
           </p>
         </div>
         <div className="bg-card border rounded-lg p-4">
@@ -226,9 +226,9 @@ export default function TestCatalogManagement() {
                   <td>
                     <div>
                       <p className="font-medium">{test.name}</p>
-                      {test.reference_range && (
+                      {test.referenceRange && (
                         <p className="text-xs text-muted-foreground">
-                          Range: {test.reference_range} {test.unit}
+                          Range: {test.referenceRange} {test.unit}
                         </p>
                       )}
                     </div>
@@ -238,15 +238,15 @@ export default function TestCatalogManagement() {
                       {test.category}
                     </Badge>
                   </td>
-                  <td className="capitalize">{test.sample_type}</td>
+                  <td className="capitalize">{test.sampleType}</td>
                   <td className="font-semibold">Le {Number(test.price).toLocaleString()}</td>
-                  <td>{test.turnaround_time} min</td>
+                  <td>{test.turnaroundTime} min</td>
                   <td>
                     <button
                       onClick={() => handleToggleActive(test)}
                       className="flex items-center gap-1"
                     >
-                      {test.is_active ? (
+                      {test.isActive ? (
                         <>
                           <CheckCircle className="w-4 h-4 text-status-normal" />
                           <span className="text-sm text-status-normal">Active</span>

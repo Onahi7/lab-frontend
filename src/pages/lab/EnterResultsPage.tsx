@@ -3,7 +3,7 @@ import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useProcessingOrders, useUpdateOrder } from '@/hooks/useOrders';
 import { useCreateResult } from '@/hooks/useResults';
-import { useTestCatalog } from '@/hooks/useTestCatalog';
+import { useActiveTests } from '@/hooks/useTestCatalog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,9 +13,10 @@ import { toast } from 'sonner';
 import { FileText, Check, AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
-import type { Database } from '@/integrations/supabase/types';
+import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
+import { SendToAnalyzerDialog } from '@/components/machines/SendToAnalyzerDialog';
 
-type ResultFlag = Database['public']['Enums']['result_flag'];
+type ResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
 
 interface ResultEntry {
   testId: string;
@@ -31,21 +32,47 @@ interface ResultEntry {
 export default function EnterResultsPage() {
   const { profile, user } = useAuth();
   const { data: processingOrders, isLoading } = useProcessingOrders();
-  const { data: testCatalog } = useTestCatalog();
+  const { data: testCatalog } = useActiveTests();
   const updateOrder = useUpdateOrder();
   const createResult = useCreateResult();
 
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [resultEntries, setResultEntries] = useState<Record<string, ResultEntry>>({});
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSendToAnalyzer, setShowSendToAnalyzer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get reference info from test catalog
-  const getTestInfo = (testCode: string) => {
-    const test = testCatalog?.find(t => t.code === testCode);
+  const getTestInfo = (testCode: string, patientAge?: number, patientGender?: string) => {
+    const test = testCatalog?.find((t: any) => t.code === testCode);
+    if (!test) {
+      return { unit: '', referenceRange: '' };
+    }
+
+    let referenceRange = test.referenceRange || '';
+    
+    // If we have age/gender-specific ranges, find the best match
+    if (test.referenceRanges && test.referenceRanges.length > 0 && patientAge !== undefined) {
+      const matchedRange = test.referenceRanges.find((r: any) => {
+        // Check age range
+        const ageMatch = 
+          (r.ageMin === undefined || patientAge >= r.ageMin) &&
+          (r.ageMax === undefined || patientAge <= r.ageMax);
+        
+        // Check gender
+        const genderMatch = !r.gender || r.gender === 'all' || r.gender === patientGender;
+        
+        return ageMatch && genderMatch;
+      });
+
+      if (matchedRange) {
+        referenceRange = `${matchedRange.range} ${matchedRange.unit || test.unit || ''}`.trim();
+      }
+    }
+
     return {
-      unit: test?.unit || '',
-      referenceRange: test?.reference_range || '',
+      unit: test.unit || '',
+      referenceRange,
     };
   };
 
@@ -53,11 +80,12 @@ export default function EnterResultsPage() {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return 'normal';
 
-    const test = testCatalog?.find(t => t.code === testCode);
-    if (!test?.reference_range) return 'normal';
+    const test = testCatalog?.find((t: any) => t.code === testCode);
+    const rangeStr = test?.referenceRange || test?.reference_range;
+    if (!rangeStr) return 'normal';
 
     // Parse reference range like "70-100" or "4.5-11.0"
-    const match = test.reference_range.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
+    const match = rangeStr.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
     if (!match) return 'normal';
 
     const low = parseFloat(match[1]);
@@ -74,17 +102,21 @@ export default function EnterResultsPage() {
     return 'normal';
   };
 
-  const handleValueChange = (orderTest: OrderWithDetails['order_tests'][0], value: string) => {
-    const testInfo = getTestInfo(orderTest.test_code);
-    const flag = calculateFlag(value, orderTest.test_code);
+  const handleValueChange = (orderTest: any, value: string) => {
+    const testCode = orderTest.testCode || orderTest.test_code || '';
+    const patientAge = (selectedOrder?.patient || selectedOrder?.patientId)?.age;
+    const patientGender = (selectedOrder?.patient || selectedOrder?.patientId)?.gender;
+    const testInfo = getTestInfo(testCode, patientAge, patientGender);
+    const flag = calculateFlag(value, testCode);
+    const entryKey = orderTest.id || orderTest._id || testCode;
 
     setResultEntries(prev => ({
       ...prev,
-      [orderTest.id]: {
-        testId: orderTest.test_id,
-        orderTestId: orderTest.id,
-        testCode: orderTest.test_code,
-        testName: orderTest.test_name,
+      [entryKey]: {
+        testId: orderTest.testId || orderTest.test_id || entryKey,
+        orderTestId: entryKey,
+        testCode,
+        testName: orderTest.testName || orderTest.test_name || testCode,
         value,
         unit: testInfo.unit,
         referenceRange: testInfo.referenceRange,
@@ -122,34 +154,28 @@ export default function EnterResultsPage() {
       // Create results
       for (const entry of entries) {
         await createResult.mutateAsync({
-          order_id: selectedOrder.id,
-          order_test_id: entry.orderTestId,
-          test_code: entry.testCode,
-          test_name: entry.testName,
+          orderId: selectedOrder.id || (selectedOrder as any)._id,
+          orderTestId: entry.orderTestId,
+          testCode: entry.testCode,
+          testName: entry.testName,
           value: entry.value,
-          unit: entry.unit || null,
-          reference_range: entry.referenceRange || null,
+          unit: entry.unit || undefined,
+          referenceRange: entry.referenceRange || undefined,
           flag: entry.flag,
-          resulted_by: user?.id || null,
-          status: 'preliminary',
-        });
+        } as any);
       }
 
       // Update order status if all tests have results
-      if (entries.length >= selectedOrder.order_tests.length) {
+      const orderTests = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
+      if (entries.length >= orderTests.length) {
         await updateOrder.mutateAsync({
-          id: selectedOrder.id,
-          updates: {
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-          },
+          id: selectedOrder.id || (selectedOrder as any)._id,
+          updates: { status: 'completed' },
         });
       } else {
         await updateOrder.mutateAsync({
-          id: selectedOrder.id,
-          updates: {
-            status: 'processing',
-          },
+          id: selectedOrder.id || (selectedOrder as any)._id,
+          updates: { status: 'processing' },
         });
       }
 
@@ -207,18 +233,22 @@ export default function EnterResultsPage() {
                     }}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <p className="font-medium">{order.patients.first_name} {order.patients.last_name}</p>
+                      <p className="font-medium">
+                        {getPatientName(order)}
+                      </p>
                       <Badge variant="outline" className={cn(
                         'text-xs',
                         order.priority === 'stat' ? 'bg-status-critical/10 text-status-critical' :
                         order.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
                         'bg-muted'
                       )}>
-                        {order.priority.toUpperCase()}
+                        {order.priority?.toUpperCase() || 'ROUTINE'}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{order.order_number}</p>
-                    <p className="text-xs mt-1">{order.order_tests.map(t => t.test_code).join(', ')}</p>
+                    <p className="text-sm text-muted-foreground">{getOrderNumber(order)}</p>
+                    <p className="text-xs mt-1">
+                      {((order as any).tests || (order as any).order_tests || []).map((t: any) => t.testCode || t.test_code || '').filter(Boolean).join(', ')}
+                    </p>
                   </button>
                 ))}
                 {(!processingOrders || processingOrders.length === 0) && (
@@ -241,62 +271,129 @@ export default function EnterResultsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-lg">
-                        {selectedOrder.patients.first_name} {selectedOrder.patients.last_name}
+                        {getPatientName(selectedOrder)}
                       </h3>
-                      <p className="text-sm text-muted-foreground">{selectedOrder.order_number}</p>
+                      <p className="text-sm text-muted-foreground">{getOrderNumber(selectedOrder)}</p>
                     </div>
-                    <Badge variant="outline" className={cn(
-                      selectedOrder.priority === 'stat' ? 'bg-status-critical/10 text-status-critical' :
-                      selectedOrder.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
-                      'bg-muted text-muted-foreground'
-                    )}>
-                      {selectedOrder.priority.toUpperCase()}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSendToAnalyzer(true)}
+                      >
+                        <FileText className="w-4 h-4 mr-1" />
+                        Send to Analyzer
+                      </Button>
+                      <Badge variant="outline" className={cn(
+                        selectedOrder.priority === 'stat' ? 'bg-status-critical/10 text-status-critical' :
+                        selectedOrder.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
+                        'bg-muted text-muted-foreground'
+                      )}>
+                        {selectedOrder.priority.toUpperCase()}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {selectedOrder.order_tests.map(test => {
-                    const entry = resultEntries[test.id];
-                    const testInfo = getTestInfo(test.test_code);
-                    
+                {/* Send to Analyzer Dialog */}
+                <SendToAnalyzerDialog
+                  open={showSendToAnalyzer}
+                  onOpenChange={setShowSendToAnalyzer}
+                  orderId={selectedOrder.id || (selectedOrder as any)._id}
+                  orderNumber={getOrderNumber(selectedOrder)}
+                  testCodes={((selectedOrder as any).tests || (selectedOrder as any).order_tests || []).map((t: any) => t.testCode || t.test_code || '').filter(Boolean)}
+                />
+
+                {(() => {
+                  const allTests: any[] = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
+                  const patientAge = (selectedOrder.patient || selectedOrder.patientId)?.age;
+                  const patientGender = (selectedOrder.patient || selectedOrder.patientId)?.gender;
+
+                  // Group tests: panels first (keyed by panelCode), then standalone
+                  const panelMap = new Map<string, { panelName: string; tests: any[] }>();
+                  const standaloneTests: any[] = [];
+
+                  for (const test of allTests) {
+                    const pc = test.panelCode || test.panel_code;
+                    const pn = test.panelName || test.panel_name;
+                    if (pc) {
+                      if (!panelMap.has(pc)) panelMap.set(pc, { panelName: pn || pc, tests: [] });
+                      panelMap.get(pc)!.tests.push(test);
+                    } else {
+                      standaloneTests.push(test);
+                    }
+                  }
+
+                  const renderTestRow = (test: any) => {
+                    const testCode = test.testCode || test.test_code || '';
+                    const testName = test.testName || test.test_name || testCode;
+                    const testKey = test.id || test._id || testCode;
+                    const entry = resultEntries[testKey];
+                    const testInfo = getTestInfo(testCode, patientAge, patientGender);
+
                     return (
-                      <div key={test.id} className="grid grid-cols-12 gap-4 items-end p-4 bg-muted/30 rounded-lg">
-                        <div className="col-span-3">
-                          <Label className="text-xs text-muted-foreground">Test</Label>
-                          <p className="font-medium">{test.test_code}</p>
-                          <p className="text-xs text-muted-foreground">{test.test_name}</p>
+                      <div key={testKey} className="grid grid-cols-12 gap-3 items-center py-3 px-3 border-b last:border-b-0">
+                        <div className="col-span-4">
+                          <p className="font-medium text-sm">{testCode}</p>
+                          <p className="text-xs text-muted-foreground">{testName}</p>
                         </div>
                         <div className="col-span-3">
-                          <Label htmlFor={`value-${test.id}`}>Result</Label>
                           <Input
-                            id={`value-${test.id}`}
-                            type="number"
-                            step="0.01"
-                            placeholder="Enter value"
+                            id={`value-${testKey}`}
+                            placeholder="Value"
                             value={entry?.value || ''}
                             onChange={e => handleValueChange(test, e.target.value)}
+                            className="h-8 text-sm"
                           />
                         </div>
-                        <div className="col-span-2">
-                          <Label className="text-xs text-muted-foreground">Unit</Label>
-                          <p className="font-medium text-sm py-2">{testInfo.unit || '-'}</p>
-                        </div>
-                        <div className="col-span-2">
-                          <Label className="text-xs text-muted-foreground">Reference</Label>
-                          <p className="font-medium text-sm py-2">{testInfo.referenceRange || '-'}</p>
-                        </div>
-                        <div className="col-span-2">
+                        <div className="col-span-2 text-xs text-muted-foreground">{testInfo.unit || '-'}</div>
+                        <div className="col-span-2 text-xs text-muted-foreground">{testInfo.referenceRange || '-'}</div>
+                        <div className="col-span-1 flex justify-end">
                           {entry?.value && (
-                            <Badge variant="outline" className={cn(flagStyles[entry.flag])}>
-                              {entry.flag === 'normal' ? 'Normal' : entry.flag.replace('_', ' ').toUpperCase()}
+                            <Badge variant="outline" className={cn('text-xs', flagStyles[entry.flag])}>
+                              {entry.flag === 'normal' ? '✓' : entry.flag === 'critical_high' || entry.flag === 'critical_low' ? '!!' : entry.flag === 'high' ? '↑' : '↓'}
                             </Badge>
                           )}
                         </div>
                       </div>
                     );
-                  })}
-                </div>
+                  };
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Column header */}
+                      <div className="grid grid-cols-12 gap-3 px-3 pb-1 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        <div className="col-span-4">Test</div>
+                        <div className="col-span-3">Result</div>
+                        <div className="col-span-2">Unit</div>
+                        <div className="col-span-2">Reference</div>
+                        <div className="col-span-1"></div>
+                      </div>
+
+                      {/* Panel groups */}
+                      {Array.from(panelMap.entries()).map(([pc, group]) => (
+                        <div key={pc} className="rounded-lg border overflow-hidden">
+                          <div className="bg-primary/8 px-3 py-2 border-b">
+                            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{group.panelName}</p>
+                          </div>
+                          {group.tests.map(renderTestRow)}
+                        </div>
+                      ))}
+
+                      {/* Standalone tests */}
+                      {standaloneTests.length > 0 && (
+                        <div className="rounded-lg border overflow-hidden">
+                          {panelMap.size > 0 && (
+                            <div className="bg-muted/50 px-3 py-2 border-b">
+                              <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Individual Tests</p>
+                            </div>
+                          )}
+                          {standaloneTests.map(renderTestRow)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
                   <Button variant="outline" onClick={() => setSelectedOrder(null)}>

@@ -1,48 +1,49 @@
-import { machinesAPI } from '@/services/api';
+import { communicationLogsAPI, machinesAPI } from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-interface Machine {
+export interface Machine {
   id: string;
   name: string;
-  model: string;
+  modelName: string;
   serialNumber: string;
   manufacturer: string;
-  status: 'online' | 'offline' | 'maintenance' | 'error';
+  status: 'online' | 'offline' | 'error' | 'processing';
   ipAddress?: string;
   port?: number;
-  protocol: 'HL7' | 'ASTM' | 'LIS2-A2';
+  protocol: 'HL7' | 'ASTM' | 'LIS2_A2' | 'FHIR';
+  testsSupported?: string[];
   lastCommunication?: string;
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-interface MachineCreate {
+export interface MachineCreate {
   name: string;
-  model: string;
+  modelName: string;
   serialNumber: string;
   manufacturer: string;
   ipAddress?: string;
   port?: number;
-  protocol: 'HL7' | 'ASTM' | 'LIS2-A2';
+  protocol: 'HL7' | 'ASTM' | 'LIS2_A2' | 'FHIR';
+  testsSupported?: string[];
 }
 
 interface MachineUpdate {
   name?: string;
-  model?: string;
+  modelName?: string;
   serialNumber?: string;
   manufacturer?: string;
-  status?: 'online' | 'offline' | 'maintenance' | 'error';
+  status?: 'online' | 'offline' | 'error' | 'processing';
   ipAddress?: string;
   port?: number;
-  protocol?: 'HL7' | 'ASTM' | 'LIS2-A2';
-  isActive?: boolean;
+  protocol?: 'HL7' | 'ASTM' | 'LIS2_A2' | 'FHIR';
+  testsSupported?: string[];
 }
 
 interface MaintenanceRecord {
   id: string;
   machineId: string;
-  type: 'preventive' | 'corrective' | 'calibration';
+  maintenanceType: 'preventive' | 'corrective' | 'calibration' | 'validation';
   description: string;
   performedBy: string;
   performedAt: string;
@@ -51,10 +52,11 @@ interface MaintenanceRecord {
   notes?: string;
 }
 
-interface MaintenanceCreate {
-  type: 'preventive' | 'corrective' | 'calibration';
+export interface MaintenanceCreate {
+  maintenanceType: 'preventive' | 'corrective' | 'calibration' | 'validation';
   description: string;
   performedBy: string;
+  performedAt: string;
   nextDueDate?: string;
   cost?: number;
   notes?: string;
@@ -144,10 +146,38 @@ export function useAddMaintenance() {
 export function useTestMachineConnection() {
   return useMutation({
     mutationFn: async ({ machineId }: { machineId: string }) => {
-      // This would typically test the connection to the machine
-      // For now, we'll simulate a connection test
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return { success: true, message: 'Connection successful' };
+      return await machinesAPI.testConnection(machineId) as { success: boolean; message: string; latency?: number };
     },
+  });
+}
+
+export function useSendOrderToMachine() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ orderId, machineId }: { orderId: string; machineId: string }) => {
+      return await communicationLogsAPI.sendOrderToMachine(orderId, machineId) as { success: boolean; message: string };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communication-logs'] });
+    },
+  });
+}
+
+export function useRestartListener() {
+  return useMutation({
+    mutationFn: async ({ machineId }: { machineId: string }) => {
+      return await communicationLogsAPI.restartListener(machineId) as { success: boolean; message: string };
+    },
+  });
+}
+
+export function useListenerStatus() {
+  return useQuery({
+    queryKey: ['listener-status'],
+    queryFn: async () => {
+      return await communicationLogsAPI.getListenerStatus() as Array<{ machineId: string; listening: boolean }>;
+    },
+    refetchInterval: 30000,
   });
 }

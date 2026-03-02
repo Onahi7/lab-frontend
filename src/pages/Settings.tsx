@@ -59,7 +59,7 @@ export default function Settings() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Laboratory Name</label>
-              <Input defaultValue="Central Diagnostics Lab" className="mt-1" />
+              <Input defaultValue="Habour" className="mt-1" />
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">License Number</label>

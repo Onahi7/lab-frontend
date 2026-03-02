@@ -12,7 +12,6 @@ export function useRealtimeOrders() {
 
     // Order created
     socket.on('order:created', (order) => {
-      console.log('Order created:', order);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.info(`New order: ${order.orderNumber}`, {
         description: `Patient: ${order.patientId?.firstName} ${order.patientId?.lastName}`,
@@ -21,14 +20,12 @@ export function useRealtimeOrders() {
 
     // Order updated
     socket.on('order:updated', (order) => {
-      console.log('Order updated:', order);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['orders', order._id] });
     });
 
     // Order status changed
     socket.on('order:status_changed', ({ orderId, status, orderNumber }) => {
-      console.log('Order status changed:', orderNumber, status);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
       

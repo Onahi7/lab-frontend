@@ -105,7 +105,7 @@ api.interceptors.response.use(
         });
 
         const { accessToken, refreshToken: newRefreshToken } = response.data;
-        setTokens(accessToken, newRefreshToken);
+        setTokens(accessToken, newRefreshToken || refreshToken);
 
         // Update authorization header
         if (originalRequest.headers) {
@@ -155,7 +155,10 @@ export const authAPI = {
     const refreshToken = getRefreshToken();
     const response = await api.post('/auth/refresh', { refreshToken });
     const { accessToken, refreshToken: newRefreshToken } = response.data;
-    setTokens(accessToken, newRefreshToken);
+    const tokenToPersist = newRefreshToken || refreshToken;
+    if (tokenToPersist) {
+      setTokens(accessToken, tokenToPersist);
+    }
     return response.data;
   },
 };
@@ -209,7 +212,9 @@ export const patientsAPI = {
 export const ordersAPI = {
   getAll: async (params?: any) => {
     const response = await api.get('/orders', { params });
-    return response.data;
+    // Backend returns paginated data { data, total, page, limit }
+    // Return just the data array for compatibility
+    return response.data.data || response.data;
   },
 
   getById: async (id: string) => {
@@ -239,16 +244,40 @@ export const ordersAPI = {
 
   getPendingCollection: async () => {
     const response = await api.get('/orders/pending-collection');
-    return response.data;
+    return response.data.data || response.data;
   },
 
   getPendingResults: async () => {
     const response = await api.get('/orders/pending-results');
+    return response.data.data || response.data;
+  },
+
+  getPaymentStats: async (startDate?: string, endDate?: string) => {
+    const response = await api.get('/orders/stats/payment', {
+      params: { startDate, endDate },
+    });
+    return response.data;
+  },
+
+  getDailyIncome: async (startDate?: string, endDate?: string) => {
+    const response = await api.get('/orders/stats/daily-income', {
+      params: { startDate, endDate },
+    });
     return response.data;
   },
 
   getTests: async (id: string) => {
     const response = await api.get(`/orders/${id}/tests`);
+    return response.data;
+  },
+
+  addPayment: async (id: string, data: { amount: number; paymentMethod: string; notes?: string }) => {
+    const response = await api.post(`/orders/${id}/payment`, data);
+    return response.data;
+  },
+
+  getPaymentHistory: async (id: string) => {
+    const response = await api.get(`/orders/${id}/payments`);
     return response.data;
   },
 };
@@ -283,7 +312,7 @@ export const samplesAPI = {
 export const resultsAPI = {
   getAll: async (params?: any) => {
     const response = await api.get('/results', { params });
-    return response.data;
+    return response.data.results || response.data.data || response.data;
   },
 
   getById: async (id: string) => {
@@ -313,12 +342,12 @@ export const resultsAPI = {
 
   getPendingVerification: async () => {
     const response = await api.get('/results/pending-verification');
-    return response.data;
+    return response.data.results || response.data.data || response.data;
   },
 
   getCritical: async () => {
     const response = await api.get('/results/critical');
-    return response.data;
+    return response.data.results || response.data.data || response.data;
   },
 };
 
@@ -329,7 +358,7 @@ export const testCatalogAPI = {
   },
 
   getActive: async () => {
-    const response = await api.get('/test-catalog/active');
+    const response = await api.get('/test-catalog/active-with-panels');
     return response.data;
   },
 
@@ -407,6 +436,16 @@ export const machinesAPI = {
     const response = await api.post(`/machines/${id}/maintenance`, data);
     return response.data;
   },
+
+  testConnection: async (id: string) => {
+    const response = await api.post(`/machines/${id}/test-connection`);
+    return response.data;
+  },
+
+  getOnlineMachines: async () => {
+    const response = await api.get('/machines/online');
+    return response.data;
+  },
 };
 
 export const usersAPI = {
@@ -479,6 +518,18 @@ export const reportsAPI = {
     });
     return response.data;
   },
+
+  getTestDistribution: async (startDate?: string, endDate?: string) => {
+    const response = await api.get('/reports/test-distribution', {
+      params: { startDate, endDate },
+    });
+    return response.data;
+  },
+
+  getLabResultReport: async (orderId: string) => {
+    const response = await api.get(`/reports/lab-results/${orderId}`);
+    return response.data;
+  },
 };
 
 export const auditAPI = {
@@ -540,17 +591,130 @@ export const communicationLogsAPI = {
     const response = await api.get(`/hl7/logs/${id}`);
     return response.data;
   },
+
+  getUnmatchedResults: async () => {
+    const response = await api.get('/hl7/unmatched-results');
+    return response.data;
+  },
+
+  matchResult: async (resultIndex: number, orderId: string) => {
+    const response = await api.post('/hl7/match-result', { resultIndex, orderId });
+    return response.data;
+  },
+
+  rejectResult: async (index: number) => {
+    const response = await api.post(`/hl7/reject-result/${index}`);
+    return response.data;
+  },
+
+  sendOrderToMachine: async (orderId: string, machineId: string) => {
+    const response = await api.post('/hl7/send-order', { orderId, machineId });
+    return response.data;
+  },
+
+  restartListener: async (machineId: string) => {
+    const response = await api.post(`/hl7/restart-listener/${machineId}`);
+    return response.data;
+  },
+
+  getListenerStatus: async () => {
+    const response = await api.get('/hl7/listener-status');
+    return response.data;
+  },
 };
 
-// Critical result notifications
+// Critical result notifications (use resultsAPI.getCritical() instead)
+// Keeping for backward compatibility, but getUnacknowledged is duplicate of resultsAPI.getCritical
 export const criticalResultsAPI = {
   getUnacknowledged: async () => {
     const response = await api.get('/results/critical');
     return response.data;
   },
 
-  acknowledge: async (notificationId: string) => {
-    const response = await api.post(`/results/${notificationId}/acknowledge`);
+  // Note: acknowledge endpoint does not exist in backend
+  // Critical results should be handled through result verification workflow
+};
+
+export const reconciliationAPI = {
+  getExpectedAmounts: async (date: string) => {
+    const response = await api.get(`/reconciliation/expected/${date}`);
+    return response.data;
+  },
+
+  getAll: async (status?: string) => {
+    const response = await api.get('/reconciliation', {
+      params: status ? { status } : {},
+    });
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/reconciliation/${id}`);
+    return response.data;
+  },
+
+  create: async (data: any) => {
+    const response = await api.post('/reconciliation', data);
+    return response.data;
+  },
+
+  review: async (id: string, approved: boolean, notes?: string) => {
+    const response = await api.post(`/reconciliation/${id}/review`, {
+      approved,
+      notes,
+    });
+    return response.data;
+  },
+
+  getPendingCount: async () => {
+    const response = await api.get('/reconciliation/pending/count');
+    return response.data;
+  },
+};
+
+export const reportTemplatesAPI = {
+  getAll: async () => {
+    const response = await api.get('/report-templates');
+    return response.data;
+  },
+
+  getDefault: async () => {
+    const response = await api.get('/report-templates/default');
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/report-templates/${id}`);
+    return response.data;
+  },
+
+  create: async (data: any) => {
+    const response = await api.post('/report-templates', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await api.patch(`/report-templates/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    await api.delete(`/report-templates/${id}`);
+  },
+
+  setDefault: async (id: string) => {
+    const response = await api.post(`/report-templates/${id}/set-default`);
+    return response.data;
+  },
+
+  uploadLogo: async (file: File) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const response = await api.post('/report-templates/upload-logo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 };

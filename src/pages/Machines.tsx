@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useMachines, useTestMachineConnection, useUpdateMachine } from '@/hooks/useMachines';
+import { useMachines, useTestMachineConnection, useUpdateMachine, useCreateMachine, useRestartListener, useListenerStatus, type Machine, type MachineCreate } from '@/hooks/useMachines';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw, Settings, Wifi, WifiOff, Activity, Send, CheckCircle, XCircle, Loader2, Radio } from 'lucide-react';
+import { Plus, RefreshCw, Settings, Wifi, WifiOff, Activity, Send, CheckCircle, XCircle, Loader2, RotateCw, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -12,20 +12,22 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { LiveConnectionMonitor } from '@/components/machines/LiveConnectionMonitor';
-import type { Database } from '@/integrations/supabase/types';
 
-type Machine = Database['public']['Tables']['machines']['Row'];
-type MachineStatus = Database['public']['Enums']['machine_status'];
-type MachineProtocol = Database['public']['Enums']['machine_protocol'];
+type MachineStatus = Machine['status'];
+type MachineProtocol = Machine['protocol'];
 
 export default function Machines() {
   const { data: machines, isLoading, refetch } = useMachines();
   const testConnection = useTestMachineConnection();
   const updateMachine = useUpdateMachine();
+  const createMachine = useCreateMachine();
+  const restartListener = useRestartListener();
+  const { data: listenerStatuses } = useListenerStatus();
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [isTestOpen, setIsTestOpen] = useState(false);
-  const [testResult, setTestResult] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [testResult, setTestResult] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message?: string }>({ status: 'idle' });
 
   const statusConfig: Record<MachineStatus, { indicator: string; label: string; icon: typeof Wifi; labelClass: string }> = {
     online: {
@@ -57,15 +59,20 @@ export default function Machines() {
   const handleTestConnection = async (machine: Machine) => {
     setSelectedMachine(machine);
     setIsTestOpen(true);
-    setTestResult('testing');
+    setTestResult({ status: 'testing' });
     
     try {
-      await testConnection.mutateAsync(machine.id);
-      setTestResult('success');
-      toast.success(`Connection to ${machine.name} successful`);
+      const result = await testConnection.mutateAsync({ machineId: machine.id });
+      if (result.success) {
+        setTestResult({ status: 'success', message: result.message });
+        toast.success(`Connection to ${machine.name} successful`);
+      } else {
+        setTestResult({ status: 'error', message: result.message });
+        toast.error(`Failed to connect to ${machine.name}: ${result.message}`);
+      }
       refetch();
     } catch (error) {
-      setTestResult('error');
+      setTestResult({ status: 'error', message: 'Unexpected error during connection test' });
       toast.error(`Failed to connect to ${machine.name}`);
     }
   };
@@ -75,19 +82,42 @@ export default function Machines() {
     toast.success('Machine status refreshed');
   };
 
+  const handleRestartListener = async (machine: Machine) => {
+    try {
+      await restartListener.mutateAsync({ machineId: machine.id });
+      toast.success(`TCP listener restarted for ${machine.name}`);
+    } catch (error) {
+      toast.error(`Failed to restart listener for ${machine.name}`);
+    }
+  };
+
+  const getListenerStatus = (machineId: string): boolean => {
+    return listenerStatuses?.some(s => s.machineId === machineId && s.listening) ?? false;
+  };
+
   const handleConfigSave = async (updates: Partial<Machine>) => {
     if (!selectedMachine) return;
     
     try {
       await updateMachine.mutateAsync({
         id: selectedMachine.id,
-        updates: updates as Database['public']['Tables']['machines']['Update']
+        updates,
       });
       toast.success('Machine configuration saved');
       setIsConfigOpen(false);
       refetch();
     } catch (error) {
       toast.error('Failed to save configuration');
+    }
+  };
+
+  const handleAddMachine = async (data: MachineCreate) => {
+    try {
+      await createMachine.mutateAsync(data);
+      toast.success('Machine added successfully');
+      setIsAddOpen(false);
+    } catch (error) {
+      toast.error('Failed to add machine');
     }
   };
 
@@ -111,7 +141,7 @@ export default function Machines() {
             Refresh Status
           </Button>
         </div>
-        <Button>
+        <Button onClick={() => setIsAddOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add Machine
         </Button>
@@ -138,7 +168,7 @@ export default function Machines() {
                   <div>
                     <h3 className="font-semibold text-lg">{machine.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {machine.manufacturer} {machine.model}
+                      {machine.manufacturer} {machine.modelName}
                     </p>
                   </div>
                 </div>
@@ -153,7 +183,7 @@ export default function Machines() {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Serial Number</p>
-                  <p className="font-mono text-sm">{machine.serial_number || 'N/A'}</p>
+                  <p className="font-mono text-sm">{machine.serialNumber || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Protocol</p>
@@ -164,14 +194,14 @@ export default function Machines() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">IP Address</p>
                   <p className="font-mono text-sm">
-                    {machine.ip_address ? `${machine.ip_address}:${machine.port}` : 'Not configured'}
+                    {machine.ipAddress ? `${machine.ipAddress}:${machine.port}` : 'Not configured'}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Last Communication</p>
                   <p className="text-sm">
-                    {machine.last_communication 
-                      ? new Date(machine.last_communication).toLocaleString()
+                    {machine.lastCommunication 
+                      ? new Date(machine.lastCommunication).toLocaleString()
                       : 'Never'}
                   </p>
                 </div>
@@ -180,18 +210,28 @@ export default function Machines() {
               <div className="mb-4">
                 <p className="text-xs text-muted-foreground mb-2">Supported Tests</p>
                 <div className="flex flex-wrap gap-1">
-                  {machine.tests_supported?.slice(0, 6).map(test => (
+                  {machine.testsSupported?.slice(0, 6).map(test => (
                     <span key={test} className="px-2 py-1 bg-muted rounded text-xs font-medium">
                       {test}
                     </span>
                   ))}
-                  {(machine.tests_supported?.length || 0) > 6 && (
+                  {(machine.testsSupported?.length || 0) > 6 && (
                     <span className="px-2 py-1 bg-muted rounded text-xs">
-                      +{(machine.tests_supported?.length || 0) - 6}
+                      +{(machine.testsSupported?.length || 0) - 6}
                     </span>
                   )}
                 </div>
               </div>
+
+              {/* Listener Status */}
+              {machine.ipAddress && machine.port && (
+                <div className="flex items-center gap-2 mb-4">
+                  <Radio className={cn('w-3 h-3', getListenerStatus(machine.id) ? 'text-status-normal animate-pulse' : 'text-muted-foreground')} />
+                  <span className="text-xs text-muted-foreground">
+                    TCP Listener: {getListenerStatus(machine.id) ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-4 border-t">
                 <Button 
@@ -220,6 +260,21 @@ export default function Machines() {
                   )}
                   Test Connection
                 </Button>
+                {machine.ipAddress && machine.port && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRestartListener(machine)}
+                    disabled={restartListener.isPending}
+                    title="Restart TCP Listener"
+                  >
+                    {restartListener.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RotateCw className="w-4 h-4" />
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           );
@@ -232,12 +287,25 @@ export default function Machines() {
           <WifiOff className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No Analyzers Configured</h3>
           <p className="text-muted-foreground mb-4">Add your laboratory analyzers to enable automatic result transmission.</p>
-          <Button>
+          <Button onClick={() => setIsAddOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add Machine
           </Button>
         </div>
       )}
+
+      {/* Add Machine Dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add New Machine</DialogTitle>
+            <DialogDescription>
+              Register a new laboratory analyzer in the system.
+            </DialogDescription>
+          </DialogHeader>
+          <AddMachineForm onSave={handleAddMachine} onCancel={() => setIsAddOpen(false)} isSaving={createMachine.isPending} />
+        </DialogContent>
+      </Dialog>
 
       {/* Configuration Dialog */}
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
@@ -267,30 +335,30 @@ export default function Machines() {
           </DialogHeader>
           
           <div className="py-8 text-center">
-            {testResult === 'testing' && (
+            {testResult.status === 'testing' && (
               <>
                 <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin" />
                 <p className="text-lg font-medium">Testing connection...</p>
                 <p className="text-muted-foreground text-sm">
-                  Attempting to reach {selectedMachine?.ip_address}:{selectedMachine?.port}
+                  Attempting to reach {selectedMachine?.ipAddress}:{selectedMachine?.port}
                 </p>
               </>
             )}
-            {testResult === 'success' && (
+            {testResult.status === 'success' && (
               <>
                 <CheckCircle className="w-16 h-16 text-status-normal mx-auto mb-4" />
                 <p className="text-lg font-medium text-status-normal">Connection Successful</p>
                 <p className="text-muted-foreground text-sm">
-                  The analyzer is responding and ready to receive data.
+                  {testResult.message || 'The analyzer is responding and ready to receive data.'}
                 </p>
               </>
             )}
-            {testResult === 'error' && (
+            {testResult.status === 'error' && (
               <>
                 <XCircle className="w-16 h-16 text-status-critical mx-auto mb-4" />
                 <p className="text-lg font-medium text-status-critical">Connection Failed</p>
                 <p className="text-muted-foreground text-sm">
-                  Could not establish connection. Check network settings and ensure the analyzer is powered on.
+                  {testResult.message || 'Could not establish connection. Check network settings and ensure the analyzer is powered on.'}
                 </p>
               </>
             )}
@@ -307,6 +375,92 @@ export default function Machines() {
   );
 }
 
+// Add Machine Form Component
+function AddMachineForm({
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  onSave: (data: MachineCreate) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [formData, setFormData] = useState<MachineCreate>({
+    name: '',
+    manufacturer: '',
+    modelName: '',
+    serialNumber: '',
+    protocol: 'HL7',
+    ipAddress: '',
+    port: 5000,
+    testsSupported: [],
+  });
+  const [testsInput, setTestsInput] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      ...formData,
+      testsSupported: testsInput ? testsInput.split(',').map(s => s.trim()).filter(Boolean) : [],
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="add-name">Name *</Label>
+          <Input id="add-name" required value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="add-manufacturer">Manufacturer *</Label>
+          <Input id="add-manufacturer" required value={formData.manufacturer} onChange={(e) => setFormData(prev => ({ ...prev, manufacturer: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="add-model">Model *</Label>
+          <Input id="add-model" required value={formData.modelName} onChange={(e) => setFormData(prev => ({ ...prev, modelName: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="add-serial">Serial Number *</Label>
+          <Input id="add-serial" required value={formData.serialNumber} onChange={(e) => setFormData(prev => ({ ...prev, serialNumber: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="add-protocol">Protocol *</Label>
+          <Select value={formData.protocol} onValueChange={(v) => setFormData(prev => ({ ...prev, protocol: v as MachineProtocol }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="HL7">HL7 v2.5.1</SelectItem>
+              <SelectItem value="ASTM">ASTM E1394</SelectItem>
+              <SelectItem value="LIS2_A2">LIS2-A2</SelectItem>
+              <SelectItem value="FHIR">FHIR R4</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="add-port">Port</Label>
+          <Input id="add-port" type="number" value={formData.port} onChange={(e) => setFormData(prev => ({ ...prev, port: parseInt(e.target.value) || 5000 }))} />
+        </div>
+        <div className="col-span-2 space-y-2">
+          <Label htmlFor="add-ip">IP Address</Label>
+          <Input id="add-ip" placeholder="192.168.1.100" value={formData.ipAddress || ''} onChange={(e) => setFormData(prev => ({ ...prev, ipAddress: e.target.value }))} />
+        </div>
+        <div className="col-span-2 space-y-2">
+          <Label htmlFor="add-tests">Supported Test Codes</Label>
+          <Input id="add-tests" placeholder="CBC, WBC, RBC, HGB" value={testsInput} onChange={(e) => setTestsInput(e.target.value)} />
+          <p className="text-xs text-muted-foreground">Comma-separated test codes matching your test catalog.</p>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 pt-2 border-t">
+        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="submit" disabled={isSaving}>
+          {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          Add Machine
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 // Configuration Form Component
 function MachineConfigForm({ 
   machine, 
@@ -320,12 +474,12 @@ function MachineConfigForm({
   const [formData, setFormData] = useState({
     name: machine.name,
     manufacturer: machine.manufacturer,
-    model: machine.model,
-    serial_number: machine.serial_number || '',
+    modelName: machine.modelName,
+    serialNumber: machine.serialNumber || '',
     protocol: machine.protocol,
-    ip_address: machine.ip_address || '',
+    ipAddress: machine.ipAddress || '',
     port: machine.port?.toString() || '5000',
-    tests_supported: machine.tests_supported?.join(', ') || '',
+    testsSupported: machine.testsSupported?.join(', ') || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -333,14 +487,14 @@ function MachineConfigForm({
     onSave({
       name: formData.name,
       manufacturer: formData.manufacturer,
-      model: formData.model,
-      serial_number: formData.serial_number || null,
+      modelName: formData.modelName,
+      serialNumber: formData.serialNumber || undefined,
       protocol: formData.protocol as MachineProtocol,
-      ip_address: formData.ip_address || null,
-      port: formData.port ? parseInt(formData.port) : null,
-      tests_supported: formData.tests_supported 
-        ? formData.tests_supported.split(',').map(s => s.trim())
-        : null,
+      ipAddress: formData.ipAddress || undefined,
+      port: formData.port ? parseInt(formData.port) : undefined,
+      testsSupported: formData.testsSupported 
+        ? formData.testsSupported.split(',').map(s => s.trim()).filter(Boolean)
+        : [],
     });
   };
 
@@ -375,16 +529,16 @@ function MachineConfigForm({
               <Label htmlFor="model">Model</Label>
               <Input
                 id="model"
-                value={formData.model}
-                onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
+                value={formData.modelName}
+                onChange={(e) => setFormData(prev => ({ ...prev, modelName: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="serial">Serial Number</Label>
               <Input
                 id="serial"
-                value={formData.serial_number}
-                onChange={(e) => setFormData(prev => ({ ...prev, serial_number: e.target.value }))}
+                value={formData.serialNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, serialNumber: e.target.value }))}
               />
             </div>
           </div>
@@ -423,8 +577,8 @@ function MachineConfigForm({
               <Input
                 id="ip"
                 placeholder="192.168.1.100"
-                value={formData.ip_address}
-                onChange={(e) => setFormData(prev => ({ ...prev, ip_address: e.target.value }))}
+                value={formData.ipAddress}
+                onChange={(e) => setFormData(prev => ({ ...prev, ipAddress: e.target.value }))}
               />
             </div>
           </div>
@@ -470,8 +624,8 @@ function MachineConfigForm({
             <Input
               id="tests"
               placeholder="CBC, WBC, RBC, HGB, PLT"
-              value={formData.tests_supported}
-              onChange={(e) => setFormData(prev => ({ ...prev, tests_supported: e.target.value }))}
+              value={formData.testsSupported}
+              onChange={(e) => setFormData(prev => ({ ...prev, testsSupported: e.target.value }))}
             />
             <p className="text-xs text-muted-foreground">
               Enter test codes separated by commas. These should match your test catalog codes.

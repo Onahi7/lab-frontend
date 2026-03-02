@@ -71,12 +71,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar_url: data.avatarUrl,
       });
       setRoles(data.roles || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching user profile:', error);
-      clearTokens();
-      setUser(null);
-      setProfile(null);
-      setRoles([]);
+      // Only clear tokens on authentication errors (401, 403)
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        clearTokens();
+        setUser(null);
+        setProfile(null);
+        setRoles([]);
+        // Redirect to login if we're not already there
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      } else {
+        // For other errors (network, server errors), keep the user logged in
+        // but set loading to false so the app doesn't hang
+        console.warn('Non-auth error fetching profile, keeping session');
+      }
     } finally {
       setIsLoading(false);
     }

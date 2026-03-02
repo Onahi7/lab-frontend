@@ -16,6 +16,7 @@ interface Sample {
 
 interface SampleCreate {
   orderId: string;
+  patientId: string;
   sampleType: string;
   collectedBy?: string;
 }

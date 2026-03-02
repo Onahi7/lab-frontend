@@ -29,7 +29,7 @@ export default function ResultVerification() {
 
     try {
       await verifyResult.mutateAsync({
-        id: selectedResult.id,
+        id: selectedResult.id || selectedResult._id,
         verifiedBy: user.id
       });
 
@@ -118,25 +118,36 @@ export default function ResultVerification() {
             <tbody>
               {pendingResults?.map(result => {
                 const isCritical = result.flag === 'critical_low' || result.flag === 'critical_high';
+                const resultId = result.id || result._id;
+                const order = result.orders || result.orderId;
+                const orderNumber = order?.orderNumber || order?.order_number;
+                const patient = order?.patient || order?.patients;
+                const patientFirstName = patient?.firstName || patient?.first_name;
+                const patientLastName = patient?.lastName || patient?.last_name;
+                const patientCode = patient?.patientId || patient?.patient_id;
+                const testCode = result.testCode || result.test_code;
+                const testName = result.testName || result.test_name;
+                const referenceRange = result.referenceRange || result.reference_range;
+                const resultedAt = result.resultedAt || result.resulted_at || result.createdAt;
                 return (
-                  <tr key={result.id} className={cn(isCritical && 'bg-status-critical/5')}>
+                  <tr key={resultId} className={cn(isCritical && 'bg-status-critical/5')}>
                     <td className="font-mono text-sm">
-                      {result.orders?.order_number}
+                      {orderNumber || '-'}
                     </td>
                     <td>
                       <div>
                         <p className="font-medium">
-                          {result.orders?.patients?.first_name} {result.orders?.patients?.last_name}
+                          {patientFirstName} {patientLastName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {result.orders?.patients?.patient_id}
+                          {patientCode}
                         </p>
                       </div>
                     </td>
                     <td>
                       <div>
-                        <p className="font-medium">{result.test_code}</p>
-                        <p className="text-xs text-muted-foreground">{result.test_name}</p>
+                        <p className="font-medium">{testCode}</p>
+                        <p className="text-xs text-muted-foreground">{testName}</p>
                       </div>
                     </td>
                     <td>
@@ -145,7 +156,7 @@ export default function ResultVerification() {
                       </span>
                     </td>
                     <td className="text-muted-foreground">
-                      {result.reference_range || '-'} {result.unit}
+                      {referenceRange || '-'} {result.unit}
                     </td>
                     <td>
                       <Badge variant="outline" className={getFlagColor(result.flag)}>
@@ -153,7 +164,7 @@ export default function ResultVerification() {
                       </Badge>
                     </td>
                     <td className="text-sm text-muted-foreground">
-                      {new Date(result.resulted_at).toLocaleString()}
+                      {resultedAt ? new Date(resultedAt).toLocaleString() : '-'}
                     </td>
                     <td>
                       <Button
@@ -199,15 +210,15 @@ export default function ResultVerification() {
                 <div>
                   <p className="text-sm text-muted-foreground">Patient</p>
                   <p className="font-medium">
-                    {selectedResult.orders?.patients?.first_name} {selectedResult.orders?.patients?.last_name}
+                    {selectedResult.orders?.patient?.firstName || selectedResult.orders?.patients?.first_name} {selectedResult.orders?.patient?.lastName || selectedResult.orders?.patients?.last_name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {selectedResult.orders?.patients?.patient_id}
+                    {selectedResult.orders?.patient?.patientId || selectedResult.orders?.patients?.patient_id}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Order</p>
-                  <p className="font-mono">{selectedResult.orders?.order_number}</p>
+                  <p className="font-mono">{selectedResult.orders?.orderNumber || selectedResult.orders?.order_number}</p>
                 </div>
               </div>
 
@@ -216,8 +227,8 @@ export default function ResultVerification() {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Test</p>
-                    <p className="font-semibold">{selectedResult.test_code}</p>
-                    <p className="text-sm">{selectedResult.test_name}</p>
+                    <p className="font-semibold">{selectedResult.testCode || selectedResult.test_code}</p>
+                    <p className="text-sm">{selectedResult.testName || selectedResult.test_name}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Result</p>
@@ -230,7 +241,7 @@ export default function ResultVerification() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Reference Range</p>
-                    <p>{selectedResult.reference_range || 'Not specified'} {selectedResult.unit}</p>
+                    <p>{selectedResult.referenceRange || selectedResult.reference_range || 'Not specified'} {selectedResult.unit}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Flag</p>

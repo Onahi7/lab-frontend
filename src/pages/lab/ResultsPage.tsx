@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Search, CheckCircle, Download, Loader2, Eye, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { getPatientName, getPatientId } from '@/utils/orderHelpers';
 import type { Database } from '@/integrations/supabase/types';
 
 type ResultFlag = Database['public']['Enums']['result_flag'];
@@ -36,13 +37,18 @@ export default function ResultsPage() {
     // Filter by search
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
-    const order = result.orders as any;
+    const order = (result.orders || result.orderId) as any;
+    const testCode = result.testCode || result.test_code || '';
+    const testName = result.testName || result.test_name || '';
+    const orderNumber = order?.orderNumber || order?.order_number || '';
+    const firstName = order?.patient?.firstName || order?.patients?.first_name || '';
+    const lastName = order?.patient?.lastName || order?.patients?.last_name || '';
     return (
-      result.test_code.toLowerCase().includes(search) ||
-      result.test_name.toLowerCase().includes(search) ||
-      order?.order_number?.toLowerCase().includes(search) ||
-      order?.patients?.first_name?.toLowerCase().includes(search) ||
-      order?.patients?.last_name?.toLowerCase().includes(search)
+      testCode.toLowerCase().includes(search) ||
+      testName.toLowerCase().includes(search) ||
+      orderNumber.toLowerCase().includes(search) ||
+      firstName.toLowerCase().includes(search) ||
+      lastName.toLowerCase().includes(search)
     );
   });
 
@@ -130,7 +136,7 @@ export default function ResultsPage() {
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="preliminary">Preliminary</SelectItem>
-              <SelectItem value="final">Final</SelectItem>
+              <SelectItem value="verified">Verified</SelectItem>
             </SelectContent>
           </Select>
           <Select value={flagFilter} onValueChange={setFlagFilter}>
@@ -192,55 +198,65 @@ export default function ResultsPage() {
             </thead>
             <tbody>
               {filteredResults?.map(result => {
-                const order = result.orders as any;
+                const order = (result.orders || result.orderId) as any;
+                const resultId = result.id || result._id;
+                const testCode = result.testCode || result.test_code;
+                const testName = result.testName || result.test_name;
+                const referenceRange = result.referenceRange || result.reference_range;
+                const resultedAt = result.resulted_at || result.createdAt;
+                const orderNumber = order?.orderNumber || order?.order_number;
                 return (
-                  <tr key={result.id}>
+                  <tr key={resultId}>
                     <td>
                       <input 
                         type="checkbox" 
                         className="rounded"
-                        checked={selectedIds.has(result.id)}
-                        onChange={() => toggleSelect(result.id)}
+                        checked={selectedIds.has(resultId)}
+                        onChange={() => toggleSelect(resultId)}
                       />
                     </td>
-                    <td className="font-mono text-sm">{order?.order_number}</td>
+                    <td className="font-mono text-sm">{orderNumber || '-'}</td>
                     <td>
-                      {order?.patients && (
+                      {(order?.patient || order?.patients || order?.patientId) && (
                         <div>
-                          <p className="font-medium">{order.patients.first_name} {order.patients.last_name}</p>
-                          <p className="text-xs text-muted-foreground">{order.patients.patient_id}</p>
+                          <p className="font-medium">
+                            {getPatientName(order)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {getPatientId(order)}
+                          </p>
                         </div>
                       )}
                     </td>
                     <td>
                       <div>
-                        <p className="font-medium">{result.test_code}</p>
-                        <p className="text-xs text-muted-foreground">{result.test_name}</p>
+                        <p className="font-medium">{testCode}</p>
+                        <p className="text-xs text-muted-foreground">{testName}</p>
                       </div>
                     </td>
                     <td className="font-mono font-bold">
                       {result.value} <span className="font-normal text-muted-foreground">{result.unit}</span>
                     </td>
-                    <td className="text-muted-foreground">{result.reference_range || '-'}</td>
+                    <td className="text-muted-foreground">{referenceRange || '-'}</td>
                     <td>
                       <Badge variant="outline" className={cn(flagStyles[result.flag])}>
                         {result.flag === 'normal' ? 'Normal' : result.flag.replace('_', ' ')}
                       </Badge>
                     </td>
                     <td>
-                      <Badge variant={result.status === 'final' ? 'default' : 'secondary'}>
+                      <Badge variant={result.status === 'verified' ? 'default' : 'secondary'}>
                         {result.status}
                       </Badge>
                     </td>
                     <td className="text-muted-foreground text-sm">
-                      {format(new Date(result.resulted_at), 'MMM dd, HH:mm')}
+                      {resultedAt ? format(new Date(resultedAt), 'MMM dd, HH:mm') : '-'}
                     </td>
                     <td>
                       <div className="flex gap-1">
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => navigate(`/lab/reports/${order?.id}`)}
+                          onClick={() => navigate(`/lab/reports/${order?.id || order?._id}`)}
                           title="View Report"
                         >
                           <FileText className="w-4 h-4" />
@@ -248,11 +264,11 @@ export default function ResultsPage() {
                         <Button variant="ghost" size="sm">
                           <Eye className="w-4 h-4" />
                         </Button>
-                        {result.status !== 'final' && (
+                        {result.status !== 'verified' && (
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => handleVerify(result.id)}
+                            onClick={() => handleVerify(resultId)}
                             disabled={verifyResult.isPending}
                           >
                             <CheckCircle className="w-4 h-4" />

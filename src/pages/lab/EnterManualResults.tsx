@@ -3,7 +3,7 @@ import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useProcessingOrders } from '@/hooks/useOrders';
 import { useCreateResult } from '@/hooks/useResults';
-import { useTestCatalog } from '@/hooks/useTestCatalog';
+import { useActiveTests } from '@/hooks/useTestCatalog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,13 +13,14 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Save, AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 
 export default function EnterManualResults() {
   const { profile, user } = useAuth();
   const { data: processingOrders, isLoading } = useProcessingOrders();
   const createResult = useCreateResult();
-  const { data: testCatalog } = useTestCatalog();
+  const { data: testCatalog } = useActiveTests();
 
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [results, setResults] = useState<Record<string, {
@@ -60,27 +61,30 @@ export default function EnterManualResults() {
     if (!selectedOrder) return;
 
     const resultsToSave = selectedOrder.order_tests
-      .filter(test => results[test.id]?.value)
+      .filter(test => {
+        const uniqueTestId = test.id || test._id;
+        return results[uniqueTestId]?.value;
+      })
       .map(test => {
-        const testInfo = testCatalog?.find(t => t.id === test.test_id);
-        const value = parseFloat(results[test.id].value);
-        const flag = !isNaN(value) && testInfo?.reference_range
-          ? calculateFlag(value, testInfo.reference_range)
-          : results[test.id].flag || 'normal';
+        const uniqueTestId = test.id || test._id;
+        const testCode = test.testCode || test.test_code;
+        const testInfo = testCatalog?.find(t => t.code === testCode);
+        const value = parseFloat(results[uniqueTestId].value);
+        const refRange = testInfo?.referenceRange;
+        const flag = !isNaN(value) && refRange
+          ? calculateFlag(value, refRange)
+          : results[uniqueTestId].flag || 'normal';
 
         return {
-          order_id: selectedOrder.id,
-          order_test_id: test.id,
-          test_code: test.test_code,
-          test_name: test.test_name,
-          value: results[test.id].value,
-          unit: results[test.id].unit || testInfo?.unit || '',
-          reference_range: testInfo?.reference_range || '',
+          orderId: selectedOrder.id,
+          orderTestId: uniqueTestId,
+          testCode: test.test_code || test.testCode,
+          testName: test.test_name || test.testName,
+          value: results[uniqueTestId].value,
+          unit: results[uniqueTestId].unit || testInfo?.unit || '',
+          referenceRange: refRange || '',
           flag,
-          status: 'preliminary' as const,
-          comments: results[test.id].comments || null,
-          resulted_by: user?.id || null,
-          resulted_at: new Date().toISOString()
+          comments: results[uniqueTestId].comments || undefined,
         };
       });
 
@@ -103,7 +107,8 @@ export default function EnterManualResults() {
   };
 
   const hasCriticalResults = selectedOrder?.order_tests.some(test => {
-    const flag = results[test.id]?.flag;
+    const uniqueTestId = test.id || test._id;
+    const flag = results[uniqueTestId]?.flag;
     return flag === 'critical_low' || flag === 'critical_high';
   });
 
@@ -139,14 +144,16 @@ export default function EnterManualResults() {
                     onClick={() => setSelectedOrder(order)}
                   >
                     <div className="flex items-start justify-between mb-1">
-                      <p className="font-semibold">{order.patients.first_name} {order.patients.last_name}</p>
+                      <p className="font-semibold">
+                        {getPatientName(order)}
+                      </p>
                       <Badge variant="outline" className="text-xs">
-                        {order.priority.toUpperCase()}
+                        {order.priority?.toUpperCase() || 'ROUTINE'}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-1">{order.order_number}</p>
+                    <p className="text-sm text-muted-foreground mb-1">{order.orderNumber || order.order_number || 'Unknown Order'}</p>
                     <p className="text-xs text-muted-foreground">
-                      {order.order_tests.length} test(s)
+                      {(order.tests || order.order_tests || []).length} test(s)
                     </p>
                   </button>
                 ))}
@@ -168,9 +175,9 @@ export default function EnterManualResults() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold">
-                      {selectedOrder.patients.first_name} {selectedOrder.patients.last_name}
+                      {getPatientName(selectedOrder)}
                     </h3>
-                    <p className="text-sm text-muted-foreground">{selectedOrder.order_number}</p>
+                    <p className="text-sm text-muted-foreground">{getOrderNumber(selectedOrder)}</p>
                   </div>
                   {hasCriticalResults && (
                     <Badge variant="destructive" className="gap-1">
@@ -183,13 +190,18 @@ export default function EnterManualResults() {
 
               <div className="space-y-6">
                 {selectedOrder.order_tests.map(test => {
-                  const testInfo = testCatalog?.find(t => t.id === test.test_id);
-                  const resultData = results[test.id] || { value: '', unit: testInfo?.unit || '', flag: 'normal', comments: '' };
+                  const uniqueTestId = test.id || test._id || `${test.testId || test.test_id}-${Math.random()}`;
+                  const testCode = test.testCode || test.test_code;
+                  
+                  // Find test info by CODE, not by ID
+                  const testInfo = testCatalog?.find(t => t.code === testCode);
+                  
+                  const resultData = results[uniqueTestId] || { value: '', unit: testInfo?.unit || '', flag: 'normal', comments: '' };
                   const isCritical = resultData.flag === 'critical_low' || resultData.flag === 'critical_high';
 
                   return (
                     <div 
-                      key={test.id} 
+                      key={uniqueTestId} 
                       className={cn(
                         'p-4 border rounded-lg',
                         isCritical && 'border-status-critical bg-status-critical/5'
@@ -197,32 +209,35 @@ export default function EnterManualResults() {
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h4 className="font-semibold">{test.test_code}</h4>
-                          <p className="text-sm text-muted-foreground">{test.test_name}</p>
+                          <h4 className="font-semibold">{test.testCode || test.test_code || 'Unknown Test'}</h4>
+                          <p className="text-sm text-muted-foreground">{test.testName || test.test_name || 'No description'}</p>
                         </div>
-                        {testInfo?.reference_range && (
+                        {testInfo?.referenceRange && (
                           <div className="text-right">
                             <p className="text-xs text-muted-foreground">Reference Range</p>
-                            <p className="text-sm font-medium">{testInfo.reference_range} {testInfo.unit}</p>
+                            <p className="text-sm font-medium">
+                              {testInfo.referenceRange} {testInfo.unit}
+                            </p>
                           </div>
                         )}
                       </div>
 
                       <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-2">
-                          <Label htmlFor={`value-${test.id}`}>Value *</Label>
+                          <Label htmlFor={`value-${uniqueTestId}`}>Value *</Label>
                           <Input
-                            id={`value-${test.id}`}
+                            id={`value-${uniqueTestId}`}
                             type="text"
                             placeholder="Enter value"
                             value={resultData.value}
                             onChange={(e) => {
-                              handleResultChange(test.id, 'value', e.target.value);
+                              handleResultChange(uniqueTestId, 'value', e.target.value);
                               // Auto-calculate flag if numeric
                               const numValue = parseFloat(e.target.value);
-                              if (!isNaN(numValue) && testInfo?.reference_range) {
-                                const flag = calculateFlag(numValue, testInfo.reference_range);
-                                handleResultChange(test.id, 'flag', flag);
+                              const refRange = testInfo?.referenceRange;
+                              if (!isNaN(numValue) && refRange) {
+                                const flag = calculateFlag(numValue, refRange);
+                                handleResultChange(uniqueTestId, 'flag', flag);
                               }
                             }}
                             className={cn(isCritical && 'border-status-critical')}
@@ -230,22 +245,22 @@ export default function EnterManualResults() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor={`unit-${test.id}`}>Unit</Label>
+                          <Label htmlFor={`unit-${uniqueTestId}`}>Unit</Label>
                           <Input
-                            id={`unit-${test.id}`}
+                            id={`unit-${uniqueTestId}`}
                             placeholder="Unit"
                             value={resultData.unit}
-                            onChange={(e) => handleResultChange(test.id, 'unit', e.target.value)}
+                            onChange={(e) => handleResultChange(uniqueTestId, 'unit', e.target.value)}
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor={`flag-${test.id}`}>Flag</Label>
+                          <Label htmlFor={`flag-${uniqueTestId}`}>Flag</Label>
                           <Select 
                             value={resultData.flag}
-                            onValueChange={(value) => handleResultChange(test.id, 'flag', value)}
+                            onValueChange={(value) => handleResultChange(uniqueTestId, 'flag', value)}
                           >
-                            <SelectTrigger id={`flag-${test.id}`}>
+                            <SelectTrigger id={`flag-${uniqueTestId}`}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -260,12 +275,12 @@ export default function EnterManualResults() {
                       </div>
 
                       <div className="mt-3 space-y-2">
-                        <Label htmlFor={`comments-${test.id}`}>Comments</Label>
+                        <Label htmlFor={`comments-${uniqueTestId}`}>Comments</Label>
                         <Textarea
-                          id={`comments-${test.id}`}
+                          id={`comments-${uniqueTestId}`}
                           placeholder="Add any comments or notes..."
                           value={resultData.comments}
-                          onChange={(e) => handleResultChange(test.id, 'comments', e.target.value)}
+                          onChange={(e) => handleResultChange(uniqueTestId, 'comments', e.target.value)}
                           rows={2}
                         />
                       </div>

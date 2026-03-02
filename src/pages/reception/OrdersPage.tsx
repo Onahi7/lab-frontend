@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 import type { OrderWithDetails } from '@/hooks/useOrders';
+import { getPatientName } from '@/utils/orderHelpers';
 
 type PaymentMethod = Database['public']['Enums']['payment_method'];
 
@@ -27,27 +28,35 @@ export default function OrdersPage() {
   const { data: orders, isLoading } = useOrders(statusFilter as any);
   const updateOrder = useUpdateOrder();
 
-  const filteredOrders = orders?.filter(order => {
+  const filteredOrders = Array.isArray(orders) ? orders.filter(order => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
+    const orderNum = (order.orderNumber || order.order_number || '').toLowerCase();
+    const firstName = (order.patientId?.firstName || order.patients?.first_name || '').toLowerCase();
+    const lastName = (order.patientId?.lastName || order.patients?.last_name || '').toLowerCase();
+    const patientId = (order.patientId?.patientId || order.patients?.patient_id || '').toLowerCase();
+    
     return (
-      order.order_number.toLowerCase().includes(search) ||
-      order.patients.first_name.toLowerCase().includes(search) ||
-      order.patients.last_name.toLowerCase().includes(search) ||
-      order.patients.patient_id.toLowerCase().includes(search)
+      orderNum.includes(search) ||
+      firstName.includes(search) ||
+      lastName.includes(search) ||
+      patientId.includes(search)
     );
-  });
+  }) : [];
 
   const handleProcessPayment = async () => {
     if (!selectedOrder || !selectedPaymentMethod) return;
 
     try {
+      const orderId = selectedOrder.id || selectedOrder._id;
       await updateOrder.mutateAsync({
-        id: selectedOrder.id,
+        id: orderId,
         updates: {
           payment_status: 'paid',
           payment_method: selectedPaymentMethod,
-          status: selectedOrder.status === 'pending_payment' ? 'pending_collection' : selectedOrder.status,
+          status: (selectedOrder.status === 'pending_payment' || selectedOrder.status === 'pending_collection') 
+            ? 'pending_collection' 
+            : selectedOrder.status,
         },
       });
       toast.success('Payment processed successfully');
@@ -132,24 +141,30 @@ export default function OrdersPage() {
             </thead>
             <tbody>
               {filteredOrders?.map(order => (
-                <tr key={order.id}>
-                  <td className="font-mono text-sm">{order.order_number}</td>
+                <tr key={order.id || order._id}>
+                  <td className="font-mono text-sm">{order.orderNumber || order.order_number}</td>
                   <td>
                     <div>
-                      <p className="font-medium">{order.patients.first_name} {order.patients.last_name}</p>
-                      <p className="text-xs text-muted-foreground">{order.patients.patient_id}</p>
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      <p className="font-medium">{order.order_tests.length} test(s)</p>
+                      <p className="font-medium">
+                        {getPatientName(order)}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {order.order_tests.slice(0, 2).map(t => t.test_code).join(', ')}
-                        {order.order_tests.length > 2 && ` +${order.order_tests.length - 2}`}
+                        {order.patientId?.patientId || order.patients?.patient_id}
                       </p>
                     </div>
                   </td>
-                  <td className="font-medium">Le {Number(order.total).toLocaleString()}</td>
+                  <td>
+                    <div>
+                      <p className="font-medium">{order.order_tests?.length || 0} test(s)</p>
+                      <p className="text-xs text-muted-foreground">
+                        {order.order_tests?.slice(0, 2).map(t => 
+                          `${t.test_code || t.testCode} (${t.test_name || t.testName})`
+                        ).join(', ')}
+                        {order.order_tests?.length > 2 && ` +${order.order_tests.length - 2} more`}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="font-medium">Le {Number(order.total || order.totalAmount).toLocaleString()}</td>
                   <td>
                     <Badge variant="outline" className={cn('capitalize', priorityStyles[order.priority])}>
                       {order.priority}
@@ -157,11 +172,11 @@ export default function OrdersPage() {
                   </td>
                   <td>
                     <Badge variant="outline" className={cn(
-                      order.payment_status === 'paid' ? 'bg-status-normal/10 text-status-normal' :
-                      order.payment_status === 'pending' ? 'bg-status-warning/10 text-status-warning' :
+                      (order.paymentStatus || order.payment_status) === 'paid' ? 'bg-status-normal/10 text-status-normal' :
+                      (order.paymentStatus || order.payment_status) === 'pending' ? 'bg-status-warning/10 text-status-warning' :
                       'bg-muted text-muted-foreground'
                     )}>
-                      {order.payment_status}
+                      {order.paymentStatus || order.payment_status}
                     </Badge>
                   </td>
                   <td>
@@ -170,14 +185,14 @@ export default function OrdersPage() {
                     </Badge>
                   </td>
                   <td className="text-muted-foreground text-sm">
-                    {format(new Date(order.created_at), 'MMM dd, HH:mm')}
+                    {format(new Date(order.createdAt || order.created_at), 'MMM dd, HH:mm')}
                   </td>
                   <td>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm">
                         <Eye className="w-4 h-4" />
                       </Button>
-                      {order.payment_status !== 'paid' && (
+                      {(order.paymentStatus || order.payment_status) !== 'paid' && (
                         <Button 
                           variant="ghost" 
                           size="sm"
@@ -218,15 +233,18 @@ export default function OrdersPage() {
               <div className="bg-muted rounded-lg p-4 mb-4">
                 <div className="flex justify-between mb-2">
                   <span className="text-muted-foreground">Order</span>
-                  <span className="font-mono">{selectedOrder.order_number}</span>
+                  <span className="font-mono">{selectedOrder.orderNumber || selectedOrder.order_number}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-muted-foreground">Patient</span>
-                  <span>{selectedOrder.patients.first_name} {selectedOrder.patients.last_name}</span>
+                  <span>
+                    {selectedOrder.patientId?.firstName || selectedOrder.patients?.first_name}{' '}
+                    {selectedOrder.patientId?.lastName || selectedOrder.patients?.last_name}
+                  </span>
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t mt-2">
                   <span>Amount Due</span>
-                  <span>Le {Number(selectedOrder.total).toLocaleString()}</span>
+                  <span>Le {Number(selectedOrder.total || selectedOrder.totalAmount).toLocaleString()}</span>
                 </div>
               </div>
 

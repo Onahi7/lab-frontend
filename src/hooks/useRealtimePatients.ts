@@ -11,7 +11,6 @@ export function useRealtimePatients() {
     if (!socket || !isConnected) return;
 
     socket.on('patient:created', (patient) => {
-      console.log('Patient created:', patient);
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       toast.info(`New patient registered: ${patient.firstName} ${patient.lastName}`);
     });

@@ -149,7 +149,7 @@ export function ResultPrintView({ order, results }: ResultPrintViewProps) {
         <div className="header">
           <h1>LabConnect Laboratory</h1>
           <p>123 Medical Center Drive, Lagos, Nigeria</p>
-          <p>Phone: +234 XXX XXX XXXX | Email: lab@labconnect.com</p>
+          <p>Phone: +232 XX XXXXXX | Email: lab@labconnect.com</p>
           <h2 style={{ marginTop: '15px', fontSize: '18px' }}>LABORATORY RESULTS</h2>
         </div>
 
@@ -157,11 +157,15 @@ export function ResultPrintView({ order, results }: ResultPrintViewProps) {
         <div className="patient-info">
           <div className="info-item">
             <div className="info-label">Patient Name</div>
-            <div className="info-value">{order.patients.first_name} {order.patients.last_name}</div>
+            <div className="info-value">
+              {`${(order.patient || order.patients)?.firstName || (order.patient || order.patients)?.first_name || ''} ${(order.patient || order.patients)?.lastName || (order.patient || order.patients)?.last_name || ''}`.trim() || 'Unknown Patient'}
+            </div>
           </div>
           <div className="info-item">
             <div className="info-label">Patient ID</div>
-            <div className="info-value">{order.patients.patient_id}</div>
+            <div className="info-value">
+              {(order.patient || order.patients)?.patientId || (order.patient || order.patients)?.patient_id || 'Unknown ID'}
+            </div>
           </div>
           <div className="info-item">
             <div className="info-label">Date of Birth</div>

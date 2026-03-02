@@ -16,34 +16,20 @@ function formatDate(dateString: string | undefined): string {
 
 export function VerificationSection({ verificationInfo }: VerificationSectionProps) {
   return (
-    <div className="verification-section mt-8 mb-6 page-break-inside-avoid">
-      <div className="grid grid-cols-2 gap-8 mb-4">
-        <div className="signature-block">
-          <div className="signature-line border-b-2 border-gray-400 h-16 mb-2"></div>
-          <p className="signature-label text-xs font-semibold text-gray-600 uppercase">
-            Performed By
-          </p>
-          <p className="signature-name text-sm text-gray-900">
-            {verificationInfo.performedBy || 'Lab Technician'}
-          </p>
-        </div>
-        <div className="signature-block">
-          <div className="signature-line border-b-2 border-gray-400 h-16 mb-2"></div>
-          <p className="signature-label text-xs font-semibold text-gray-600 uppercase">
-            Verified By
-          </p>
-          <p className="signature-name text-sm text-gray-900">
-            {verificationInfo.verifiedBy || 'Medical Director'}
-          </p>
+    <div className="verification-section mt-10 mb-4 page-break-inside-avoid">
+      <div className="grid grid-cols-2 gap-8 items-end">
+        <div className="text-sm">
+          <p className="font-semibold">Verified By:</p>
+          <p className="mt-2 text-gray-800">{verificationInfo.verifiedBy || verificationInfo.performedBy || ''}</p>
           {verificationInfo.verifiedAt && (
-            <p className="signature-date text-xs text-gray-600 mt-1">
-              Date: {formatDate(verificationInfo.verifiedAt)}
-            </p>
+            <p className="text-xs text-gray-600 mt-1">{formatDate(verificationInfo.verifiedAt)}</p>
           )}
         </div>
-      </div>
-      <div className="stamp-area border-2 border-dashed border-gray-300 p-4 text-center">
-        <p className="text-sm text-gray-500">Laboratory Stamp/Seal</p>
+
+        <div className="text-right">
+          <div className="inline-block w-56 border-b border-dotted border-gray-700 h-8"></div>
+          <p className="text-sm font-semibold mt-2">Signature &amp; Stamp</p>
+        </div>
       </div>
     </div>
   );

@@ -40,12 +40,12 @@ export default function Reports() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const paidOrders = allOrders.filter(o => o.payment_status === 'paid');
-    const todayRevenue = todayOrders?.filter(o => o.payment_status === 'paid')
-      .reduce((sum, o) => sum + Number(o.total), 0) || 0;
-    const totalRevenue = paidOrders.reduce((sum, o) => sum + Number(o.total), 0);
+    const paidOrders = allOrders.filter(o => o.paymentStatus === 'paid');
+    const todayRevenue = todayOrders?.filter(o => o.paymentStatus === 'paid')
+      .reduce((sum, o) => sum + Number(o.total || o.totalAmount || 0), 0) || 0;
+    const totalRevenue = paidOrders.reduce((sum, o) => sum + Number(o.total || o.totalAmount || 0), 0);
     const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
-    const totalTests = allOrders.reduce((sum, o) => sum + o.order_tests.length, 0);
+    const totalTests = allOrders.reduce((sum, o) => sum + (o.order_tests?.length || o.tests?.length || 0), 0);
 
     return {
       todayRevenue,
@@ -54,7 +54,14 @@ export default function Reports() {
       totalOrders: allOrders.length,
       completedOrders: allOrders.filter(o => o.status === 'completed').length,
       totalTests,
-      uniquePatients: new Set(allOrders.map(o => o.patient_id)).size,
+      uniquePatients: new Set(
+        allOrders.map((o) => {
+          if (typeof o.patientId === 'string') return o.patientId;
+          if (o.patientId?._id) return o.patientId._id;
+          if (o.patientId?.id) return o.patientId.id;
+          return '';
+        }),
+      ).size,
     };
   }, [allOrders, todayOrders]);
 
@@ -79,9 +86,11 @@ export default function Reports() {
     
     const categoryCounts: Record<string, number> = {};
     allOrders.forEach(order => {
-      order.order_tests.forEach(test => {
+      const orderTests = order.tests || order.order_tests || [];
+      orderTests.forEach(test => {
         // Use test code prefix as category approximation
-        const category = test.test_code.substring(0, 3);
+        const testCode = test.testCode || '';
+        const category = testCode.substring(0, 3);
         categoryCounts[category] = (categoryCounts[category] || 0) + 1;
       });
     });
@@ -109,12 +118,12 @@ export default function Reports() {
 
     // Aggregate revenue
     allOrders.forEach(order => {
-      if (order.payment_status !== 'paid') return;
-      const orderDate = new Date(order.created_at);
+      if (order.paymentStatus !== 'paid') return;
+      const orderDate = new Date(order.createdAt);
       const daysDiff = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
       if (daysDiff < 7) {
         const key = orderDate.toLocaleDateString('en-US', { weekday: 'short' });
-        days[key] = (days[key] || 0) + Number(order.total);
+        days[key] = (days[key] || 0) + Number(order.total || order.totalAmount || 0);
       }
     });
 

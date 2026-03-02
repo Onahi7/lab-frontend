@@ -9,8 +9,33 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Search, Plus, Eye, ClipboardList, Loader2 } from 'lucide-react';
+import {Search, Plus, Eye, ClipboardList, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { getPatientFullName } from '@/utils/orderHelpers';
+
+type AgeUnit = 'years' | 'months' | 'weeks' | 'days';
+
+const convertAgeToYears = (ageValue: number, ageUnit: AgeUnit): number => {
+  switch (ageUnit) {
+    case 'months':
+      return Number((ageValue / 12).toFixed(2));
+    case 'weeks':
+      return Number((ageValue / 52.1429).toFixed(2));
+    case 'days':
+      return Number((ageValue / 365.25).toFixed(2));
+    case 'years':
+    default:
+      return ageValue;
+  }
+};
+
+const formatAgeDisplay = (patient: { age: number; ageValue?: number; ageUnit?: AgeUnit }) => {
+  if (patient.ageValue !== undefined && patient.ageUnit) {
+    return `${patient.ageValue} ${patient.ageUnit}`;
+  }
+
+  return `${patient.age} years`;
+};
 
 export default function PatientsPage() {
   const { profile } = useAuth();
@@ -26,6 +51,7 @@ export default function PatientsPage() {
     firstName: '',
     lastName: '',
     age: '',
+    ageUnit: 'years' as AgeUnit,
     gender: '' as 'M' | 'F' | 'O' | '',
     phone: '',
     email: '',
@@ -38,9 +64,15 @@ export default function PatientsPage() {
       return;
     }
 
-    const ageNum = parseInt(formData.age);
-    if (isNaN(ageNum) || ageNum < 0 || ageNum > 150) {
-      toast.error('Please enter a valid age (0-150)');
+    const ageValue = Number(formData.age);
+    if (isNaN(ageValue) || ageValue < 0) {
+      toast.error('Please enter a valid age value');
+      return;
+    }
+
+    const normalizedAge = convertAgeToYears(ageValue, formData.ageUnit);
+    if (normalizedAge > 150) {
+      toast.error('Age exceeds allowed limit (150 years)');
       return;
     }
 
@@ -48,7 +80,9 @@ export default function PatientsPage() {
       const result = await createPatient.mutateAsync({
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
-        age: ageNum,
+        age: normalizedAge,
+        ageValue,
+        ageUnit: formData.ageUnit,
         gender: formData.gender,
         phone: formData.phone.trim() || undefined,
         email: formData.email.trim() || undefined,
@@ -61,6 +95,7 @@ export default function PatientsPage() {
         firstName: '',
         lastName: '',
         age: '',
+        ageUnit: 'years',
         gender: '',
         phone: '',
         email: '',
@@ -119,9 +154,9 @@ export default function PatientsPage() {
                 <tr key={patient.id}>
                   <td className="font-mono text-sm">{patient.patientId}</td>
                   <td className="font-medium">
-                    {patient.firstName} {patient.lastName}
+                    {getPatientFullName(patient)}
                   </td>
-                  <td>{patient.age} years</td>
+                  <td>{formatAgeDisplay(patient)}</td>
                   <td>
                     <span className="px-2 py-1 bg-muted rounded text-xs font-medium">
                       {patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : 'Other'}
@@ -187,14 +222,27 @@ export default function PatientsPage() {
             </div>
             <div className="space-y-2">
               <Label>Age *</Label>
-              <Input 
-                type="number"
-                min="0"
-                max="150"
-                value={formData.age}
-                onChange={e => setFormData(prev => ({ ...prev, age: e.target.value }))}
-                placeholder="Enter age"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input 
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.age}
+                  onChange={e => setFormData(prev => ({ ...prev, age: e.target.value }))}
+                  placeholder="Enter value"
+                />
+                <Select value={formData.ageUnit} onValueChange={v => setFormData(prev => ({ ...prev, ageUnit: v as AgeUnit }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="years">Years</SelectItem>
+                    <SelectItem value="months">Months</SelectItem>
+                    <SelectItem value="weeks">Weeks</SelectItem>
+                    <SelectItem value="days">Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Gender *</Label>

@@ -10,6 +10,7 @@ import { MachineStatusCard } from '@/components/dashboard/MachineStatusCard';
 import { LiveConnectionMonitor } from '@/components/machines/LiveConnectionMonitor';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { getPatientName, getTestCodes, getOrderId, getOrderPriority } from '@/utils/orderHelpers';
 import { 
   TestTube, 
   FileText, 
@@ -125,32 +126,37 @@ export default function LabDashboardPage() {
             </div>
           ) : (
             <div className="divide-y max-h-80 overflow-y-auto">
-              {pendingOrders?.slice(0, 5).map(order => (
-                <div key={order.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{order.patients.first_name} {order.patients.last_name}</p>
-                        <Badge variant="outline" className={cn(
-                          'text-xs',
-                          order.priority === 'stat' ? 'bg-status-critical/10 text-status-critical' :
-                          order.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
-                          'bg-muted text-muted-foreground'
-                        )}>
-                          {order.priority.toUpperCase()}
-                        </Badge>
+              {Array.isArray(pendingOrders) && pendingOrders.slice(0, 5).map(order => {
+                const patientName = getPatientName(order);
+                const orderId = getOrderId(order);
+                
+                return (
+                  <div key={getOrderId(order)} className="px-4 py-3 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">
+                            {patientName}
+                          </p>
+                          <Badge variant="outline" className={cn(
+                            'text-xs',
+                            order.priority === 'stat' ? 'bg-status-critical/10 text-status-critical' :
+                            order.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
+                            'bg-muted text-muted-foreground'
+                          )}>
+                            {getOrderPriority(order)}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{getTestCodes(order)}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {order.order_tests.map(t => t.test_code).join(', ')}
-                      </p>
+                      <Button size="sm" onClick={() => navigate(`/lab/collect?order=${getOrderId(order)}`)}>
+                        Collect
+                      </Button>
                     </div>
-                    <Button size="sm" onClick={() => navigate(`/lab/collect?order=${order.id}`)}>
-                      Collect
-                    </Button>
                   </div>
-                </div>
-              ))}
-              {(!pendingOrders || pendingOrders.length === 0) && (
+                );
+              })}
+              {(!pendingOrders || !Array.isArray(pendingOrders) || pendingOrders.length === 0) && (
                 <div className="px-4 py-8 text-center text-muted-foreground">
                   No samples pending collection
                 </div>
@@ -173,22 +179,20 @@ export default function LabDashboardPage() {
             </div>
           ) : (
             <div className="divide-y max-h-80 overflow-y-auto">
-              {processingOrders?.slice(0, 5).map(order => (
-                <div key={order.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
+              {Array.isArray(processingOrders) && processingOrders.slice(0, 5).map(order => (
+                <div key={getOrderId(order)} className="px-4 py-3 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{order.patients.first_name} {order.patients.last_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {order.order_tests.map(t => t.test_code).join(', ')}
-                      </p>
+                      <p className="font-medium">{getPatientName(order)}</p>
+                      <p className="text-sm text-muted-foreground">{getTestCodes(order)}</p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/lab/processing?order=${order.id}`)}>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/lab/processing?order=${getOrderId(order)}`)}>
                       Enter Results
                     </Button>
                   </div>
                 </div>
               ))}
-              {(!processingOrders || processingOrders.length === 0) && (
+              {(!processingOrders || !Array.isArray(processingOrders) || processingOrders.length === 0) && (
                 <div className="px-4 py-8 text-center text-muted-foreground">
                   No samples currently processing
                 </div>

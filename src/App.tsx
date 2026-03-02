@@ -21,8 +21,10 @@ import NewOrder from "./pages/reception/NewOrder";
 import PatientsPage from "./pages/reception/PatientsPage";
 import OrdersPage from "./pages/reception/OrdersPage";
 import PaymentsPage from "./pages/reception/PaymentsPage";
+import DailyReconciliation from "./pages/reception/DailyReconciliation";
 import PaymentReceipt from "./pages/reception/PaymentReceipt";
 import PaymentDemo from "./pages/reception/PaymentDemo";
+import QuickResultEntry from "./pages/reception/QuickResultEntry";
 
 // Lab Pages
 import LabDashboard from "./pages/lab/LabDashboard";
@@ -37,6 +39,7 @@ import EnterResultsPage from "./pages/lab/EnterResultsPage";
 import ResultsPage from "./pages/lab/ResultsPage";
 import EditableResultReport from "./pages/lab/EditableResultReport";
 import LabReportPage from "./pages/lab/LabReportPage";
+import PublicLabReportPage from "./pages/lab/PublicLabReportPage";
 import MatchResults from "./pages/lab/MatchResults";
 
 // Admin Pages
@@ -47,7 +50,9 @@ import UserManagementPage from "./pages/admin/UserManagementPage";
 import Reports from "./pages/admin/Reports";
 import TestCatalog from "./pages/admin/TestCatalog";
 import TestCatalogManagement from "./pages/admin/TestCatalogManagement";
+import ReconciliationReview from "./pages/admin/ReconciliationReview";
 import AuditLogViewer from "./pages/admin/AuditLogViewer";
+import ReportTemplateEditor from "./pages/admin/ReportTemplateEditor";
 
 // Shared Pages
 import Machines from "./pages/Machines";
@@ -98,9 +103,6 @@ function AppRoutes() {
       <Route path="/reception/patients/:id" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><PatientDetails /></RoleGuard>
       } />
-      <Route path="/reception/patients/:id" element={
-        <RoleGuard allowedRoles={['receptionist', 'admin']}><PatientDetails /></RoleGuard>
-      } />
       <Route path="/reception/new-order" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><NewOrder /></RoleGuard>
       } />
@@ -110,11 +112,14 @@ function AppRoutes() {
       <Route path="/reception/payments" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><PaymentsPage /></RoleGuard>
       } />
+      <Route path="/reception/reconciliation" element={
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><DailyReconciliation /></RoleGuard>
+      } />
       <Route path="/reception/results" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><ResultsPage /></RoleGuard>
       } />
       <Route path="/reception/enter-results" element={
-        <RoleGuard allowedRoles={['receptionist', 'admin']}><EnterManualResults /></RoleGuard>
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><QuickResultEntry /></RoleGuard>
       } />
       <Route path="/reception/receipt/:orderId" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><PaymentReceipt /></RoleGuard>
@@ -163,6 +168,7 @@ function AppRoutes() {
       <Route path="/lab/reports/:orderId" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><LabReportPage /></RoleGuard>
       } />
+      <Route path="/public/lab/reports/:orderId" element={<PublicLabReportPage />} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={
@@ -183,6 +189,12 @@ function AppRoutes() {
       <Route path="/admin/audit-logs" element={
         <RoleGuard allowedRoles={['admin']}><AuditLogViewer /></RoleGuard>
       } />
+      <Route path="/admin/reconciliation" element={
+        <RoleGuard allowedRoles={['admin']}><ReconciliationReview /></RoleGuard>
+      } />
+      <Route path="/admin/report-template" element={
+        <RoleGuard allowedRoles={['admin']}><ReportTemplateEditor /></RoleGuard>
+      } />
       <Route path="/admin/patients" element={
         <RoleGuard allowedRoles={['admin']}><PatientsPage /></RoleGuard>
       } />
@@ -194,6 +206,9 @@ function AppRoutes() {
       } />
       <Route path="/admin/machines" element={
         <RoleGuard allowedRoles={['admin']}><Machines /></RoleGuard>
+      } />
+      <Route path="/admin/payments" element={
+        <RoleGuard allowedRoles={['admin']}><PaymentsPage /></RoleGuard>
       } />
       <Route path="/admin/settings" element={
         <RoleGuard allowedRoles={['admin']}><Settings /></RoleGuard>

@@ -7,6 +7,8 @@ interface Patient {
   firstName: string;
   lastName: string;
   age: number;
+  ageValue?: number;
+  ageUnit?: 'years' | 'months' | 'weeks' | 'days';
   gender: 'M' | 'F' | 'O';
   phone?: string;
   email?: string;
@@ -19,6 +21,8 @@ interface PatientCreate {
   firstName: string;
   lastName: string;
   age: number;
+  ageValue?: number;
+  ageUnit?: 'years' | 'months' | 'weeks' | 'days';
   gender: 'M' | 'F' | 'O';
   phone?: string;
   email?: string;
@@ -29,6 +33,8 @@ interface PatientUpdate {
   firstName?: string;
   lastName?: string;
   age?: number;
+  ageValue?: number;
+  ageUnit?: 'years' | 'months' | 'weeks' | 'days';
   gender?: 'M' | 'F' | 'O';
   phone?: string;
   email?: string;

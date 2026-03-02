@@ -4,100 +4,113 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Bell, Phone, Mail, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { criticalResultsAPI } from '@/services/api';
+import { resultsAPI } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 
 export function CriticalResultNotificationSystem() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  // Fetch unacknowledged critical results
-  const { data: criticalNotifications } = useQuery({
-    queryKey: ['critical-notifications'],
+  // Fetch critical results (unverified critical values)
+  const { data: criticalResults } = useQuery({
+    queryKey: ['critical-results'],
     queryFn: async () => {
-      return await criticalResultsAPI.getUnacknowledged();
+      return await resultsAPI.getCritical();
     },
     refetchInterval: 30000 // Refetch every 30 seconds
   });
 
-  // Acknowledge notification
-  const acknowledgeNotification = useMutation({
-    mutationFn: async (notificationId: string) => {
-      return await criticalResultsAPI.acknowledge(notificationId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['critical-notifications'] });
-      toast.success('Notification acknowledged');
-    }
-  });
-
   // Show toast for new critical results
   useEffect(() => {
-    if (criticalNotifications && criticalNotifications.length > 0) {
-      const latestNotification = criticalNotifications[0];
-      const timeSinceNotification = Date.now() - new Date(latestNotification.notifiedAt).getTime();
+    if (criticalResults && criticalResults.length > 0) {
+      // Filter for unverified critical results
+      const unverified = criticalResults.filter((r: any) => r.status !== 'verified');
       
-      // Only show toast if notification is less than 1 minute old
-      if (timeSinceNotification < 60000) {
-        toast.error(
-          `Critical Result: ${latestNotification.result?.testCode} - ${latestNotification.result?.patient?.firstName} ${latestNotification.result?.patient?.lastName}`,
-          {
-            duration: 10000,
-            action: {
-              label: 'View',
-              onClick: () => {
-                // Navigate to result or show details
+      if (unverified.length > 0) {
+        const latest = unverified[0];
+        const timeSinceCreation = Date.now() - new Date(latest.createdAt).getTime();
+        
+        // Only show toast if result is less than 1 minute old
+        if (timeSinceCreation < 60000) {
+          toast.error(
+            `Critical Result: ${latest.testCode} - Patient needs immediate attention`,
+            {
+              duration: 10000,
+              action: {
+                label: 'View',
+                onClick: () => {
+                  navigate('/lab/results');
+                }
               }
             }
-          }
-        );
+          );
+        }
       }
     }
-  }, [criticalNotifications]);
+  }, [criticalResults, navigate]);
 
-  if (!criticalNotifications || criticalNotifications.length === 0) {
+  if (!criticalResults || criticalResults.length === 0) {
+    return null;
+  }
+
+  // Filter for unverified critical results
+  const unverifiedCritical = criticalResults.filter((r: any) => r.status !== 'verified');
+
+  if (unverifiedCritical.length === 0) {
     return null;
   }
 
   return (
     <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-md">
-      {criticalNotifications.slice(0, 3).map((notification: any) => (
-        <Alert key={notification.id} variant="destructive" className="shadow-lg">
+      {unverifiedCritical.slice(0, 3).map((result: any) => (
+        <Alert key={result.id || result._id} variant="destructive" className="shadow-lg">
           <AlertTriangle className="w-4 h-4" />
           <AlertDescription>
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
                 <p className="font-semibold">Critical Result Alert</p>
                 <p className="text-sm mt-1">
-                  Patient: {notification.result?.patient?.firstName} {notification.result?.patient?.lastName}
+                  Order: {result.orderId?.orderNumber || 'Unknown'}
                 </p>
                 <p className="text-sm">
-                  Test: {notification.result?.testCode} = {notification.result?.value} {notification.result?.unit}
+                  Test: {result.testCode} = {result.value} {result.unit}
                 </p>
+                <Badge variant="destructive" className="mt-1">
+                  {result.flag?.replace('_', ' ').toUpperCase()}
+                </Badge>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(notification.notifiedAt).toLocaleString()}
+                  {new Date(result.createdAt).toLocaleString()}
                 </p>
               </div>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => acknowledgeNotification.mutate(notification.id)}
+                onClick={() => navigate('/lab/results')}
                 className="shrink-0"
               >
                 <CheckCircle className="w-4 h-4 mr-1" />
-                Acknowledge
+                Review
               </Button>
             </div>
           </AlertDescription>
         </Alert>
       ))}
+      {unverifiedCritical.length > 3 && (
+        <Alert className="shadow-lg">
+          <Bell className="w-4 h-4" />
+          <AlertDescription>
+            <p className="text-sm">
+              +{unverifiedCritical.length - 3} more critical results pending review
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
 
-// Hook to create critical result notification
-export async function createCriticalResultNotification(resultId: string, userId: string) {
-  // This would need to be implemented in the backend
-  console.warn('createCriticalResultNotification not yet implemented in backend');
-}
+// Note: Critical results are handled through the normal verification workflow
+// Use resultsAPI.verify(resultId) to acknowledge and verify critical results

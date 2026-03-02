@@ -31,6 +31,8 @@ export interface OrderInfo {
 export interface ResultItem {
   testCode: string;
   testName: string;
+  panelCode?: string;
+  panelName?: string;
   value: string;
   unit?: string;
   referenceRange?: string;

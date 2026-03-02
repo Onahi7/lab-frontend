@@ -18,11 +18,20 @@ export interface TestCatalogItem {
   _id?: string; // MongoDB ID
   code: string;
   name: string;
-  category: 'hematology' | 'chemistry' | 'immunoassay' | 'urinalysis' | 'microbiology' | 'other';
+  category: 'hematology' | 'chemistry' | 'immunoassay' | 'urinalysis' | 'microbiology' | 'other' | 'panel';
   price: number;
   turnaroundTime: number; // in minutes
   sampleType: 'blood' | 'urine' | 'stool' | 'swab' | 'other';
   machineId?: string;
+  // Panel-specific properties
+  isPanel?: boolean;
+  tests?: Array<{
+    _id?: string;
+    id?: string;
+    testId?: string;
+    testCode: string;
+    testName: string;
+  }>;
 }
 
 export interface TestOrder {

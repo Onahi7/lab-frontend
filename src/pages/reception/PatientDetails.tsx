@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { ArrowLeft, Edit, Save, X, FileText, Loader2 } from 'lucide-react';
 import { PatientNotesPanel } from '@/components/patients/PatientNotesPanel';
+import { getPatientFullName } from '@/utils/orderHelpers';
 
 export default function PatientDetails() {
   const { id } = useParams<{ id: string }>();
@@ -98,7 +99,7 @@ export default function PatientDetails() {
 
   return (
     <RoleLayout 
-      title={`${patient.first_name} ${patient.last_name}`}
+      title={getPatientFullName(patient)}
       subtitle={patient.patient_id}
       role="receptionist"
       userName={profile?.full_name}
@@ -213,7 +214,7 @@ export default function PatientDetails() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Full Name</p>
-                  <p className="font-medium">{patient.first_name} {patient.last_name}</p>
+                  <p className="font-medium">{getPatientFullName(patient)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Gender</p>
