@@ -27,14 +27,11 @@ import PaymentDemo from "./pages/reception/PaymentDemo";
 import QuickResultEntry from "./pages/reception/QuickResultEntry";
 
 // Lab Pages
-import LabDashboard from "./pages/lab/LabDashboard";
 import LabDashboardPage from "./pages/lab/LabDashboardPage";
 import EnterManualResults from "./pages/lab/EnterManualResults";
 import ResultVerification from "./pages/lab/ResultVerification";
 import QCDataEntry from "./pages/lab/QCDataEntry";
-import CollectSamples from "./pages/lab/CollectSamples";
 import CollectSamplesPage from "./pages/lab/CollectSamplesPage";
-import EnterResults from "./pages/lab/EnterResults";
 import EnterResultsPage from "./pages/lab/EnterResultsPage";
 import ResultsPage from "./pages/lab/ResultsPage";
 import EditableResultReport from "./pages/lab/EditableResultReport";
@@ -45,10 +42,8 @@ import MatchResults from "./pages/lab/MatchResults";
 // Admin Pages
 import CommunicationLogs from "./pages/admin/CommunicationLogs";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import UserManagement from "./pages/admin/UserManagement";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import Reports from "./pages/admin/Reports";
-import TestCatalog from "./pages/admin/TestCatalog";
 import TestCatalogManagement from "./pages/admin/TestCatalogManagement";
 import ReconciliationReview from "./pages/admin/ReconciliationReview";
 import AuditLogViewer from "./pages/admin/AuditLogViewer";

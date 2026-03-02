@@ -124,7 +124,7 @@ export interface DashboardMetrics {
   patientsToday: number;
 }
 
-export type UserRole = 'admin' | 'receptionist' | 'lab-tech';
+export type UserRole = 'admin' | 'receptionist' | 'lab_tech';
 export type AppRole = UserRole; // Alias for compatibility
 
 export interface User {

@@ -116,7 +116,7 @@ export default function EnterManualResults() {
     <RoleLayout 
       title="Enter Manual Results" 
       subtitle="Manual result entry for tests"
-      role="lab-tech"
+      role="lab_tech"
       userName={profile?.full_name}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

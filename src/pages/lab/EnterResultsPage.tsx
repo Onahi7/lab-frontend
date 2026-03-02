@@ -104,8 +104,9 @@ export default function EnterResultsPage() {
 
   const handleValueChange = (orderTest: any, value: string) => {
     const testCode = orderTest.testCode || orderTest.test_code || '';
-    const patientAge = (selectedOrder?.patient || selectedOrder?.patientId)?.age;
-    const patientGender = (selectedOrder?.patient || selectedOrder?.patientId)?.gender;
+    const patient = typeof selectedOrder?.patient === 'object' ? selectedOrder.patient : null;
+    const patientAge = patient?.age;
+    const patientGender = patient?.gender;
     const testInfo = getTestInfo(testCode, patientAge, patientGender);
     const flag = calculateFlag(value, testCode);
     const entryKey = orderTest.id || orderTest._id || testCode;
@@ -202,7 +203,7 @@ export default function EnterResultsPage() {
     <RoleLayout 
       title="Enter Results" 
       subtitle="Input test results from analyzers"
-      role="lab-tech"
+      role="lab_tech"
       userName={profile?.full_name}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -306,8 +307,9 @@ export default function EnterResultsPage() {
 
                 {(() => {
                   const allTests: any[] = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
-                  const patientAge = (selectedOrder.patient || selectedOrder.patientId)?.age;
-                  const patientGender = (selectedOrder.patient || selectedOrder.patientId)?.gender;
+                  const patient = typeof selectedOrder.patient === 'object' ? selectedOrder.patient : null;
+                  const patientAge = patient?.age;
+                  const patientGender = patient?.gender;
 
                   // Group tests: panels first (keyed by panelCode), then standalone
                   const panelMap = new Map<string, { panelName: string; tests: any[] }>();

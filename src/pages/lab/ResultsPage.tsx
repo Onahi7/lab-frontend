@@ -17,7 +17,8 @@ import type { Database } from '@/integrations/supabase/types';
 type ResultFlag = Database['public']['Enums']['result_flag'];
 
 export default function ResultsPage() {
-  const { profile, user } = useAuth();
+  const { profile, user, primaryRole } = useAuth();
+  const currentRole = primaryRole === 'admin' ? 'admin' : primaryRole === 'receptionist' ? 'receptionist' : 'lab_tech';
   const navigate = useNavigate();
   const { data: results, isLoading } = useResults();
   const verifyResult = useVerifyResult();
@@ -56,7 +57,7 @@ export default function ResultsPage() {
     if (!user?.id) return;
 
     try {
-      await verifyResult.mutateAsync({ id, verifiedBy: user.id });
+      await verifyResult.mutateAsync({ id });
       toast.success('Result verified');
       setSelectedIds(prev => {
         const next = new Set(prev);
@@ -73,7 +74,7 @@ export default function ResultsPage() {
 
     for (const id of selectedIds) {
       try {
-        await verifyResult.mutateAsync({ id, verifiedBy: user.id });
+        await verifyResult.mutateAsync({ id });
       } catch (error) {
         console.error('Failed to verify:', id);
       }
@@ -114,7 +115,7 @@ export default function ResultsPage() {
     <RoleLayout 
       title="Results" 
       subtitle="View and verify test results"
-      role="lab-tech"
+      role={currentRole}
       userName={profile?.full_name}
     >
       {/* Actions Bar */}

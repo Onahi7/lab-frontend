@@ -18,7 +18,8 @@ import { getPatientName } from '@/utils/orderHelpers';
 type PaymentMethod = Database['public']['Enums']['payment_method'];
 
 export default function OrdersPage() {
-  const { profile } = useAuth();
+  const { profile, primaryRole } = useAuth();
+  const currentRole = primaryRole === 'admin' ? 'admin' : 'receptionist';
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
@@ -87,7 +88,7 @@ export default function OrdersPage() {
     <RoleLayout 
       title="Orders" 
       subtitle="View and manage test orders"
-      role="receptionist"
+      role={currentRole}
       userName={profile?.full_name}
     >
       {/* Filters */}

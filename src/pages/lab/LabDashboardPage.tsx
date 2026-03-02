@@ -46,7 +46,7 @@ export default function LabDashboardPage() {
     <RoleLayout 
       title="Lab Dashboard" 
       subtitle="Sample processing and result management"
-      role="lab-tech"
+      role="lab_tech"
       userName={profile?.full_name}
     >
       {/* Quick Actions */}

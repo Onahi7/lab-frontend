@@ -29,8 +29,7 @@ export default function ResultVerification() {
 
     try {
       await verifyResult.mutateAsync({
-        id: selectedResult.id || selectedResult._id,
-        verifiedBy: user.id
+        id: selectedResult.id || selectedResult._id
       });
 
       toast.success('Result verified successfully');
@@ -64,7 +63,7 @@ export default function ResultVerification() {
     <RoleLayout 
       title="Result Verification" 
       subtitle="Review and verify pending results"
-      role="lab-tech"
+      role="lab_tech"
       userName={profile?.full_name}
     >
       {/* Stats */}

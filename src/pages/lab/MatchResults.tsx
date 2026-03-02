@@ -126,7 +126,7 @@ export default function MatchResults() {
     <RoleLayout
       title="Match Analyzer Results"
       subtitle="Link incoming results to patient samples"
-      role="lab-tech"
+      role="lab_tech"
       userName={profile?.full_name}
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

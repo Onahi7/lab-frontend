@@ -85,7 +85,7 @@ export default function QCDataEntry() {
     <RoleLayout 
       title="Quality Control Data Entry" 
       subtitle="Record and monitor QC results"
-      role="lab-tech"
+      role="lab_tech"
       userName={profile?.full_name}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

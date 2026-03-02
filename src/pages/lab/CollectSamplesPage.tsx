@@ -69,7 +69,7 @@ export default function CollectSamplesPage() {
     <RoleLayout 
       title="Collect Samples" 
       subtitle="Sample collection and labeling"
-      role="lab-tech"
+      role="lab_tech"
       userName={profile?.full_name}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

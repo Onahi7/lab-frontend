@@ -38,7 +38,8 @@ const formatAgeDisplay = (patient: { age: number; ageValue?: number; ageUnit?: A
 };
 
 export default function PatientsPage() {
-  const { profile } = useAuth();
+  const { profile, primaryRole } = useAuth();
+  const currentRole = primaryRole === 'admin' ? 'admin' : primaryRole === 'lab_tech' ? 'lab_tech' : 'receptionist';
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -110,7 +111,7 @@ export default function PatientsPage() {
     <RoleLayout 
       title="Patients" 
       subtitle="Search and manage patient records"
-      role="receptionist"
+      role={currentRole}
       userName={profile?.full_name}
     >
       {/* Actions Bar */}

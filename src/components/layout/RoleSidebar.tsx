@@ -56,7 +56,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/reception/enter-results', icon: FlaskConical, label: 'Quick Entry' },
     { to: '/reception/results', icon: FileCheck, label: 'View Results' },
   ],
-  'lab-tech': [
+  lab_tech: [
     { to: '/lab', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/lab/match-results', icon: FlaskConical, label: 'Match Results' },
     { to: '/lab/pending', icon: ClipboardList, label: 'Pending Samples' },
@@ -71,7 +71,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
 const roleLabels: Record<UserRole, string> = {
   admin: 'Administrator',
   receptionist: 'Reception',
-  'lab-tech': 'Laboratory',
+  lab_tech: 'Laboratory',
 };
 
 interface RoleSidebarProps {
