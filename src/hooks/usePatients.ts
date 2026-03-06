@@ -49,6 +49,7 @@ export function usePatients() {
       // Backend returns { data: Patient[] }
       return response.data || response;
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes — avoid refetch on every mount
   });
 }
 
@@ -59,6 +60,7 @@ export function usePatient(id: string) {
       return await patientsAPI.getById(id);
     },
     enabled: !!id,
+    staleTime: 2 * 60 * 1000,
   });
 }
 

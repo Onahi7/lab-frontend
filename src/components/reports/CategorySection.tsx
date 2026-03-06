@@ -47,7 +47,7 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
   const isRangeOnlyLayout = category.category === 'microbiology' || category.category === 'urinalysis';
   const useThreeColumns = isInterpretationLayout || isRangeOnlyLayout;
 
-  const thirdColumnLabel = isInterpretationLayout ? 'Interpretation' : 'R.Range';
+  const thirdColumnLabel = isInterpretationLayout || isRangeOnlyLayout ? 'Interpretation' : 'R.Range';
 
   return (
     <div
@@ -107,7 +107,9 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
               </thead>
               <tbody>
                 {group.results.map((result) => {
-                  const firstColumnValue = result.testCode || result.testName;
+                  const firstColumnValue = isRangeOnlyLayout
+                    ? (result.testName || result.testCode)
+                    : (result.testCode || result.testName);
                   const thirdColumnValue = useThreeColumns
                     ? (result.comments || result.referenceRange || '-')
                     : (result.referenceRange || '-');

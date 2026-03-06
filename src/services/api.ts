@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -273,6 +273,11 @@ export const ordersAPI = {
 
   addPayment: async (id: string, data: { amount: number; paymentMethod: string; notes?: string }) => {
     const response = await api.post(`/orders/${id}/payment`, data);
+    return response.data;
+  },
+
+  getOutstandingBalances: async () => {
+    const response = await api.get('/orders/stats/outstanding');
     return response.data;
   },
 

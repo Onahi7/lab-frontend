@@ -235,13 +235,14 @@ export default function EditableResultReport() {
 
             {/* Doctor Section */}
             <div>
-              <h3 className="font-bold text-gray-700 mb-3 uppercase text-sm">Doctor</h3>
+              <h3 className="font-bold text-gray-700 mb-3 uppercase text-sm">Referred By Doctor</h3>
               <div className="space-y-2">
                 <div>
                   {isEditing ? (
                     <Input
                       value={patientInfo.doctor}
                       onChange={e => setPatientInfo({ ...patientInfo, doctor: e.target.value })}
+                      placeholder="Type doctor's name"
                       className="mt-1"
                     />
                   ) : (

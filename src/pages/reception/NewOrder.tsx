@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Search, X, CreditCard, Banknote, Smartphone, Check, Printer } from 'lucide-react';
+import { Search, X, CreditCard, Banknote, Smartphone, Check, Printer, Plus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TestCatalogItem } from '@/types/lis';
 import { getPatientFullName } from '@/utils/orderHelpers';
@@ -32,11 +32,12 @@ export default function NewOrder() {
   const [selectedTests, setSelectedTests] = useState<TestCatalogItem[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [priority, setPriority] = useState<'routine' | 'urgent' | 'stat'>('routine');
+  const [referredByDoctor, setReferredByDoctor] = useState('');
   const [discountValue, setDiscountValue] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<'cash' | 'orange_money' | 'afrimoney' | null>(null);
-  const [paymentAmountInput, setPaymentAmountInput] = useState('');
+  const [splitRows, setSplitRows] = useState<Array<{ method: string; amount: string }>>([{ method: 'cash', amount: '' }]);
+  const [paymentSummary, setPaymentSummary] = useState<Array<{ method: string; amount: number }>>([]);
   const [orderComplete, setOrderComplete] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<any | null>(null);
 
@@ -200,8 +201,14 @@ export default function NewOrder() {
   };
 
   const handleConfirmPayment = async () => {
-    if (!selectedPayment) {
-      toast.error('Please select a payment method');
+    const validRows = splitRows.filter(r => r.method && parseFloat(r.amount) > 0);
+    if (validRows.length === 0) {
+      toast.error('Please enter at least one payment amount');
+      return;
+    }
+    const splitTotal = validRows.reduce((s, r) => s + parseFloat(r.amount), 0);
+    if (splitTotal > total + 0.001) {
+      toast.error(`Total Le ${splitTotal.toLocaleString()} exceeds order total Le ${total.toLocaleString()}`);
       return;
     }
 
@@ -252,19 +259,19 @@ export default function NewOrder() {
     const normalizedOrderTests = Array.from(deduplicatedOrderTests.values());
 
     try {
-      const paymentAmount = parseFloat(paymentAmountInput);
-      const initialPaymentAmount = (paymentAmount > 0 && paymentAmount <= total) ? paymentAmount : total;
+      const validRows = splitRows.filter(r => r.method && parseFloat(r.amount) > 0);
       const newOrder = await createOrder.mutateAsync({
         patientId: patient._id || patient.id,
         priority,
+        referredByDoctor: referredByDoctor.trim() || undefined,
         tests: normalizedOrderTests,
         discount: discount > 0 ? discount : undefined,
         discountType: discount > 0 ? discountType : undefined,
-        paymentMethod: selectedPayment,
-        initialPaymentAmount,
+        initialPayments: validRows.map(r => ({ amount: parseFloat(r.amount), paymentMethod: r.method })),
         notes: undefined,
       });
 
+      setPaymentSummary(validRows.map(r => ({ method: r.method, amount: parseFloat(r.amount) })));
       setCreatedOrder(newOrder);
       setShowPaymentModal(false);
       setOrderComplete(true);
@@ -378,10 +385,12 @@ export default function NewOrder() {
                     <span>Le {Number(createdOrder.balance).toLocaleString()}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm">
-                  <span>Payment Method:</span>
-                  <span className="capitalize">{selectedPayment?.replace(/_/g, ' ')}</span>
-                </div>
+                {paymentSummary.map((p, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="capitalize">{p.method.replace(/_/g, ' ')}:</span>
+                    <span>Le {p.amount.toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
 
               <div className="mt-4 pt-4 border-t text-center text-xs text-muted-foreground">
@@ -405,7 +414,8 @@ export default function NewOrder() {
                     setSelectedTests([]);
                     setSelectedPatientId('');
                     setDiscountValue('');
-                    setSelectedPayment(null);
+                    setSplitRows([{ method: 'cash', amount: '' }]);
+                    setPaymentSummary([]);
                   }} 
                   className="flex-1"
                 >
@@ -601,6 +611,16 @@ export default function NewOrder() {
                 </Button>
               ))}
             </div>
+
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="referredByDoctor" className="text-sm">Referred by Doctor (Optional)</Label>
+              <Input
+                id="referredByDoctor"
+                value={referredByDoctor}
+                onChange={e => setReferredByDoctor(e.target.value)}
+                placeholder="Type doctor's name"
+              />
+            </div>
           </div>
         </div>
 
@@ -716,46 +736,60 @@ export default function NewOrder() {
             </div>
 
             <div className="space-y-3">
-              <div className="space-y-1">
-                <Label className="text-sm">Amount Paying Now</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={total}
-                  placeholder={`Leave blank for full amount: Le ${total.toLocaleString()}`}
-                  value={paymentAmountInput}
-                  onChange={e => setPaymentAmountInput(e.target.value)}
-                />
-                {parseFloat(paymentAmountInput) > 0 && parseFloat(paymentAmountInput) < total && (
-                  <p className="text-xs text-amber-600 font-medium">
-                    Balance remaining: Le {(total - parseFloat(paymentAmountInput)).toLocaleString()} (recorded as credit)
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-sm">Payment Method</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: 'cash', label: 'Cash', icon: Banknote },
-                    { id: 'orange_money', label: 'Orange Money', icon: Smartphone },
-                    { id: 'afrimoney', label: 'Afrimoney', icon: CreditCard },
-                  ].map(method => (
+              {splitRows.map((row, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <select
+                    value={row.method}
+                    onChange={e => setSplitRows(rows => rows.map((r, i) => i === idx ? { ...r, method: e.target.value } : r))}
+                    className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="orange_money">Orange Money</option>
+                    <option value="afrimoney">Afrimoney</option>
+                  </select>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="Amount"
+                    value={row.amount}
+                    onChange={e => setSplitRows(rows => rows.map((r, i) => i === idx ? { ...r, amount: e.target.value } : r))}
+                    className="flex-1"
+                  />
+                  {splitRows.length > 1 && (
                     <button
-                      key={method.id}
-                      onClick={() => setSelectedPayment(method.id as any)}
-                      className={cn(
-                        'flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors',
-                        selectedPayment === method.id ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'
-                      )}
+                      type="button"
+                      onClick={() => setSplitRows(rows => rows.filter((_, i) => i !== idx))}
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label="Remove row"
                     >
-                      <method.icon className="w-6 h-6" />
-                      <span className="text-sm font-medium">{method.label}</span>
+                      ×
                     </button>
-                  ))}
+                  )}
                 </div>
-              </div>
+              ))}
+
+              {splitRows.length < 3 && (
+                <button
+                  type="button"
+                  onClick={() => setSplitRows(rows => [...rows, { method: 'cash', amount: '' }])}
+                  className="flex items-center gap-1 text-sm text-primary hover:underline"
+                >
+                  <Plus className="w-3 h-3" /> Add method
+                </button>
+              )}
+
+              {(() => {
+                const splitTotal = splitRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+                const diff = total - splitTotal;
+                if (splitTotal <= 0) return null;
+                return (
+                  <div className={cn('flex justify-between pt-2 border-t text-sm font-semibold', diff < -0.001 ? 'text-destructive' : diff > 0.001 ? 'text-amber-600' : 'text-status-normal')}>
+                    <span>Total paying</span>
+                    <span>Le {splitTotal.toLocaleString()} / Le {total.toLocaleString()}{diff < -0.001 ? ' ✗ exceeds' : diff > 0.001 ? ` (Le ${diff.toLocaleString()} balance)` : ' ✓ Fully paid'}</span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -763,7 +797,11 @@ export default function NewOrder() {
             <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
               Cancel
             </Button>
-            <Button onClick={handleConfirmPayment} disabled={!selectedPayment}>
+            <Button
+              onClick={handleConfirmPayment}
+              disabled={createOrder.isPending || splitRows.every(r => !(parseFloat(r.amount) > 0))}
+            >
+              {createOrder.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Check className="w-4 h-4 mr-2" />
               Confirm Payment
             </Button>

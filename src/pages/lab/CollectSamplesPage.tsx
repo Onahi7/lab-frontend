@@ -114,9 +114,33 @@ export default function CollectSamplesPage() {
                         <p className="text-sm text-muted-foreground mb-1">
                           {getPatientId(order)}
                         </p>
-                        <p className="text-sm font-medium">
-                          {getOrderTests(order).map(t => t.testCode || t.test_code || 'Unknown').join(', ')}
-                        </p>
+                        {(() => {
+                          const tests = getOrderTests(order);
+                          const panelMap = new Map<string, { name: string; count: number }>();
+                          const standalone: string[] = [];
+                          for (const t of tests) {
+                            const pc = t.panelCode || (t as any).panel_code;
+                            const pn = t.panelName || (t as any).panel_name;
+                            if (pc) {
+                              if (!panelMap.has(pc)) panelMap.set(pc, { name: pn || pc, count: 0 });
+                              panelMap.get(pc)!.count++;
+                            } else {
+                              standalone.push(t.testCode || (t as any).test_code || '');
+                            }
+                          }
+                          return (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {Array.from(panelMap.entries()).map(([pc, g]) => (
+                                <span key={pc} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary rounded px-1.5 py-0.5">
+                                  {g.name} <span className="opacity-60">×{g.count}</span>
+                                </span>
+                              ))}
+                              {standalone.length > 0 && (
+                                <span className="text-xs text-muted-foreground">{standalone.join(', ')}</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         <p className="text-xs text-muted-foreground mt-1">
                           Ordered: {new Date(getCreatedAt(order)).toLocaleString()}
                         </p>
@@ -158,17 +182,48 @@ export default function CollectSamplesPage() {
 
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Tests to Collect</p>
-                  <div className="space-y-2">
-                    {(selectedOrder.tests || selectedOrder.order_tests || []).map(test => (
-                      <div key={test.id || test._id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
-                        <TestTube className="w-4 h-4 text-primary" />
-                        <div>
-                          <p className="font-medium text-sm">{test.testCode || test.test_code || 'Unknown'}</p>
-                          <p className="text-xs text-muted-foreground">{test.testName || test.test_name || 'Unknown Test'}</p>
-                        </div>
+                  {(() => {
+                    const tests = selectedOrder.tests || selectedOrder.order_tests || [];
+                    const panelMap = new Map<string, { name: string; tests: any[] }>();
+                    const standalone: any[] = [];
+                    for (const t of tests as any[]) {
+                      const pc = t.panelCode || t.panel_code;
+                      const pn = t.panelName || t.panel_name;
+                      if (pc) {
+                        if (!panelMap.has(pc)) panelMap.set(pc, { name: pn || pc, tests: [] });
+                        panelMap.get(pc)!.tests.push(t);
+                      } else {
+                        standalone.push(t);
+                      }
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {Array.from(panelMap.entries()).map(([pc, g]) => (
+                          <div key={pc} className="border rounded-md overflow-hidden">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border-b">
+                              <TestTube className="w-3.5 h-3.5 text-primary" />
+                              <p className="text-sm font-semibold text-primary">{g.name}</p>
+                              <span className="ml-auto text-xs text-muted-foreground">{g.tests.length} tests</span>
+                            </div>
+                            <div className="px-3 py-2 flex flex-wrap gap-x-3 gap-y-0.5">
+                              {g.tests.map(t => (
+                                <span key={t.id || t._id} className="text-xs text-muted-foreground">{t.testCode || (t as any).test_code}</span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        {standalone.map(t => (
+                          <div key={t.id || t._id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
+                            <TestTube className="w-4 h-4 text-primary" />
+                            <div>
+                              <p className="font-medium text-sm">{t.testCode || (t as any).test_code || 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground">{t.testName || (t as any).test_name || 'Unknown Test'}</p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="pt-4 border-t space-y-3">

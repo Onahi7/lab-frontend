@@ -20,8 +20,9 @@ export default function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
+  const [splitRows, setSplitRows] = useState<Array<{ method: string; amount: string }>>([
+    { method: 'cash', amount: '' },
+  ]);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [historyOrderId, setHistoryOrderId] = useState<string>('');
   const [dateRange, setDateRange] = useState<string>('today');
@@ -90,25 +91,34 @@ export default function PaymentsPage() {
     .reduce((sum, o) => sum + Number(o.amountPaid || o.total || o.totalAmount || 0), 0) : 0;
 
   const handleProcessPayment = async () => {
-    if (!selectedOrder || !selectedPaymentMethod) return;
+    if (!selectedOrder) return;
     const orderId = selectedOrder.id || selectedOrder._id;
     const orderTotal = Number(selectedOrder.total || selectedOrder.totalAmount || 0);
     const alreadyPaid = Number(selectedOrder.amountPaid || 0);
     const remaining = orderTotal - alreadyPaid;
-    const amount = parseFloat(paymentAmount) || remaining;
 
-    if (amount <= 0 || amount > remaining + 0.001) {
-      toast.error(`Amount must be between 0.01 and Le ${remaining.toLocaleString()}`);
+    const validRows = splitRows.filter(r => r.method && parseFloat(r.amount) > 0);
+    if (validRows.length === 0) {
+      toast.error('Enter at least one payment amount');
+      return;
+    }
+    const splitTotal = validRows.reduce((s, r) => s + parseFloat(r.amount), 0);
+    if (splitTotal > remaining + 0.001) {
+      toast.error(`Total Le ${splitTotal.toLocaleString()} exceeds remaining balance Le ${remaining.toLocaleString()}`);
       return;
     }
 
     try {
-      await addPayment.mutateAsync({ orderId, data: { amount, paymentMethod: selectedPaymentMethod } });
-      toast.success(`Payment of Le ${amount.toLocaleString()} recorded`);
+      for (const row of validRows) {
+        await addPayment.mutateAsync({
+          orderId,
+          data: { amount: parseFloat(row.amount), paymentMethod: row.method },
+        });
+      }
+      toast.success(`Payment of Le ${splitTotal.toLocaleString()} recorded`);
       setShowPaymentDialog(false);
       setSelectedOrder(null);
-      setSelectedPaymentMethod(null);
-      setPaymentAmount('');
+      setSplitRows([{ method: 'cash', amount: '' }]);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to process payment');
     }
@@ -297,7 +307,7 @@ export default function PaymentsPage() {
                             size="sm"
                             onClick={() => {
                               setSelectedOrder(order);
-                              setPaymentAmount('');
+                              setSplitRows([{ method: 'cash', amount: '' }]);
                               setShowPaymentDialog(true);
                             }}
                           >
@@ -334,7 +344,7 @@ export default function PaymentsPage() {
       </div>
 
       {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={open => { setShowPaymentDialog(open); if (!open) { setSelectedPaymentMethod(null); setPaymentAmount(''); } }}>
+      <Dialog open={showPaymentDialog} onOpenChange={open => { setShowPaymentDialog(open); if (!open) { setSplitRows([{ method: 'cash', amount: '' }]); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
@@ -370,49 +380,62 @@ export default function PaymentsPage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Amount to Pay</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={Number(selectedOrder.total || 0) - Number(selectedOrder.amountPaid || 0)}
-                    placeholder={`Max: Le ${(Number(selectedOrder.total || 0) - Number(selectedOrder.amountPaid || 0)).toLocaleString()}`}
-                    value={paymentAmount}
-                    onChange={e => setPaymentAmount(e.target.value)}
-                  />
-                  {parseFloat(paymentAmount) > 0 && parseFloat(paymentAmount) < (Number(selectedOrder.total || 0) - Number(selectedOrder.amountPaid || 0)) && (
-                    <p className="text-xs text-amber-600">
-                      Remaining credit after this: Le {(Number(selectedOrder.total || 0) - Number(selectedOrder.amountPaid || 0) - parseFloat(paymentAmount)).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Payment Method</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { id: 'cash', label: 'Cash', icon: Banknote },
-                      { id: 'orange_money', label: 'Orange Money', icon: Smartphone },
-                      { id: 'afrimoney', label: 'Afrimoney', icon: CreditCard },
-                    ].map(method => (
+              <div className="space-y-3">
+                {splitRows.map((row, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <select
+                      value={row.method}
+                      onChange={e => setSplitRows(rows => rows.map((r, i) => i === idx ? { ...r, method: e.target.value } : r))}
+                      className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="orange_money">Orange Money</option>
+                      <option value="afrimoney">Afrimoney</option>
+                    </select>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="Amount"
+                      value={row.amount}
+                      onChange={e => setSplitRows(rows => rows.map((r, i) => i === idx ? { ...r, amount: e.target.value } : r))}
+                      className="flex-1"
+                    />
+                    {splitRows.length > 1 && (
                       <button
-                        key={method.id}
-                        onClick={() => setSelectedPaymentMethod(method.id)}
-                        className={cn(
-                          'flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors',
-                          selectedPaymentMethod === method.id
-                            ? 'border-primary bg-primary/5'
-                            : 'hover:bg-muted/50'
-                        )}
+                        type="button"
+                        onClick={() => setSplitRows(rows => rows.filter((_, i) => i !== idx))}
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label="Remove row"
                       >
-                        <method.icon className="w-6 h-6" />
-                        <span className="text-sm font-medium">{method.label}</span>
+                        ×
                       </button>
-                    ))}
+                    )}
                   </div>
-                </div>
+                ))}
+
+                {splitRows.length < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setSplitRows(rows => [...rows, { method: 'cash', amount: '' }])}
+                    className="flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    <Plus className="w-3 h-3" /> Add method
+                  </button>
+                )}
+
+                {(() => {
+                  const splitTotal = splitRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+                  const remaining = Number(selectedOrder?.total || selectedOrder?.totalAmount || 0) - Number(selectedOrder?.amountPaid || 0);
+                  const diff = remaining - splitTotal;
+                  if (splitTotal <= 0) return null;
+                  return (
+                    <div className={cn('flex justify-between pt-2 border-t text-sm font-semibold', diff < -0.001 ? 'text-destructive' : diff > 0.001 ? 'text-amber-600' : 'text-status-normal')}>
+                      <span>Total paying</span>
+                      <span>Le {splitTotal.toLocaleString()} / Le {remaining.toLocaleString()}{diff < -0.001 ? ' ✗ exceeds' : diff > 0.001 ? ` (Le ${diff.toLocaleString()} remaining)` : ' ✓'}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -421,7 +444,7 @@ export default function PaymentsPage() {
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
             <Button
               onClick={handleProcessPayment}
-              disabled={!selectedPaymentMethod || addPayment.isPending}
+              disabled={addPayment.isPending || splitRows.every(r => !(parseFloat(r.amount) > 0))}
             >
               {addPayment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Check className="w-4 h-4 mr-2" />

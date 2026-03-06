@@ -58,6 +58,7 @@ export function useTestCatalog() {
     queryFn: async () => {
       return await testCatalogAPI.getAll();
     },
+    staleTime: 10 * 60 * 1000, // 10 minutes — test catalog rarely changes
   });
 }
 
@@ -67,6 +68,7 @@ export function useActiveTests() {
     queryFn: async () => {
       return await testCatalogAPI.getActive();
     },
+    staleTime: 10 * 60 * 1000,
   });
 }
 

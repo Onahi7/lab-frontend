@@ -51,6 +51,7 @@ export function useResults(orderId?: string) {
       if (orderId) params.orderId = orderId;
       return await resultsAPI.getAll(params);
     },
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 
@@ -60,6 +61,7 @@ export function useCriticalResults() {
     queryFn: async () => {
       return await resultsAPI.getCritical();
     },
+    staleTime: 30 * 1000,
   });
 }
 
@@ -69,6 +71,7 @@ export function usePendingVerificationResults() {
     queryFn: async () => {
       return await resultsAPI.getPendingVerification();
     },
+    staleTime: 30 * 1000,
   });
 }
 

@@ -113,6 +113,7 @@ export interface OrderWithDetails extends Order {
 interface OrderCreate {
   patientId: string;
   priority: 'routine' | 'urgent' | 'stat';
+  referredByDoctor?: string;
   notes?: string;
   tests: Array<{
     testId: string;
@@ -126,6 +127,7 @@ interface OrderCreate {
   discountType?: 'fixed' | 'percentage';
   paymentMethod?: 'cash' | 'orange_money' | 'afrimoney';
   initialPaymentAmount?: number;
+  initialPayments?: Array<{ amount: number; paymentMethod: string }>;
 }
 
 interface OrderUpdate {
@@ -151,6 +153,7 @@ export function useOrders(status?: string) {
       const orders = await ordersAPI.getAll(params);
       return (orders || []).map((order: any) => normalizeOrder(order));
     },
+    staleTime: 30 * 1000, // 30 seconds — reduce refetches on slow network
   });
 }
 
@@ -162,6 +165,7 @@ export function useOrder(id: string) {
       return normalizeOrder(order);
     },
     enabled: !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -173,6 +177,7 @@ export function useTodayOrders() {
       const orders = await ordersAPI.getAll({ date: today });
       return (orders || []).map((order: any) => normalizeOrder(order));
     },
+    staleTime: 30 * 1000,
   });
 }
 
@@ -183,6 +188,7 @@ export function usePendingCollectionOrders() {
       const orders = await ordersAPI.getPendingCollection();
       return (orders || []).map((order: any) => normalizeOrder(order));
     },
+    staleTime: 30 * 1000,
   });
 }
 
@@ -193,6 +199,7 @@ export function useProcessingOrders() {
       const orders = await ordersAPI.getPendingResults();
       return (orders || []).map((order: any) => normalizeOrder(order));
     },
+    staleTime: 30 * 1000,
   });
 }
 
@@ -230,6 +237,7 @@ export function usePaymentStats(startDate?: string, endDate?: string) {
     queryFn: async () => {
       return await ordersAPI.getPaymentStats(startDate, endDate);
     },
+    staleTime: 60 * 1000, // 1 minute
   });
 }
 
@@ -239,6 +247,17 @@ export function useDailyIncome(startDate?: string, endDate?: string) {
     queryFn: async () => {
       return await ordersAPI.getDailyIncome(startDate, endDate);
     },
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useOutstandingBalances() {
+  return useQuery({
+    queryKey: ['outstanding-balances'],
+    queryFn: async () => {
+      return await ordersAPI.getOutstandingBalances();
+    },
+    staleTime: 30 * 1000,
   });
 }
 

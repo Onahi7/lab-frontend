@@ -1,22 +1,67 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useProcessingOrders, useUpdateOrder } from '@/hooks/useOrders';
 import { useCreateResult } from '@/hooks/useResults';
 import { useActiveTests } from '@/hooks/useTestCatalog';
+import { useWebSocket } from '@/context/WebSocketContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, Check, AlertTriangle, Loader2 } from 'lucide-react';
+import { FileText, Check, AlertTriangle, Loader2, Search, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
 import { SendToAnalyzerDialog } from '@/components/machines/SendToAnalyzerDialog';
 
 type ResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+
+// Standard options for qualitative/semi-quantitative tests
+const QUALITATIVE_OPTIONS: Record<string, string[]> = {
+  // ── Urinalysis physical ─────────────────────────────────────────────────
+  'URINE-COLOR':    ['Yellow', 'Pale Yellow', 'Straw', 'Amber', 'Dark Yellow', 'Orange', 'Brown', 'Red', 'Colorless'],
+  'URINE-CLARITY':  ['Clear', 'Slightly Turbid', 'Turbid', 'Very Turbid', 'Hazy'],
+  // ── Urinalysis chemical ─────────────────────────────────────────────────
+  'URINE-PROTEIN':  ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
+  'URINE-GLUCOSE':  ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
+  'URINE-KETONES':  ['Negative', 'Trace', '+1', '+2', '+3'],
+  'URINE-BLOOD':    ['Negative', 'Trace', '+1', '+2', '+3'],
+  'URINE-BILI':     ['Negative', '+1', '+2', '+3'],
+  'URINE-URO':      ['Normal (0.1–1.0 mg/dL)', '2 mg/dL', '4 mg/dL', '8 mg/dL'],
+  'URINE-NITRITE':  ['Negative', 'Positive'],
+  'URINE-LE':       ['Negative', 'Trace', '+1', '+2', '+3'],
+  // ── Urinalysis microscopy ───────────────────────────────────────────────
+  'URINE-BACTERIA': ['None', '+1 (Rare)', '+2 (Few)', '+3 (Moderate)', '+4 (Many)'],
+  'URINE-EPI':      ['None', 'Rare', 'Few', 'Moderate', 'Many'],
+  'URINE-CASTS':    ['None Seen', 'Rare', '0–1/LPF', '1–2/LPF', '2–5/LPF', '>5/LPF'],
+  'URINE-CRYSTALS': ['None', 'Rare', 'Few', 'Moderate', 'Many'],
+  // ── Rapid tests (Positive / Negative) ──────────────────────────────────
+  'MALARIA':    ['Negative', 'Positive (P. falciparum)', 'Positive (P. vivax)', 'Positive (Mixed)'],
+  'HIV':        ['Non-Reactive', 'Reactive'],
+  'HBSAG':      ['Non-Reactive', 'Reactive'],
+  'HCV':        ['Non-Reactive', 'Reactive'],
+  'HIVP24':     ['Non-Reactive', 'Reactive'],
+  'HPYLORI':    ['Negative', 'Positive'],
+  'HPYLORI_IA': ['Negative', 'Positive'],
+  'IFOB':       ['Negative', 'Positive'],
+  'GONORRHEA':  ['Negative', 'Positive'],
+  'CHLAMYDIA':  ['Negative', 'Positive'],
+  'HSV':        ['Non-Reactive', 'Reactive (HSV-1)', 'Reactive (HSV-2)', 'Reactive (HSV-1 & 2)'],
+  'PREGNANCY':  ['Negative', 'Positive'],
+  // ── Serology (titered) ──────────────────────────────────────────────────
+  'VDRL':  ['Non-Reactive', 'Weakly Reactive', 'Reactive (1:1)', 'Reactive (1:2)', 'Reactive (1:4)', 'Reactive (1:8)', 'Reactive (1:16)', 'Reactive (1:32)'],
+  // ── Hematology special ──────────────────────────────────────────────────
+  'BLOODGROUP': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+  'SICKLE':     ['AA – Normal', 'AS – Sickle Cell Trait', 'SS – Sickle Cell Disease', 'SC – Sickle-Haemoglobin C'],
+};
+
+// Tests that need a free-text area (complex/descriptive results)
+const TEXTAREA_TESTS = new Set(['STOOLMICRO']);
 
 interface ResultEntry {
   testId: string;
@@ -30,17 +75,137 @@ interface ResultEntry {
 }
 
 export default function EnterResultsPage() {
-  const { profile, user } = useAuth();
+  const { profile, user, primaryRole } = useAuth();
   const { data: processingOrders, isLoading } = useProcessingOrders();
   const { data: testCatalog } = useActiveTests();
+  const { socket } = useWebSocket();
   const updateOrder = useUpdateOrder();
   const createResult = useCreateResult();
+
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [resultEntries, setResultEntries] = useState<Record<string, ResultEntry>>({});
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSendToAnalyzer, setShowSendToAnalyzer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderSearch, setOrderSearch] = useState('');
+  // Track which entries were synced live from another user (testKey → time string)
+  const [liveUpdates, setLiveUpdates] = useState<Record<string, string>>({});
+
+  const getDraftStorageKey = (orderId?: string) => `result-draft:${orderId || 'unknown'}`;
+
+  const selectedOrderTests: any[] = selectedOrder
+    ? (selectedOrder as any).tests || (selectedOrder as any).order_tests || []
+    : [];
+  const totalTests = selectedOrderTests.length;
+  const completedTests = selectedOrderTests.filter((test: any) => {
+    const testKey = test.id || test._id || test.testCode || test.test_code;
+    return Boolean(resultEntries[testKey]?.value?.toString().trim());
+  }).length;
+  const progressPercent = totalTests > 0 ? Math.round((completedTests / totalTests) * 100) : 0;
+
+  useEffect(() => {
+    if (!selectedOrder) {
+      setResultEntries({});
+      return;
+    }
+
+    const orderId = selectedOrder.id || (selectedOrder as any)._id;
+    if (!orderId) {
+      setResultEntries({});
+      return;
+    }
+
+    try {
+      const savedDraft = localStorage.getItem(getDraftStorageKey(orderId));
+      if (savedDraft) {
+        const parsedDraft = JSON.parse(savedDraft);
+        setResultEntries(parsedDraft || {});
+      } else {
+        setResultEntries({});
+      }
+    } catch {
+      setResultEntries({});
+    }
+  }, [selectedOrder]);
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+
+    const orderId = selectedOrder.id || (selectedOrder as any)._id;
+    if (!orderId) return;
+
+    const timeout = setTimeout(() => {
+      try {
+        const hasValues = Object.values(resultEntries).some((entry) => entry?.value?.toString().trim());
+        const storageKey = getDraftStorageKey(orderId);
+        if (hasValues) {
+          localStorage.setItem(storageKey, JSON.stringify(resultEntries));
+        } else {
+          localStorage.removeItem(storageKey);
+        }
+      } catch {
+        // Ignore storage errors
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [selectedOrder, resultEntries]);
+
+  // Clear live-update indicators when the selected order changes
+  useEffect(() => {
+    setLiveUpdates({});
+  }, [selectedOrder]);
+
+  // Real-time collaboration: listen for results saved by other users
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleResultCreated = (result: any) => {
+      // Only react if it belongs to the currently selected order
+      if (!selectedOrder) return;
+      const currentOrderId = selectedOrder.id || (selectedOrder as any)._id;
+      if (result.orderId !== currentOrderId) return;
+
+      // Find the matching orderTest entry
+      const orderTests: any[] = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
+      const matchingTest = orderTests.find(
+        (t: any) => (t.testCode || t.test_code) === result.testCode,
+      );
+      if (!matchingTest) return;
+
+      const testKey = matchingTest.id || matchingTest._id || result.testCode;
+      const enteredBy: string = result.enteredBy || 'another user';
+
+      setResultEntries(prev => ({
+        ...prev,
+        [testKey]: {
+          testId: testKey,
+          orderTestId: testKey,
+          testCode: result.testCode,
+          testName: result.testName || result.test_name || result.testCode,
+          value: result.value,
+          unit: result.unit || prev[testKey]?.unit || '',
+          referenceRange:
+            result.referenceRange || result.reference_range || prev[testKey]?.referenceRange || '',
+          flag: result.flag || 'normal',
+        },
+      }));
+
+      setLiveUpdates(prev => ({
+        ...prev,
+        [testKey]: new Date().toLocaleTimeString(),
+      }));
+
+      toast.info(`${result.testCode} updated${enteredBy !== 'another user' ? ` by ${enteredBy}` : ''}: ${result.value}`);
+    };
+
+    socket.on('result:created', handleResultCreated);
+    return () => {
+      socket.off('result:created', handleResultCreated);
+    };
+  }, [socket, selectedOrder]);
 
   // Get reference info from test catalog
   const getTestInfo = (testCode: string, patientAge?: number, patientGender?: string) => {
@@ -50,48 +215,61 @@ export default function EnterResultsPage() {
     }
 
     let referenceRange = test.referenceRange || '';
-    
-    // If we have age/gender-specific ranges, find the best match
-    if (test.referenceRanges && test.referenceRanges.length > 0 && patientAge !== undefined) {
-      const matchedRange = test.referenceRanges.find((r: any) => {
-        // Check age range
-        const ageMatch = 
-          (r.ageMin === undefined || patientAge >= r.ageMin) &&
-          (r.ageMax === undefined || patientAge <= r.ageMax);
-        
-        // Check gender
-        const genderMatch = !r.gender || r.gender === 'all' || r.gender === patientGender;
-        
-        return ageMatch && genderMatch;
-      });
+    let matchedAgeGroup = '';
+
+    if (test.referenceRanges && test.referenceRanges.length > 0) {
+      let matchedRange: any;
+
+      if (patientAge !== undefined) {
+        // Try to find an age + gender specific match first
+        matchedRange = test.referenceRanges.find((r: any) => {
+          const ageMatch =
+            (r.ageMin === undefined || patientAge >= r.ageMin) &&
+            (r.ageMax === undefined || patientAge <= r.ageMax);
+          const genderMatch = !r.gender || r.gender === 'all' || r.gender === patientGender;
+          return ageMatch && genderMatch;
+        });
+
+        // Relax gender constraint if no full match (e.g. gender 'O' or mismatch)
+        if (!matchedRange) {
+          matchedRange = test.referenceRanges.find((r: any) => {
+            return (
+              (r.ageMin === undefined || patientAge >= r.ageMin) &&
+              (r.ageMax === undefined || patientAge <= r.ageMax)
+            );
+          });
+        }
+      }
+
+      // Final fallback: use the first entry if still nothing matched and no simple range string
+      if (!matchedRange && !referenceRange) {
+        matchedRange = test.referenceRanges[0];
+      }
 
       if (matchedRange) {
         referenceRange = `${matchedRange.range} ${matchedRange.unit || test.unit || ''}`.trim();
+        matchedAgeGroup = matchedRange.ageGroup || '';
       }
     }
 
     return {
       unit: test.unit || '',
       referenceRange,
+      ageGroup: matchedAgeGroup,
     };
   };
 
-  const calculateFlag = (value: string, testCode: string): ResultFlag => {
+  const calculateFlag = (value: string, rangeStr: string): ResultFlag => {
     const numValue = parseFloat(value);
-    if (isNaN(numValue)) return 'normal';
+    if (isNaN(numValue) || !rangeStr) return 'normal';
 
-    const test = testCatalog?.find((t: any) => t.code === testCode);
-    const rangeStr = test?.referenceRange || test?.reference_range;
-    if (!rangeStr) return 'normal';
-
-    // Parse reference range like "70-100" or "4.5-11.0"
+    // Parse reference range like "70-100" or "4.5-11.0 g/dL"
     const match = rangeStr.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
     if (!match) return 'normal';
 
     const low = parseFloat(match[1]);
     const high = parseFloat(match[2]);
 
-    // Define critical thresholds (20% beyond normal)
     const criticalLow = low * 0.5;
     const criticalHigh = high * 1.5;
 
@@ -108,7 +286,7 @@ export default function EnterResultsPage() {
     const patientAge = patient?.age;
     const patientGender = patient?.gender;
     const testInfo = getTestInfo(testCode, patientAge, patientGender);
-    const flag = calculateFlag(value, testCode);
+    const flag = calculateFlag(value, testInfo.referenceRange);
     const entryKey = orderTest.id || orderTest._id || testCode;
 
     setResultEntries(prev => ({
@@ -181,6 +359,7 @@ export default function EnterResultsPage() {
       }
 
       toast.success('Results submitted successfully');
+      localStorage.removeItem(getDraftStorageKey(selectedOrder.id || (selectedOrder as any)._id));
       setShowConfirmModal(false);
       setResultEntries({});
       setSelectedOrder(null);
@@ -199,20 +378,46 @@ export default function EnterResultsPage() {
     critical_high: 'bg-status-critical/10 text-status-critical',
   };
 
+  // Filter the order list by the search term
+  const filteredOrders = (processingOrders || []).filter(order => {
+    if (!orderSearch.trim()) return true;
+    const term = orderSearch.trim().toLowerCase();
+    const name = getPatientName(order).toLowerCase();
+    const num = getOrderNumber(order).toLowerCase();
+    return name.includes(term) || num.includes(term);
+  });
+
   return (
     <RoleLayout 
       title="Enter Results" 
-      subtitle="Input test results from analyzers"
-      role="lab_tech"
+      subtitle="Input test results — changes are synced to all users in real time"
+      role={primaryRole === 'receptionist' ? 'receptionist' : primaryRole === 'admin' ? 'admin' : 'lab_tech'}
       userName={profile?.full_name}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Processing Orders List */}
+        {/* Orders List */}
         <div className="lg:col-span-1">
           <div className="bg-card border rounded-lg">
-            <div className="px-4 py-3 border-b">
-              <h3 className="font-semibold">Processing Orders</h3>
-              <p className="text-sm text-muted-foreground">{processingOrders?.length || 0} awaiting results</p>
+            <div className="px-4 py-3 border-b space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Active Orders</h3>
+                <div className="flex items-center gap-1.5 text-xs text-status-normal">
+                  <Radio className="w-3 h-3 animate-pulse" />
+                  <span>Live</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">{filteredOrders.length} awaiting results</p>
+              {/* Search bar */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  ref={searchRef}
+                  placeholder="Search by name or order #…"
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  className="pl-8 h-8 text-sm"
+                />
+              </div>
             </div>
             
             {isLoading ? (
@@ -221,7 +426,7 @@ export default function EnterResultsPage() {
               </div>
             ) : (
               <div className="divide-y max-h-[600px] overflow-y-auto">
-                {processingOrders?.map(order => (
+                {filteredOrders.map(order => (
                   <button
                     key={order.id}
                     className={cn(
@@ -230,7 +435,6 @@ export default function EnterResultsPage() {
                     )}
                     onClick={() => {
                       setSelectedOrder(order);
-                      setResultEntries({});
                     }}
                   >
                     <div className="flex items-center justify-between mb-1">
@@ -247,15 +451,26 @@ export default function EnterResultsPage() {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{getOrderNumber(order)}</p>
-                    <p className="text-xs mt-1">
-                      {((order as any).tests || (order as any).order_tests || []).map((t: any) => t.testCode || t.test_code || '').filter(Boolean).join(', ')}
-                    </p>
+                    {(() => {
+                      const codes = ((order as any).tests || (order as any).order_tests || [])
+                        .map((t: any) => t.testCode || t.test_code || '')
+                        .filter(Boolean);
+                      const previewCodes = codes.slice(0, 5);
+                      const extraCount = Math.max(codes.length - previewCodes.length, 0);
+
+                      return (
+                        <p className="text-xs mt-1 text-muted-foreground">
+                          {previewCodes.join(', ')}
+                          {extraCount > 0 ? ` +${extraCount} more` : ''}
+                        </p>
+                      );
+                    })()}
                   </button>
                 ))}
-                {(!processingOrders || processingOrders.length === 0) && (
+                {(!filteredOrders || filteredOrders.length === 0) && (
                   <div className="px-4 py-12 text-center text-muted-foreground">
                     <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="font-medium">No orders processing</p>
+                    <p className="font-medium">{orderSearch ? 'No orders match' : 'No orders processing'}</p>
                   </div>
                 )}
               </div>
@@ -294,6 +509,19 @@ export default function EnterResultsPage() {
                       </Badge>
                     </div>
                   </div>
+
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                      <span>Progress</span>
+                      <span>{completedTests}/{totalTests} entered ({progressPercent}%) • Autosaved</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Send to Analyzer Dialog */}
@@ -326,6 +554,16 @@ export default function EnterResultsPage() {
                     }
                   }
 
+                  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, testKey: string) => {
+                    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+                    e.preventDefault();
+                    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="value-"]'));
+                    const idx = inputs.findIndex(el => el.id === `value-${testKey}`);
+                    if (idx === -1) return;
+                    const target = inputs[e.key === 'ArrowDown' ? idx + 1 : idx - 1];
+                    if (target) { target.focus(); target.select(); }
+                  };
+
                   const renderTestRow = (test: any) => {
                     const testCode = test.testCode || test.test_code || '';
                     const testName = test.testName || test.test_name || testCode;
@@ -333,30 +571,77 @@ export default function EnterResultsPage() {
                     const entry = resultEntries[testKey];
                     const testInfo = getTestInfo(testCode, patientAge, patientGender);
 
+                    const qualitativeOptions = QUALITATIVE_OPTIONS[testCode];
+                    const isTextarea = TEXTAREA_TESTS.has(testCode);
+
                     return (
-                      <div key={testKey} className="grid grid-cols-12 gap-3 items-center py-3 px-3 border-b last:border-b-0">
+                      <div key={testKey} className={cn('grid gap-3 items-start py-3 px-3 border-b last:border-b-0', isTextarea ? 'grid-cols-1' : 'grid-cols-12')}>
+                        {isTextarea ? (
+                          // Full-width layout for descriptive/textarea tests
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <p className="font-medium text-sm">{testCode}</p>
+                              <p className="text-xs text-muted-foreground">{testName}</p>
+                            </div>
+                            <textarea
+                              placeholder="Enter findings..."
+                              value={entry?.value || ''}
+                              onChange={e => handleValueChange(test, e.target.value)}
+                              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                        ) : (
+                          <>
                         <div className="col-span-4">
                           <p className="font-medium text-sm">{testCode}</p>
                           <p className="text-xs text-muted-foreground">{testName}</p>
                         </div>
                         <div className="col-span-3">
-                          <Input
-                            id={`value-${testKey}`}
-                            placeholder="Value"
-                            value={entry?.value || ''}
-                            onChange={e => handleValueChange(test, e.target.value)}
-                            className="h-8 text-sm"
-                          />
+                          {qualitativeOptions && qualitativeOptions.length > 0 ? (
+                            <Select
+                              value={entry?.value || ''}
+                              onValueChange={val => handleValueChange(test, val)}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Select..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {qualitativeOptions.map(opt => (
+                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              id={`value-${testKey}`}
+                              placeholder="Value"
+                              value={entry?.value || ''}
+                              onChange={e => handleValueChange(test, e.target.value)}
+                              onKeyDown={e => handleKeyDown(e, testKey)}
+                              className="h-8 text-sm"
+                            />
+                          )}
                         </div>
                         <div className="col-span-2 text-xs text-muted-foreground">{testInfo.unit || '-'}</div>
-                        <div className="col-span-2 text-xs text-muted-foreground">{testInfo.referenceRange || '-'}</div>
-                        <div className="col-span-1 flex justify-end">
+                        <div className="col-span-2">
+                          <p className="text-xs text-muted-foreground">{testInfo.referenceRange || '-'}</p>
+                          {testInfo.ageGroup && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{testInfo.ageGroup}</p>}
+                        </div>
+                        <div className="col-span-1 flex flex-col items-end gap-1">
                           {entry?.value && (
                             <Badge variant="outline" className={cn('text-xs', flagStyles[entry.flag])}>
                               {entry.flag === 'normal' ? '✓' : entry.flag === 'critical_high' || entry.flag === 'critical_low' ? '!!' : entry.flag === 'high' ? '↑' : '↓'}
                             </Badge>
                           )}
+                          {liveUpdates[testKey] && (
+                            <span className="text-[9px] text-primary/70 flex items-center gap-0.5" title={`Synced at ${liveUpdates[testKey]}`}>
+                              <Radio className="w-2.5 h-2.5" />
+                              live
+                            </span>
+                          )}
                         </div>
+                      </>
+                        )}
                       </div>
                     );
                   };
@@ -372,27 +657,41 @@ export default function EnterResultsPage() {
                         <div className="col-span-1"></div>
                       </div>
 
-                      {/* Panel groups */}
-                      {Array.from(panelMap.entries()).map(([pc, group]) => (
-                        <div key={pc} className="rounded-lg border overflow-hidden">
-                          <div className="bg-primary/8 px-3 py-2 border-b">
-                            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{group.panelName}</p>
-                          </div>
-                          {group.tests.map(renderTestRow)}
-                        </div>
-                      ))}
+                      <Accordion type="multiple" className="w-full space-y-3">
+                        {/* Panel groups */}
+                        {Array.from(panelMap.entries()).map(([pc, group]) => (
+                          <AccordionItem key={pc} value={`panel-${pc}`} className="rounded-lg border overflow-hidden">
+                            <AccordionTrigger className="px-3 py-2 hover:no-underline">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold uppercase tracking-wide text-primary text-left">{group.panelName}</p>
+                                <Badge variant="outline" className="text-[10px]">{group.tests.length}</Badge>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-0">
+                              <div className="border-t">
+                                {group.tests.map(renderTestRow)}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
 
-                      {/* Standalone tests */}
-                      {standaloneTests.length > 0 && (
-                        <div className="rounded-lg border overflow-hidden">
-                          {panelMap.size > 0 && (
-                            <div className="bg-muted/50 px-3 py-2 border-b">
-                              <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Individual Tests</p>
-                            </div>
-                          )}
-                          {standaloneTests.map(renderTestRow)}
-                        </div>
-                      )}
+                        {/* Standalone tests */}
+                        {standaloneTests.length > 0 && (
+                          <AccordionItem value="standalone-tests" className="rounded-lg border overflow-hidden">
+                            <AccordionTrigger className="px-3 py-2 hover:no-underline">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Individual Tests</p>
+                                <Badge variant="outline" className="text-[10px]">{standaloneTests.length}</Badge>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-0">
+                              <div className="border-t">
+                                {standaloneTests.map(renderTestRow)}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        )}
+                      </Accordion>
                     </div>
                   );
                 })()}

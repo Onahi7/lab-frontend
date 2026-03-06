@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useTestCatalog, useCreateTest, useUpdateTest, useDeleteTest } from '@/hooks/useTestCatalog';
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Search, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Loader2, CheckCircle, XCircle, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -18,6 +19,9 @@ type SampleType = Database['public']['Enums']['sample_type'];
 
 export default function TestCatalogManagement() {
   const { profile } = useAuth();
+  const { pathname } = useLocation();
+  const sidebarRole = pathname.startsWith('/lab') ? 'lab_tech' : 'admin';
+  const isAdmin = profile?.role === 'admin';
   const { data: tests, isLoading } = useTestCatalog();
   const createTest = useCreateTest();
   const updateTest = useUpdateTest();
@@ -25,6 +29,7 @@ export default function TestCatalogManagement() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [showPanelComponents, setShowPanelComponents] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [editingTest, setEditingTest] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -39,7 +44,12 @@ export default function TestCatalogManagement() {
     is_active: true
   });
 
+  const isPanelComponent = (test: any) => Number(test.price) === 0 && !test.isActive;
+
+  const panelComponentCount = tests?.filter(isPanelComponent).length ?? 0;
+
   const filteredTests = tests?.filter(test => {
+    if (!showPanelComponents && isPanelComponent(test)) return false;
     const matchesSearch = test.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          test.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || test.category === categoryFilter;
@@ -137,7 +147,7 @@ export default function TestCatalogManagement() {
     <RoleLayout 
       title="Test Catalog Management" 
       subtitle="Manage laboratory tests and pricing"
-      role="admin"
+      role={sidebarRole}
       userName={profile?.full_name}
     >
       {/* Actions Bar */}
@@ -166,38 +176,59 @@ export default function TestCatalogManagement() {
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
+          <button
+            onClick={() => setShowPanelComponents(v => !v)}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-md text-sm border transition-colors',
+              showPanelComponents
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background text-muted-foreground border-input hover:bg-accent'
+            )}
+            title={showPanelComponents ? 'Hide panel sub-components' : 'Show panel sub-components'}
+          >
+            <Layers className="w-4 h-4" />
+            Panel Components ({panelComponentCount})
+          </button>
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Test
-        </Button>
+        {isAdmin && (
+          <Button onClick={handleAdd}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Test
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-card border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Total Tests</p>
-          <p className="text-2xl font-bold">{tests?.length || 0}</p>
-        </div>
-        <div className="bg-card border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Active Tests</p>
-          <p className="text-2xl font-bold text-status-normal">
-            {tests?.filter(t => t.isActive).length || 0}
-          </p>
-        </div>
-        <div className="bg-card border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Inactive Tests</p>
-          <p className="text-2xl font-bold text-muted-foreground">
-            {tests?.filter(t => !t.isActive).length || 0}
-          </p>
-        </div>
-        <div className="bg-card border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Avg Price</p>
-          <p className="text-2xl font-bold">
-            Le {tests?.length ? Math.round(tests.reduce((sum, t) => sum + Number(t.price), 0) / tests.length).toLocaleString() : 0}
-          </p>
-        </div>
-      </div>
+      {(() => {
+        const orderableTests = tests?.filter(t => !isPanelComponent(t)) ?? [];
+        const priced = orderableTests.filter(t => Number(t.price) > 0);
+        const avgPrice = priced.length ? Math.round(priced.reduce((sum, t) => sum + Number(t.price), 0) / priced.length) : 0;
+        return (
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-card border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Orderable Tests</p>
+              <p className="text-2xl font-bold">{orderableTests.length}</p>
+              <p className="text-xs text-muted-foreground mt-1">{panelComponentCount} panel sub-components hidden</p>
+            </div>
+            <div className="bg-card border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Active Tests</p>
+              <p className="text-2xl font-bold text-status-normal">
+                {orderableTests.filter(t => t.isActive).length}
+              </p>
+            </div>
+            <div className="bg-card border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Inactive Tests</p>
+              <p className="text-2xl font-bold text-muted-foreground">
+                {orderableTests.filter(t => !t.isActive).length}
+              </p>
+            </div>
+            <div className="bg-card border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Avg Price</p>
+              <p className="text-2xl font-bold">Le {avgPrice.toLocaleString()}</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Tests Table */}
       <div className="bg-card border rounded-lg overflow-hidden">
@@ -242,22 +273,29 @@ export default function TestCatalogManagement() {
                   <td className="font-semibold">Le {Number(test.price).toLocaleString()}</td>
                   <td>{test.turnaroundTime} min</td>
                   <td>
-                    <button
-                      onClick={() => handleToggleActive(test)}
-                      className="flex items-center gap-1"
-                    >
-                      {test.isActive ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-status-normal" />
-                          <span className="text-sm text-status-normal">Active</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Inactive</span>
-                        </>
-                      )}
-                    </button>
+                    {isAdmin ? (
+                      <button
+                        onClick={() => handleToggleActive(test)}
+                        className="flex items-center gap-1"
+                      >
+                        {test.isActive ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-status-normal" />
+                            <span className="text-sm text-status-normal">Active</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Inactive</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <span className={cn('text-sm flex items-center gap-1', test.isActive ? 'text-status-normal' : 'text-muted-foreground')}>
+                        {test.isActive ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                        {test.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div className="flex gap-1">
@@ -268,14 +306,16 @@ export default function TestCatalogManagement() {
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(test)}
-                        className="text-status-critical hover:text-status-critical"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(test)}
+                          className="text-status-critical hover:text-status-critical"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -403,14 +443,18 @@ export default function TestCatalogManagement() {
             </div>
 
             <div className="col-span-2 flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="is_active"
-                checked={formData.is_active}
-                onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                className="rounded"
-              />
-              <Label htmlFor="is_active" className="cursor-pointer">Active</Label>
+              {isAdmin && (
+                <>
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                    className="rounded"
+                  />
+                  <Label htmlFor="is_active" className="cursor-pointer">Active</Label>
+                </>
+              )}
             </div>
           </div>
 

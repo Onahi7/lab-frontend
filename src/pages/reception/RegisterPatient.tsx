@@ -27,26 +27,19 @@ const convertAgeToYears = (ageValue: number, ageUnit: AgeUnit): number => {
 };
 
 const normalizeSierraLeonePhone = (value: string): string => {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  const digitsOnly = trimmed.replace(/\D/g, '');
+  const digitsOnly = value.replace(/\D/g, '');
 
   if (!digitsOnly) {
     return '';
   }
 
-  if (digitsOnly.startsWith('232')) {
-    return `+${digitsOnly}`;
-  }
+  const localDigits = digitsOnly.startsWith('232')
+    ? digitsOnly.slice(3)
+    : digitsOnly.startsWith('0')
+      ? digitsOnly.slice(1)
+      : digitsOnly;
 
-  if (digitsOnly.startsWith('0')) {
-    return `+232${digitsOnly.slice(1)}`;
-  }
-
-  return `+232${digitsOnly}`;
+  return `+232${localDigits}`;
 };
 
 export default function RegisterPatient() {
@@ -253,13 +246,17 @@ export default function RegisterPatient() {
             {/* Phone */}
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="+232 XX XXXXXX"
-              />
+              <div className="flex items-center rounded-md border bg-background">
+                <span className="px-3 text-sm text-muted-foreground border-r">+232</span>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '') }))}
+                  placeholder="XXXXXXXX"
+                  className="border-0 focus-visible:ring-0"
+                />
+              </div>
             </div>
 
             {/* Email */}

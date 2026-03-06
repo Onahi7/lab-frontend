@@ -24,7 +24,6 @@ import PaymentsPage from "./pages/reception/PaymentsPage";
 import DailyReconciliation from "./pages/reception/DailyReconciliation";
 import PaymentReceipt from "./pages/reception/PaymentReceipt";
 import PaymentDemo from "./pages/reception/PaymentDemo";
-import QuickResultEntry from "./pages/reception/QuickResultEntry";
 
 // Lab Pages
 import LabDashboardPage from "./pages/lab/LabDashboardPage";
@@ -114,7 +113,7 @@ function AppRoutes() {
         <RoleGuard allowedRoles={['receptionist', 'admin']}><ResultsPage /></RoleGuard>
       } />
       <Route path="/reception/enter-results" element={
-        <RoleGuard allowedRoles={['receptionist', 'admin']}><QuickResultEntry /></RoleGuard>
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><EnterResultsPage /></RoleGuard>
       } />
       <Route path="/reception/receipt/:orderId" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><PaymentReceipt /></RoleGuard>
@@ -137,7 +136,7 @@ function AppRoutes() {
         <RoleGuard allowedRoles={['lab_tech', 'admin']}><CollectSamplesPage /></RoleGuard>
       } />
       <Route path="/lab/processing" element={
-        <RoleGuard allowedRoles={['lab_tech', 'admin']}><EnterResultsPage /></RoleGuard>
+        <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><EnterResultsPage /></RoleGuard>
       } />
       <Route path="/lab/enter-results" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><EnterManualResults /></RoleGuard>
@@ -156,6 +155,9 @@ function AppRoutes() {
       } />
       <Route path="/lab/machines" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin']}><Machines /></RoleGuard>
+      } />
+      <Route path="/lab/test-catalog" element={
+        <RoleGuard allowedRoles={['lab_tech', 'admin']}><TestCatalogManagement /></RoleGuard>
       } />
       <Route path="/lab/result-report/:id?" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><EditableResultReport /></RoleGuard>

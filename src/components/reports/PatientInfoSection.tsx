@@ -31,14 +31,14 @@ export function PatientInfoSection({ patientInfo, orderInfo, template }: Patient
     ? `${patientInfo.age} Year${patientInfo.age === 1 ? '' : 's'}`
     : '-';
 
-  const orderingPhysician = orderInfo.orderingPhysician || '-';
-  const copiesTo = orderInfo.orderingPhysician || '-';
+  const orderingPhysician = orderInfo.orderingPhysician || '____________________';
+  const copiesTo = orderInfo.orderingPhysician || '____________________';
   
   return (
     <div className="patient-info-section mb-5">
       <div className="grid grid-cols-3 gap-6 border-b border-gray-300 pb-2 mb-2">
         <h3 className="text-sm font-bold uppercase text-gray-700">Patient</h3>
-        <h3 className="text-sm font-bold uppercase text-gray-700">Doctor</h3>
+        <h3 className="text-sm font-bold uppercase text-gray-700">Referred By Doctor</h3>
         <h3 className="text-sm font-bold uppercase text-gray-700">Copies To</h3>
       </div>
 
@@ -60,7 +60,7 @@ export function PatientInfoSection({ patientInfo, orderInfo, template }: Patient
 
         <div className="space-y-1">
           {showDoctor && (
-            <p><span className="font-semibold uppercase text-xs">Name Of Doctor:</span> {orderingPhysician}</p>
+            <p><span className="font-semibold uppercase text-xs">Name:</span> {orderingPhysician}</p>
           )}
           {showCollected && (
             <p><span className="font-semibold uppercase text-xs">Collected:</span> {formatDate(orderInfo.collectedAt || orderInfo.orderDate)}</p>
@@ -72,7 +72,7 @@ export function PatientInfoSection({ patientInfo, orderInfo, template }: Patient
 
         <div className="space-y-1">
           {showCopiesTo && (
-            <p><span className="font-semibold uppercase text-xs">Name Of Doctor:</span> {copiesTo}</p>
+            <p><span className="font-semibold uppercase text-xs">Name:</span> {copiesTo}</p>
           )}
           {showReported && (
             <p><span className="font-semibold uppercase text-xs">Reported:</span> {formatDate(orderInfo.reportedAt || orderInfo.orderDate)}</p>

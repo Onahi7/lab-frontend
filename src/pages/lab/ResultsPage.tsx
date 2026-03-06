@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useResults, useVerifyResult } from '@/hooks/useResults';
@@ -8,17 +8,36 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Search, CheckCircle, Download, Loader2, Eye, FileText } from 'lucide-react';
+import { Search, CheckCircle, Loader2, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getPatientName, getPatientId } from '@/utils/orderHelpers';
-import type { Database } from '@/integrations/supabase/types';
 
-type ResultFlag = Database['public']['Enums']['result_flag'];
+type ResultFlag = 'normal' | 'high' | 'low' | 'critical_high' | 'critical_low';
+
+function formatFlag(flag?: string): string {
+  if (!flag) return 'Unknown';
+  return flag
+    .split('_')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function safeFormat(dateStr?: string, fmt = 'MMM dd, HH:mm'): string {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return format(d, fmt);
+  } catch {
+    return '-';
+  }
+}
 
 export default function ResultsPage() {
   const { profile, user, primaryRole } = useAuth();
-  const currentRole = primaryRole === 'admin' ? 'admin' : primaryRole === 'receptionist' ? 'receptionist' : 'lab_tech';
+  const { pathname } = useLocation();
+  const currentRole = pathname.startsWith('/admin') ? 'admin' : pathname.startsWith('/reception') ? 'receptionist' : 'lab_tech';
   const navigate = useNavigate();
   const { data: results, isLoading } = useResults();
   const verifyResult = useVerifyResult();
@@ -27,6 +46,8 @@ export default function ResultsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [flagFilter, setFlagFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [isBatchVerifying, setIsBatchVerifying] = useState(false);
 
   const filteredResults = results?.filter(result => {
     // Filter by status
@@ -55,7 +76,7 @@ export default function ResultsPage() {
 
   const handleVerify = async (id: string) => {
     if (!user?.id) return;
-
+    setVerifyingId(id);
     try {
       await verifyResult.mutateAsync({ id });
       toast.success('Result verified');
@@ -66,12 +87,14 @@ export default function ResultsPage() {
       });
     } catch (error) {
       toast.error('Failed to verify result');
+    } finally {
+      setVerifyingId(null);
     }
   };
 
   const handleVerifySelected = async () => {
     if (!user?.id) return;
-
+    setIsBatchVerifying(true);
     for (const id of selectedIds) {
       try {
         await verifyResult.mutateAsync({ id });
@@ -81,6 +104,7 @@ export default function ResultsPage() {
     }
     toast.success(`Verified ${selectedIds.size} results`);
     setSelectedIds(new Set());
+    setIsBatchVerifying(false);
   };
 
   const toggleSelect = (id: string) => {
@@ -103,7 +127,7 @@ export default function ResultsPage() {
     }
   };
 
-  const flagStyles: Record<ResultFlag, string> = {
+  const flagStyles: Record<string, string> = {
     normal: 'bg-status-normal/10 text-status-normal border-status-normal/20',
     low: 'bg-status-warning/10 text-status-warning border-status-warning/20',
     high: 'bg-status-warning/10 text-status-warning border-status-warning/20',
@@ -138,6 +162,7 @@ export default function ResultsPage() {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="preliminary">Preliminary</SelectItem>
               <SelectItem value="verified">Verified</SelectItem>
+              <SelectItem value="amended">Amended</SelectItem>
             </SelectContent>
           </Select>
           <Select value={flagFilter} onValueChange={setFlagFilter}>
@@ -155,13 +180,11 @@ export default function ResultsPage() {
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
           {selectedIds.size > 0 && (
-            <Button onClick={handleVerifySelected}>
-              <CheckCircle className="w-4 h-4 mr-2" />
+            <Button onClick={handleVerifySelected} disabled={isBatchVerifying}>
+              {isBatchVerifying
+                ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                : <CheckCircle className="w-4 h-4 mr-2" />}
               Verify Selected ({selectedIds.size})
             </Button>
           )}
@@ -240,39 +263,50 @@ export default function ResultsPage() {
                     </td>
                     <td className="text-muted-foreground">{referenceRange || '-'}</td>
                     <td>
-                      <Badge variant="outline" className={cn(flagStyles[result.flag])}>
-                        {result.flag === 'normal' ? 'Normal' : result.flag.replace('_', ' ')}
+                      <Badge variant="outline" className={cn(flagStyles[result.flag ?? ''] ?? '')}>
+                        {formatFlag(result.flag)}
                       </Badge>
                     </td>
                     <td>
-                      <Badge variant={result.status === 'verified' ? 'default' : 'secondary'}>
-                        {result.status}
+                      <Badge
+                        variant={
+                          result.status === 'verified'
+                            ? 'default'
+                            : result.status === 'amended'
+                            ? 'outline'
+                            : 'secondary'
+                        }
+                        className={result.status === 'amended' ? 'border-status-warning/40 text-status-warning' : undefined}
+                      >
+                        {result.status ? result.status.charAt(0).toUpperCase() + result.status.slice(1) : '-'}
                       </Badge>
                     </td>
                     <td className="text-muted-foreground text-sm">
-                      {resultedAt ? format(new Date(resultedAt), 'MMM dd, HH:mm') : '-'}
+                      {safeFormat(resultedAt)}
                     </td>
                     <td>
                       <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => navigate(`/lab/reports/${order?.id || order?._id}`)}
-                          title="View Report"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {result.status !== 'verified' && (
+                        {(order?.id || order?._id) && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => navigate(`/lab/reports/${order?.id || order?._id}`)}
+                            title="View Report"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {result.status !== 'verified' && result.status !== 'amended' && (
                           <Button 
                             variant="ghost" 
                             size="sm"
                             onClick={() => handleVerify(resultId)}
-                            disabled={verifyResult.isPending}
+                            disabled={verifyingId === resultId || isBatchVerifying}
+                            title="Verify result"
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            {verifyingId === resultId
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <CheckCircle className="w-4 h-4" />}
                           </Button>
                         )}
                       </div>

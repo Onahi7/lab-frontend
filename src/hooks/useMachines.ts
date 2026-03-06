@@ -68,6 +68,7 @@ export function useMachines() {
     queryFn: async () => {
       return await machinesAPI.getAll();
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes — machine list changes infrequently
   });
 }
 
@@ -78,6 +79,7 @@ export function useMachine(id: string) {
       return await machinesAPI.getById(id);
     },
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

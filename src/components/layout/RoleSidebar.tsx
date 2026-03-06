@@ -17,7 +17,8 @@ import {
   LucideIcon,
   LogOut,
   Calculator,
-  FileEdit
+  FileEdit,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -65,6 +66,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/lab/results', icon: FileText, label: 'Enter Results' },
     { to: '/lab/patients', icon: Users, label: 'Patients' },
     { to: '/lab/machines', icon: Cpu, label: 'Machines' },
+    { to: '/lab/test-catalog', icon: BookOpen, label: 'Test Catalog' },
   ],
 };
 

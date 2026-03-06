@@ -6,6 +6,7 @@ import {
   useCreateReconciliation,
   useReconciliations,
 } from '@/hooks/useReconciliation';
+import { useDailyIncome, useOutstandingBalances } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,10 @@ import {
   Clock,
   AlertTriangle,
   Loader2,
+  Banknote,
+  Smartphone,
+  CreditCard,
+  TrendingDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -37,6 +42,16 @@ export default function DailyReconciliation() {
     useExpectedAmounts(selectedDate);
   const { data: reconciliations } = useReconciliations('all');
   const createReconciliation = useCreateReconciliation();
+
+  // Actual collected from Payment records for the selected date
+  const todayStart = new Date(selectedDate);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(selectedDate);
+  todayEnd.setHours(23, 59, 59, 999);
+  const { data: dailyIncome } = useDailyIncome(todayStart.toISOString(), todayEnd.toISOString());
+  const todayData = Array.isArray(dailyIncome) && dailyIncome.length > 0 ? dailyIncome[0] : null;
+
+  const { data: outstandingData } = useOutstandingBalances();
 
   const actualCashNum = parseFloat(actualCash) || 0;
   const actualCardNum = parseFloat(actualCard) || 0;
@@ -99,7 +114,7 @@ export default function DailyReconciliation() {
       role="receptionist"
       userName={profile?.full_name}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Reconciliation Form */}
         <div className="space-y-6">
           <div className="bg-card border rounded-lg p-6">
@@ -397,6 +412,93 @@ export default function DailyReconciliation() {
               <p className="text-center text-muted-foreground py-8">
                 No reconciliations yet
               </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+        {/* Collected Today Panel */}
+        <div className="space-y-4">
+          <div className="bg-card border rounded-lg p-6">
+            <h3 className="font-semibold text-lg mb-4">Collected Today (System)</h3>
+            {!todayData ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No payments recorded for this date</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-sm">
+                    <Banknote className="w-4 h-4 text-muted-foreground" /> Cash
+                  </span>
+                  <span className="font-semibold">Le {(todayData.cashPayments || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-sm">
+                    <Smartphone className="w-4 h-4 text-muted-foreground" /> Orange Money
+                  </span>
+                  <span className="font-semibold">Le {(todayData.orangeMoneyPayments || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-sm">
+                    <CreditCard className="w-4 h-4 text-muted-foreground" /> Afrimoney
+                  </span>
+                  <span className="font-semibold">Le {(todayData.afrimoneyPayments || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t font-bold">
+                  <span>Total collected</span>
+                  <span className="text-status-normal">Le {(todayData.totalIncome || 0).toLocaleString()}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{todayData.paymentCount || 0} payment transaction(s)</p>
+              </div>
+            )}
+          </div>
+
+          {/* Outstanding Balances Panel */}
+          <div className="bg-card border rounded-lg p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingDown className="w-5 h-5 text-amber-500" />
+              <h3 className="font-semibold text-lg">Outstanding Balances</h3>
+            </div>
+            {!outstandingData ? (
+              <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+            ) : outstandingData.summary.totalOutstanding === 0 ? (
+              <p className="text-sm text-status-normal text-center py-4">All orders fully paid ✓</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Partial ({outstandingData.summary.partialCount})</p>
+                    <p className="font-bold text-amber-600">Le {(outstandingData.summary.partialBalance || 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">remaining</p>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Unpaid ({outstandingData.summary.pendingCount})</p>
+                    <p className="font-bold text-destructive">Le {(outstandingData.summary.pendingBalance || 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">owed</p>
+                  </div>
+                </div>
+                <div className="flex justify-between font-bold text-sm pt-2 border-t">
+                  <span>Total outstanding</span>
+                  <span className="text-amber-600">Le {(outstandingData.summary.totalOutstanding || 0).toLocaleString()}</span>
+                </div>
+                <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
+                  {outstandingData.orders.slice(0, 20).map((o: any) => (
+                    <div key={o._id} className="flex items-center justify-between text-sm border-b pb-2 last:border-0">
+                      <div>
+                        <p className="font-mono text-xs">{o.orderNumber}</p>
+                        <p className="text-muted-foreground">
+                          {o.patientId?.firstName} {o.patientId?.lastName}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="outline" className={cn('text-xs', o.paymentStatus === 'partial' ? 'text-amber-600' : 'text-destructive')}>
+                          {o.paymentStatus}
+                        </Badge>
+                        <p className="font-semibold text-amber-600">Le {Number(o.balance || o.total).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
