@@ -415,7 +415,6 @@ export default function DailyReconciliation() {
             )}
           </div>
         </div>
-      </div>
 
         {/* Collected Today Panel */}
         <div className="space-y-4">

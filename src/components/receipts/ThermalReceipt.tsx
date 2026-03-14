@@ -1,27 +1,8 @@
 import { forwardRef } from 'react';
 import { format } from 'date-fns';
+import type { ReceiptData } from '@/utils/escpos';
 
-interface ReceiptData {
-  receiptNumber: string;
-  orderNumber: string;
-  patientName: string;
-  patientId: string;
-  patientPhone?: string;
-  tests: Array<{
-    code: string;
-    name: string;
-    price: number;
-  }>;
-  subtotal: number;
-  discount: number;
-  discountType: 'percentage' | 'fixed';
-  total: number;
-  amountPaid: number;
-  paymentMethod: 'cash' | 'card' | 'mobile-money';
-  paymentDate: string;
-  cashier: string;
-  collectionDate?: string;
-}
+export type { ReceiptData };
 
 interface ThermalReceiptProps {
   data: ReceiptData;

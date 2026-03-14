@@ -724,4 +724,15 @@ export const reportTemplatesAPI = {
   },
 };
 
+export const settingsAPI = {
+  getPrinterSettings: async () => {
+    const response = await api.get('/settings/printer');
+    return response.data;
+  },
+  updatePrinterSettings: async (patch: Record<string, any>) => {
+    const response = await api.patch('/settings/printer', patch);
+    return response.data;
+  },
+};
+
 export default api;

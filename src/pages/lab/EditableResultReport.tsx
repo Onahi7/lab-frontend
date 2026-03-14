@@ -86,8 +86,12 @@ export default function EditableResultReport() {
 
   const handlePrint = () => {
     setIsEditing(false);
-    setTimeout(() => {
-      window.print();
+    setTimeout(async () => {
+      if (window.electronAPI?.printSilent) {
+        await window.electronAPI.printSilent({ pageSize: 'A4', silent: true });
+      } else {
+        window.print();
+      }
     }, 100);
   };
 

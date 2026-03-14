@@ -38,7 +38,7 @@ export function PatientInfoSection({ patientInfo, orderInfo, template }: Patient
     <div className="patient-info-section mb-5">
       <div className="grid grid-cols-3 gap-6 border-b border-gray-300 pb-2 mb-2">
         <h3 className="text-sm font-bold uppercase text-gray-700">Patient</h3>
-        <h3 className="text-sm font-bold uppercase text-gray-700">Referred By Doctor</h3>
+        <h3 className="text-sm font-bold uppercase text-gray-700">Doctor</h3>
         <h3 className="text-sm font-bold uppercase text-gray-700">Copies To</h3>
       </div>
 

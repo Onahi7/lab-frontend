@@ -50,9 +50,7 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
   const thirdColumnLabel = isInterpretationLayout || isRangeOnlyLayout ? 'Interpretation' : 'R.Range';
 
   return (
-    <div
-      className={`category-section mb-6 page-break-inside-avoid ${pageBreakBefore ? 'category-page-break' : ''}`}
-    >
+    <div className={`category-section mb-6`}>
       <h3
         className="text-3xl font-bold uppercase tracking-wide text-center mb-2"
         style={{ color: categoryHeadingColor }}
@@ -107,9 +105,7 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
               </thead>
               <tbody>
                 {group.results.map((result) => {
-                  const firstColumnValue = isRangeOnlyLayout
-                    ? (result.testName || result.testCode)
-                    : (result.testCode || result.testName);
+                  const firstColumnValue = result.testName || result.testCode;
                   const thirdColumnValue = useThreeColumns
                     ? (result.comments || result.referenceRange || '-')
                     : (result.referenceRange || '-');
@@ -118,19 +114,25 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                     <tr key={`${result.testCode}-${result.resultedAt}`} className="border-b border-gray-200">
                       <td className="py-1.5 px-3 font-semibold text-sm">{firstColumnValue}</td>
                       <td
-                        className="py-1.5 px-3 font-semibold"
+                        className="py-1.5 px-3 font-semibold whitespace-nowrap"
                         style={{
                           color:
                             result.flag === 'critical_high' || result.flag === 'critical_low'
                               ? (resultsSection?.criticalColor || colors?.critical || '#dc2626')
                               : result.flag === 'high' || result.flag === 'low'
-                                ? (resultsSection?.abnormalColor || colors?.abnormal || '#ea580c')
+                                ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
                                 : undefined,
                         }}
                       >
                         {result.value}
+                        {(result.flag === 'high' || result.flag === 'critical_high') && (
+                          <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                        )}
+                        {(result.flag === 'low' || result.flag === 'critical_low') && (
+                          <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                        )}
                       </td>
-                      <td className="py-1.5 px-3 text-sm">{thirdColumnValue}</td>
+                      <td className="py-1.5 px-3 text-sm">{typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}</td>
                       {!useThreeColumns && (
                         <td className="py-1.5 px-3 text-sm">{result.unit || '-'}</td>
                       )}

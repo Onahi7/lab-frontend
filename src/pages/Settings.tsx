@@ -1,16 +1,43 @@
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useSync } from '@/context/SyncContext';
+import { useState } from 'react';
 import { 
   Building2, 
   Globe, 
   Shield, 
   Database, 
   Bell,
-  Plug
+  Plug,
+  Wifi,
+  CheckCircle2,
+  XCircle,
+  Loader2,
 } from 'lucide-react';
 
 export default function Settings() {
+  const { connectionMode, lanBackendUrl, setServerUrl, isApiReachable } = useSync();
+  const [serverIp, setServerIp] = useState(lanBackendUrl || '');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const handleTestConnection = async () => {
+    const url = serverIp.trim();
+    if (!url) return;
+    // Ensure it starts with http
+    const fullUrl = url.startsWith('http') ? url : `http://${url}`;
+    setTesting(true);
+    setTestResult(null);
+    const error = await setServerUrl(fullUrl);
+    setTesting(false);
+    if (error) {
+      setTestResult({ ok: false, msg: error });
+    } else {
+      setTestResult({ ok: true, msg: 'Connected successfully!' });
+    }
+  };
+
   const settingsSections = [
     {
       id: 'organization',
@@ -53,6 +80,60 @@ export default function Settings() {
   return (
     <MainLayout title="Settings" subtitle="Configure system preferences">
       <div className="max-w-4xl">
+        {/* Server Connection */}
+        <div className="bg-card border rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Wifi className="w-5 h-5 text-primary" />
+            <h2 className="font-semibold text-lg">Server Connection</h2>
+            <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
+              connectionMode === 'online' ? 'bg-green-100 text-green-700' :
+              connectionMode === 'lan-only' ? 'bg-blue-100 text-blue-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {connectionMode === 'online' ? 'Online' : connectionMode === 'lan-only' ? 'LAN Connected' : 'Offline'}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            If the app can't find the server automatically, enter the server IP address here.
+            Both machines must be on the same WiFi network.
+          </p>
+          <div className="flex gap-3 items-start">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-muted-foreground">Server Address</label>
+              <Input
+                className="mt-1"
+                placeholder="e.g. 192.168.1.100:3000"
+                value={serverIp}
+                onChange={(e) => { setServerIp(e.target.value); setTestResult(null); }}
+              />
+              {isApiReachable && lanBackendUrl && (
+                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Currently connected to {lanBackendUrl}
+                </p>
+              )}
+            </div>
+            <Button
+              className="mt-6"
+              onClick={handleTestConnection}
+              disabled={testing || !serverIp.trim()}
+            >
+              {testing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {testing ? 'Testing…' : 'Connect'}
+            </Button>
+          </div>
+          {testResult && (
+            <div className={`mt-3 flex items-center gap-2 text-sm ${testResult.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {testResult.ok ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+              {testResult.msg}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground mt-3">
+            Tip: On the server computer, find its IP with <code>ipconfig</code> (Windows) or <code>ifconfig</code> (Mac/Linux).
+            The default port is <code>3000</code>.
+          </p>
+        </div>
+
         {/* Quick Settings */}
         <div className="bg-card border rounded-lg p-6 mb-6">
           <h2 className="font-semibold text-lg mb-4">Laboratory Information</h2>

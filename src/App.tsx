@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { WebSocketProvider } from "./context/WebSocketContext";
+import { SyncProvider } from "./context/SyncContext";
 import { ConnectionStatus } from "./components/ConnectionStatus";
 import { RoleGuard } from "./components/auth/RoleGuard";
 import { Loader2 } from "lucide-react";
@@ -24,6 +25,7 @@ import PaymentsPage from "./pages/reception/PaymentsPage";
 import DailyReconciliation from "./pages/reception/DailyReconciliation";
 import PaymentReceipt from "./pages/reception/PaymentReceipt";
 import PaymentDemo from "./pages/reception/PaymentDemo";
+import PrinterSetup from "./pages/reception/PrinterSetup";
 
 // Lab Pages
 import LabDashboardPage from "./pages/lab/LabDashboardPage";
@@ -47,6 +49,9 @@ import TestCatalogManagement from "./pages/admin/TestCatalogManagement";
 import ReconciliationReview from "./pages/admin/ReconciliationReview";
 import AuditLogViewer from "./pages/admin/AuditLogViewer";
 import ReportTemplateEditor from "./pages/admin/ReportTemplateEditor";
+import PrinterSettings from "./pages/admin/PrinterSettings";
+
+import { PrinterProvider } from "./context/PrinterContext";
 
 // Shared Pages
 import Machines from "./pages/Machines";
@@ -120,6 +125,9 @@ function AppRoutes() {
       } />
       <Route path="/reception/payment-demo" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><PaymentDemo /></RoleGuard>
+      } />
+      <Route path="/reception/printer" element={
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><PrinterSetup /></RoleGuard>
       } />
 
       {/* Lab Routes */}
@@ -210,6 +218,9 @@ function AppRoutes() {
       <Route path="/admin/settings" element={
         <RoleGuard allowedRoles={['admin']}><Settings /></RoleGuard>
       } />
+      <Route path="/admin/printers" element={
+        <RoleGuard allowedRoles={['admin']}><PrinterSettings /></RoleGuard>
+      } />
       <Route path="/admin/logs" element={
         <RoleGuard allowedRoles={['admin']}><CommunicationLogs /></RoleGuard>
       } />
@@ -223,24 +234,34 @@ function AppRoutes() {
   );
 }
 
+// Use HashRouter for Electron (file:// protocol), BrowserRouter for web
+const isElectron = !!(window as any).electronAPI?.isElectron;
+const Router = isElectron ? HashRouter : BrowserRouter;
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
+      <Router
+        {...(!isElectron ? {
+          future: {
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          },
+        } : {})}
       >
         <AuthProvider>
-          <WebSocketProvider>
-            <ConnectionStatus />
-            <AppRoutes />
-          </WebSocketProvider>
+          <SyncProvider>
+            <PrinterProvider>
+              <WebSocketProvider>
+                <ConnectionStatus />
+                <AppRoutes />
+              </WebSocketProvider>
+            </PrinterProvider>
+          </SyncProvider>
         </AuthProvider>
-      </BrowserRouter>
+      </Router>
     </TooltipProvider>
   </QueryClientProvider>
 );

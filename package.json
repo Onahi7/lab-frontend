@@ -4,15 +4,21 @@
   "version": "1.0.0",
   "description": "Hobour Diagnostics Laboratory Information System - Frontend",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:electron": "vite build --mode electron",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:admin": "node scripts/seed-admin.cjs"
+    "seed:admin": "node scripts/seed-admin.cjs",
+    "electron:dev": "concurrently \"vite --port 8080\" \"wait-on http://localhost:8080 && cross-env VITE_DEV_SERVER_URL=http://localhost:8080 electron .\"",
+    "electron:build": "vite build --mode electron && electron-builder --win",
+    "electron:build:linux": "vite build --mode electron && electron-builder --linux",
+    "electron:build:mac": "vite build --mode electron && electron-builder --mac"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -50,6 +56,8 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
+    "dexie": "^4.3.0",
+    "dexie-react-hooks": "^4.2.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
@@ -78,6 +86,10 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -89,6 +101,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wait-on": "^9.0.4"
   }
 }

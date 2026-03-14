@@ -1,9 +1,10 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useLabReport } from '../../hooks/useLabReport';
 import { useReportTemplates } from '../../hooks/useReportTemplates';
+import { usePrinterContext } from '@/context/PrinterContext';
 import { ReportHeader } from './ReportHeader';
 import { PatientInfoSection } from './PatientInfoSection';
-import { ResultsSection } from './ResultsSection';
+import { CategorySection } from './CategorySection';
 import { VerificationSection } from './VerificationSection';
 import { ReportFooter } from './ReportFooter';
 import { Button } from '../ui/button';
@@ -46,6 +47,7 @@ interface LabResultReportProps {
 export function LabResultReport({ orderId, onPrintComplete }: LabResultReportProps) {
   const { reportData, loading, error, refetch } = useLabReport(orderId);
   const { template, loading: templateLoading } = useReportTemplates();
+  const { settings: printerSettings } = usePrinterContext();
   const printRef = useRef<HTMLDivElement>(null);
   const margins = template?.margins;
   const paperSettings = template?.paperSettings;
@@ -54,17 +56,50 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
   const marginRight = margins?.right ?? paperSettings?.marginRight ?? 10;
   const marginBottom = margins?.bottom ?? paperSettings?.marginBottom ?? 12;
   const marginLeft = margins?.left ?? paperSettings?.marginLeft ?? 10;
-  const pageSize = 'A4';
 
-  const handlePrint = () => {
-    window.print();
+  // Use admin-configured paper size and orientation
+  const pageSize = `${printerSettings.a4.paperSize} ${printerSettings.a4.orientation}`;
+
+  // Inject @page rule matching admin settings before printing
+  const applyPrintPageRule = () => {
+    const styleId = '__lab_report_page_style';
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `@media print { @page { size: ${pageSize}; margin: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm; } }`;
+  };
+
+  const handlePrint = async () => {
+    applyPrintPageRule();
+    // Electron: silent native print with configured settings
+    if (window.electronAPI?.printSilent) {
+      await window.electronAPI.printSilent({
+        copies: printerSettings.a4.copies || 1,
+        pageSize: printerSettings.a4.paperSize || 'A4',
+        landscape: printerSettings.a4.orientation === 'landscape',
+        silent: true,
+      });
+    } else {
+      window.print();
+    }
     onPrintComplete?.();
   };
 
   const handleExportPDF = async () => {
     try {
-      // Use browser's print to PDF functionality
-      window.print();
+      applyPrintPageRule();
+      // Electron: native PDF export with save dialog
+      if (window.electronAPI?.printToPDF) {
+        await window.electronAPI.printToPDF({
+          pageSize: printerSettings.a4.paperSize || 'A4',
+          landscape: printerSettings.a4.orientation === 'landscape',
+        });
+      } else {
+        window.print();
+      }
     } catch (err) {
       console.error('Failed to export PDF:', err);
       alert('Failed to export PDF. Please try using your browser\'s print function.');
@@ -139,30 +174,45 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
         </div>
       </div>
 
-      {/* Report content */}
-      <div 
-        ref={printRef} 
-        className="report-container w-full max-w-[210mm] min-h-[297mm] mx-auto bg-white p-8 print:p-0"
-      >
-        <ReportHeader 
-          laboratoryInfo={reportData.laboratoryInfo} 
-          template={template}
-        />
-        <PatientInfoSection 
-          patientInfo={reportData.patientInfo} 
-          orderInfo={reportData.orderInfo}
-          template={template}
-        />
-        <ResultsSection 
-          resultsByCategory={reportData.resultsByCategory}
-          template={template}
-        />
-        <VerificationSection verificationInfo={reportData.verificationInfo} />
-        <ReportFooter 
-          laboratoryInfo={reportData.laboratoryInfo} 
-          reportMetadata={reportData.reportMetadata}
-          template={template}
-        />
+      {/* Report content — one page per category */}
+      <div ref={printRef} className="report-pages">
+        {reportData.resultsByCategory.map((category, index) => {
+          const isLast = index === reportData.resultsByCategory.length - 1;
+          return (
+            <div
+              key={category.category}
+              className={`report-page w-full max-w-[210mm] mx-auto bg-white p-8 print:p-0 ${
+                index < reportData.resultsByCategory.length - 1 ? 'report-page-break' : ''
+              }`}
+              style={{ minHeight: '297mm' }}
+            >
+              <ReportHeader
+                laboratoryInfo={reportData.laboratoryInfo}
+                template={template}
+              />
+              <PatientInfoSection
+                patientInfo={reportData.patientInfo}
+                orderInfo={reportData.orderInfo}
+                template={template}
+              />
+              <CategorySection
+                category={category}
+                template={template}
+                pageBreakBefore={false}
+              />
+              {isLast && (
+                <>
+                  <VerificationSection verificationInfo={reportData.verificationInfo} />
+                  <ReportFooter
+                    laboratoryInfo={reportData.laboratoryInfo}
+                    reportMetadata={reportData.reportMetadata}
+                    template={template}
+                  />
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Print-specific styles */}
@@ -178,12 +228,18 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           .no-print {
             display: none !important;
           }
-          
-          .report-container {
+
+          .report-page {
             max-width: 100%;
             margin: 0;
             padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
             box-shadow: none;
+            min-height: auto !important;
+          }
+
+          .report-page-break {
+            page-break-after: always;
+            break-after: page;
           }
 
           .report-header {
@@ -219,16 +275,6 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
             page-break-inside: avoid;
             break-inside: avoid;
           }
-
-          .category-page-break {
-            page-break-before: always;
-            break-before: page;
-          }
-
-          .panel-page-break {
-            page-break-before: always;
-            break-before: page;
-          }
           
           @page {
             size: ${pageSize} portrait;
@@ -239,6 +285,15 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           * {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+        }
+
+        /* Screen preview: visual page separation */
+        @media screen {
+          .report-page + .report-page {
+            margin-top: 2rem;
+            border-top: 2px dashed #d1d5db;
+            padding-top: 2rem;
           }
         }
       `}</style>

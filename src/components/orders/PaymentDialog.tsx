@@ -21,9 +21,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ThermalReceipt } from '@/components/receipts/ThermalReceipt';
 import { useThermalPrint } from '@/hooks/useThermalPrint';
+import { usePrinterContext } from '@/context/PrinterContext';
 import { toast } from 'sonner';
 import { CreditCard, Banknote, Smartphone, Printer, Check } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAddPayment } from '@/hooks/useOrders';
 
 interface PaymentDialogProps {
   open: boolean;
@@ -55,6 +57,8 @@ export function PaymentDialog({
 }: PaymentDialogProps) {
   const navigate = useNavigate();
   const { printBothCopies } = useThermalPrint();
+  const { settings } = usePrinterContext();
+  const addPayment = useAddPayment();
   const patientReceiptRef = useRef<HTMLDivElement>(null);
   const labReceiptRef = useRef<HTMLDivElement>(null);
 
@@ -86,31 +90,6 @@ export function PaymentDialog({
 
   const change = receiptData.amountPaid - order.total;
 
-  const handleProcessPayment = async () => {
-    if (receiptData.amountPaid < order.total) {
-      toast.error('Amount paid is less than total');
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      // Simulate payment processing
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Here you would typically call your API to record the payment
-      // await api.processPayment({ orderId: order.id, ...receiptData });
-
-      setPaymentComplete(true);
-      toast.success('Payment processed successfully');
-    } catch (error) {
-      toast.error('Failed to process payment');
-      console.error('Payment error:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handlePrintReceipts = async () => {
     setIsPrinting(true);
 
@@ -118,15 +97,14 @@ export function PaymentDialog({
       const result = await printBothCopies(
         patientReceiptRef.current,
         labReceiptRef.current,
-        receiptNumber
+        receiptNumber,
+        receiptData
       );
 
       if (result.success) {
         toast.success('Both receipts printed successfully');
         setTimeout(() => {
           onOpenChange(false);
-          // Optionally navigate to receipt page
-          // navigate(`/reception/receipt/${order.id}`);
         }, 1000);
       } else {
         toast.error(`Only ${result.printedCount} of 2 receipts printed`);
@@ -136,6 +114,41 @@ export function PaymentDialog({
       console.error('Print error:', error);
     } finally {
       setIsPrinting(false);
+    }
+  };
+
+  const handleProcessPayment = async () => {
+    if (receiptData.amountPaid < order.total) {
+      toast.error('Amount paid is less than total');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      await addPayment.mutateAsync({
+        orderId: order.id,
+        data: {
+          amount: receiptData.amountPaid,
+          paymentMethod: paymentMethod,
+        },
+      });
+
+      setPaymentComplete(true);
+      toast.success('Payment processed successfully');
+
+      // Auto-print receipts if setting is enabled
+      if (settings.thermal.autoPrintOnPayment) {
+        // Short delay so the receipt refs render in the DOM
+        setTimeout(() => {
+          void handlePrintReceipts();
+        }, 300);
+      }
+    } catch (error) {
+      toast.error('Failed to process payment');
+      console.error('Payment error:', error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -305,18 +318,18 @@ export function PaymentDialog({
                   View Receipt Page
                 </Button>
               </div>
-
-              {/* Hidden Receipt Elements for Printing */}
-              <div className="hidden">
-                <div ref={patientReceiptRef}>
-                  <ThermalReceipt data={receiptData} copyType="patient" />
-                </div>
-                <div ref={labReceiptRef}>
-                  <ThermalReceipt data={receiptData} copyType="lab" />
-                </div>
-              </div>
             </>
           )}
+        </div>
+
+        {/* Hidden Receipt Elements for Printing — always rendered so refs are available */}
+        <div className="hidden">
+          <div ref={patientReceiptRef}>
+            <ThermalReceipt data={receiptData} copyType="patient" />
+          </div>
+          <div ref={labReceiptRef}>
+            <ThermalReceipt data={receiptData} copyType="lab" />
+          </div>
         </div>
       </DialogContent>
     </Dialog>

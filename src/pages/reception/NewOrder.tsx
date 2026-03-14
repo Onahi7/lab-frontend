@@ -283,8 +283,12 @@ export default function NewOrder() {
   };
 
   if (orderComplete && createdOrder) {
-    const handlePrint = () => {
-      window.print();
+    const handlePrint = async () => {
+      if (window.electronAPI?.printSilent) {
+        await window.electronAPI.printSilent({ silent: true });
+      } else {
+        window.print();
+      }
     };
 
     return (

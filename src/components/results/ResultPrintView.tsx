@@ -22,14 +22,11 @@ interface ResultPrintViewProps {
 export function ResultPrintView({ order, results }: ResultPrintViewProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const printContent = printRef.current;
     if (!printContent) return;
 
-    const printWindow = window.open('', '', 'width=800,height=600');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
+    const html = `
       <html>
         <head>
           <title>Lab Results - ${order.order_number}</title>
@@ -118,8 +115,23 @@ export function ResultPrintView({ order, results }: ResultPrintViewProps) {
           ${printContent.innerHTML}
         </body>
       </html>
-    `);
+    `;
 
+    // Electron: silent native print (no dialog, no popup)
+    if (window.electronAPI?.printHTML) {
+      const result = await window.electronAPI.printHTML(html, {
+        pageSize: 'A4',
+        silent: true,
+      });
+      if (result.success) return;
+      // fall through to browser on failure
+    }
+
+    // Browser fallback: popup window
+    const printWindow = window.open('', '', 'width=800,height=600');
+    if (!printWindow) return;
+
+    printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => {

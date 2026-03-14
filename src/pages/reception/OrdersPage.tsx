@@ -1,21 +1,17 @@
 ﻿import { useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useOrders, useUpdateOrder } from '@/hooks/useOrders';
+import { useOrders } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
-import { Search, CreditCard, Banknote, Smartphone, Check, Loader2, Eye } from 'lucide-react';
+import { Search, CreditCard, Loader2, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { Database } from '@/integrations/supabase/types';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName } from '@/utils/orderHelpers';
-
-type PaymentMethod = Database['public']['Enums']['payment_method'];
+import { PaymentDialog } from '@/components/orders/PaymentDialog';
 
 export default function OrdersPage() {
   const { profile, primaryRole } = useAuth();
@@ -24,13 +20,10 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   
   const { data: orders, isLoading } = useOrders(statusFilter as any);
-  const updateOrder = useUpdateOrder();
 
-  const filteredOrders = Array.isArray(orders) ? orders.filter(order => {
-    if (!searchTerm) return true;
+  const filteredOrders = Array.isArray(orders) ? orders.filter(order => {    if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     const orderNum = (order.orderNumber || order.order_number || '').toLowerCase();
     const firstName = (order.patientId?.firstName || order.patients?.first_name || '').toLowerCase();
@@ -44,30 +37,6 @@ export default function OrdersPage() {
       patientId.includes(search)
     );
   }) : [];
-
-  const handleProcessPayment = async () => {
-    if (!selectedOrder || !selectedPaymentMethod) return;
-
-    try {
-      const orderId = selectedOrder.id || selectedOrder._id;
-      await updateOrder.mutateAsync({
-        id: orderId,
-        updates: {
-          payment_status: 'paid',
-          payment_method: selectedPaymentMethod,
-          status: (selectedOrder.status === 'pending_payment' || selectedOrder.status === 'pending_collection') 
-            ? 'pending_collection' 
-            : selectedOrder.status,
-        },
-      });
-      toast.success('Payment processed successfully');
-      setShowPaymentDialog(false);
-      setSelectedOrder(null);
-      setSelectedPaymentMethod(null);
-    } catch (error) {
-      toast.error('Failed to process payment');
-    }
-  };
 
   const statusStyles: Record<string, string> = {
     pending_payment: 'bg-status-warning/10 text-status-warning border-status-warning/20',
@@ -223,72 +192,32 @@ export default function OrdersPage() {
       </div>
 
       {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Process Payment</DialogTitle>
-          </DialogHeader>
-          
-          {selectedOrder && (
-            <div className="py-4">
-              <div className="bg-muted rounded-lg p-4 mb-4">
-                <div className="flex justify-between mb-2">
-                  <span className="text-muted-foreground">Order</span>
-                  <span className="font-mono">{selectedOrder.orderNumber || selectedOrder.order_number}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-muted-foreground">Patient</span>
-                  <span>
-                    {selectedOrder.patientId?.firstName || selectedOrder.patients?.first_name}{' '}
-                    {selectedOrder.patientId?.lastName || selectedOrder.patients?.last_name}
-                  </span>
-                </div>
-                <div className="flex justify-between font-bold text-lg pt-2 border-t mt-2">
-                  <span>Amount Due</span>
-                  <span>Le {Number(selectedOrder.total || selectedOrder.totalAmount).toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Payment Method</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: 'cash', label: 'Cash', icon: Banknote },
-                    { id: 'card', label: 'Card', icon: CreditCard },
-                    { id: 'mobile_money', label: 'Mobile Money', icon: Smartphone },
-                  ].map(method => (
-                    <button
-                      key={method.id}
-                      onClick={() => setSelectedPaymentMethod(method.id as PaymentMethod)}
-                      className={cn(
-                        'flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors',
-                        selectedPaymentMethod === method.id 
-                          ? 'border-primary bg-primary/5' 
-                          : 'hover:bg-muted/50'
-                      )}
-                    >
-                      <method.icon className="w-6 h-6" />
-                      <span className="text-sm font-medium">{method.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
-            <Button 
-              onClick={handleProcessPayment} 
-              disabled={!selectedPaymentMethod || updateOrder.isPending}
-            >
-              {updateOrder.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              <Check className="w-4 h-4 mr-2" />
-              Confirm Payment
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {selectedOrder && (
+        <PaymentDialog
+          open={showPaymentDialog}
+          onOpenChange={(open) => {
+            setShowPaymentDialog(open);
+            if (!open) setSelectedOrder(null);
+          }}
+          order={{
+            id: selectedOrder.id || (selectedOrder as any)._id || '',
+            orderNumber: selectedOrder.orderNumber || selectedOrder.order_number || '',
+            patientName: getPatientName(selectedOrder),
+            patientId: selectedOrder.patient?.patientId || selectedOrder.patients?.patient_id || '',
+            patientPhone: selectedOrder.patient?.phone || selectedOrder.patients?.phone,
+            tests: (selectedOrder.order_tests || selectedOrder.tests || []).map(t => ({
+              code: t.testCode || (t as any).test_code || '',
+              name: t.testName || (t as any).test_name || '',
+              price: t.price || 0,
+            })),
+            subtotal: selectedOrder.subtotal || selectedOrder.total || selectedOrder.totalAmount || 0,
+            discount: selectedOrder.discount || 0,
+            discountType: (selectedOrder.discountType || 'fixed') as 'percentage' | 'fixed',
+            total: selectedOrder.total || selectedOrder.totalAmount || 0,
+          }}
+          cashierName={profile?.full_name || 'Receptionist'}
+        />
+      )}
     </RoleLayout>
   );
 }

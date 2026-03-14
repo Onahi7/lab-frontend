@@ -18,7 +18,8 @@ import {
   LogOut,
   Calculator,
   FileEdit,
-  BookOpen
+  BookOpen,
+  Printer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -44,6 +45,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/admin/orders', icon: ClipboardList, label: 'All Orders' },
     { to: '/admin/results', icon: FileText, label: 'All Results' },
     { to: '/admin/machines', icon: Cpu, label: 'Machines' },
+    { to: '/admin/printers', icon: Printer, label: 'Printers' },
     { to: '/admin/settings', icon: Settings, label: 'Settings' },
   ],
   receptionist: [
@@ -56,6 +58,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/reception/reconciliation', icon: Calculator, label: 'Reconciliation' },
     { to: '/reception/enter-results', icon: FlaskConical, label: 'Quick Entry' },
     { to: '/reception/results', icon: FileCheck, label: 'View Results' },
+    { to: '/reception/printer', icon: Printer, label: 'Printer Setup' },
   ],
   lab_tech: [
     { to: '/lab', icon: LayoutDashboard, label: 'Dashboard' },

@@ -19,7 +19,8 @@ import {
   Cpu,
   DollarSign,
   Clock,
-  BarChart3
+  BarChart3,
+  Printer,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -148,10 +149,10 @@ export default function AdminDashboard() {
         <Button 
           variant="outline" 
           className="h-16 justify-start px-4"
-          onClick={() => navigate('/admin/settings')}
+          onClick={() => navigate('/admin/printers')}
         >
-          <TrendingUp className="w-5 h-5 mr-3" />
-          <span className="font-medium">System Settings</span>
+          <Printer className="w-5 h-5 mr-3" />
+          <span className="font-medium">Printer Settings</span>
         </Button>
       </div>
 

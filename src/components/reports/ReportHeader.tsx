@@ -50,7 +50,7 @@ export function ReportHeader({ laboratoryInfo, template }: ReportHeaderProps) {
             )}
             {motto && (
               <p className="text-xs italic mt-1" style={{ color: secondaryColor }}>
-                {motto}
+                Motto: {motto}
               </p>
             )}
           </div>

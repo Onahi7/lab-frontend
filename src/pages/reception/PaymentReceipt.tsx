@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,34 +9,15 @@ import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { useOrder } from '@/hooks/useOrders';
 import { getPatientName } from '@/utils/orderHelpers';
-
-interface ReceiptData {
-  receiptNumber: string;
-  orderNumber: string;
-  patientName: string;
-  patientId: string;
-  patientPhone?: string;
-  tests: Array<{
-    code: string;
-    name: string;
-    price: number;
-  }>;
-  subtotal: number;
-  discount: number;
-  discountType: 'percentage' | 'fixed';
-  total: number;
-  amountPaid: number;
-  paymentMethod: 'cash' | 'card' | 'mobile-money';
-  paymentDate: string;
-  cashier: string;
-  collectionDate?: string;
-}
+import { useThermalPrint } from '@/hooks/useThermalPrint';
+import type { ReceiptData } from '@/utils/escpos';
 
 export default function PaymentReceipt() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { data: order, isLoading } = useOrder(orderId!);
+  const { printBothCopies } = useThermalPrint();
   const patientReceiptRef = useRef<HTMLDivElement>(null);
   const labReceiptRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -94,251 +75,26 @@ export default function PaymentReceipt() {
 
   const handlePrintBoth = async () => {
     setIsPrinting(true);
-    
     try {
-      // Print patient copy
-      await printReceipt(patientReceiptRef.current, 'Patient Copy');
-      setPrintCount(1);
-      
-      // Small delay between prints
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Print lab copy
-      await printReceipt(labReceiptRef.current, 'Lab Copy');
-      setPrintCount(2);
-      
-      toast.success('Both receipts printed successfully');
-      
-      // Redirect after successful print
-      setTimeout(() => {
-        navigate('/reception/orders');
-      }, 2000);
+      const result = await printBothCopies(
+        patientReceiptRef.current,
+        labReceiptRef.current,
+        receiptData?.receiptNumber ?? '',
+        receiptData ?? undefined
+      );
+      setPrintCount(result.printedCount);
+      if (result.success) {
+        toast.success('Both receipts printed successfully');
+        setTimeout(() => navigate('/reception/orders'), 2000);
+      } else {
+        toast.error(`Only ${result.printedCount} of 2 receipts printed`);
+      }
     } catch (error) {
       toast.error('Failed to print receipts');
       console.error('Print error:', error);
     } finally {
       setIsPrinting(false);
     }
-  };
-
-  const printReceipt = (element: HTMLElement | null, copyType: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      if (!element) {
-        reject(new Error('Receipt element not found'));
-        return;
-      }
-
-      const printWindow = window.open('', '', 'width=302,height=600');
-      if (!printWindow) {
-        reject(new Error('Failed to open print window'));
-        return;
-      }
-
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>${copyType} - ${receiptData.receiptNumber}</title>
-            <style>
-              @page {
-                size: 80mm auto;
-                margin: 0;
-              }
-              
-              * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-              }
-              
-              body {
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
-                line-height: 1.4;
-                color: #000;
-                width: 80mm;
-                padding: 5mm;
-                background: white;
-              }
-              
-              .receipt {
-                width: 100%;
-              }
-              
-              .header {
-                text-align: center;
-                margin-bottom: 10px;
-                border-bottom: 2px dashed #000;
-                padding-bottom: 10px;
-              }
-              
-              .logo {
-                font-size: 18px;
-                font-weight: bold;
-                margin-bottom: 5px;
-              }
-              
-              .company-name {
-                font-size: 14px;
-                font-weight: bold;
-              }
-              
-              .company-info {
-                font-size: 10px;
-                margin-top: 3px;
-              }
-              
-              .copy-type {
-                font-size: 14px;
-                font-weight: bold;
-                margin: 10px 0;
-                text-align: center;
-                padding: 5px;
-                border: 2px solid #000;
-                background: ${copyType === 'Patient Copy' ? '#f0f0f0' : '#e0e0e0'};
-              }
-              
-              .section {
-                margin: 10px 0;
-                padding: 5px 0;
-              }
-              
-              .section-title {
-                font-weight: bold;
-                font-size: 11px;
-                margin-bottom: 5px;
-                text-transform: uppercase;
-              }
-              
-              .info-row {
-                display: flex;
-                justify-content: space-between;
-                margin: 3px 0;
-                font-size: 11px;
-              }
-              
-              .info-label {
-                font-weight: bold;
-              }
-              
-              .info-value {
-                text-align: right;
-              }
-              
-              .items-table {
-                width: 100%;
-                margin: 10px 0;
-                border-top: 1px dashed #000;
-                border-bottom: 1px dashed #000;
-                padding: 5px 0;
-              }
-              
-              .item-row {
-                display: flex;
-                justify-content: space-between;
-                margin: 5px 0;
-                font-size: 11px;
-              }
-              
-              .item-name {
-                flex: 1;
-                padding-right: 10px;
-              }
-              
-              .item-price {
-                white-space: nowrap;
-                font-weight: bold;
-              }
-              
-              .totals {
-                margin: 10px 0;
-                padding: 5px 0;
-                border-top: 2px solid #000;
-              }
-              
-              .total-row {
-                display: flex;
-                justify-content: space-between;
-                margin: 5px 0;
-                font-size: 12px;
-              }
-              
-              .total-row.grand-total {
-                font-size: 14px;
-                font-weight: bold;
-                border-top: 1px dashed #000;
-                padding-top: 5px;
-                margin-top: 5px;
-              }
-              
-              .payment-info {
-                margin: 10px 0;
-                padding: 10px 0;
-                border-top: 1px dashed #000;
-                border-bottom: 1px dashed #000;
-              }
-              
-              .footer {
-                text-align: center;
-                margin-top: 15px;
-                font-size: 10px;
-              }
-              
-              .barcode {
-                text-align: center;
-                font-family: 'Libre Barcode 128', cursive;
-                font-size: 40px;
-                margin: 10px 0;
-                letter-spacing: 0;
-              }
-              
-              .thank-you {
-                text-align: center;
-                font-weight: bold;
-                margin: 10px 0;
-                font-size: 12px;
-              }
-              
-              .instructions {
-                font-size: 10px;
-                margin: 10px 0;
-                padding: 5px;
-                background: #f5f5f5;
-                border: 1px solid #ddd;
-              }
-              
-              .lab-instructions {
-                background: #fff3cd;
-                border: 1px solid #ffc107;
-              }
-              
-              @media print {
-                body {
-                  width: 80mm;
-                }
-                .no-print {
-                  display: none !important;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            ${element.innerHTML}
-          </body>
-        </html>
-      `);
-
-      printWindow.document.close();
-      printWindow.focus();
-
-      // Wait for content to load
-      setTimeout(() => {
-        printWindow.print();
-        setTimeout(() => {
-          printWindow.close();
-          resolve();
-        }, 500);
-      }, 250);
-    });
   };
 
   const ReceiptContent = ({ copyType }: { copyType: 'patient' | 'lab' }) => (
