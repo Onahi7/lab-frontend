@@ -46,8 +46,15 @@ export const useThermalPrint = () => {
 
         const html = `<html><head><title>${options.title}</title><style>${thermalPrintStyles}</style></head><body>${element.innerHTML}</body></html>`;
 
-        // Electron path: silent print via IPC (no popup, no dialog)
-        if (window.electronAPI?.printHTML) {
+        // Electron path: require silent print via IPC (no popup, no dialog)
+        if (window.electronAPI?.isElectron) {
+          if (!window.electronAPI?.printHTML) {
+            const error = new Error('Electron print bridge is not available');
+            options.onError?.(error);
+            reject(error);
+            return;
+          }
+
           try {
             const result = await window.electronAPI.printHTML(html, {
               copies: 1,
@@ -56,12 +63,18 @@ export const useThermalPrint = () => {
             if (result.success) {
               options.onSuccess?.();
               resolve();
-            } else {
-              throw new Error(result.error || 'Print failed');
+              return;
             }
-          } catch (err) {
-            // Fall through to browser path
-            console.warn('[Print] Electron native print failed, using browser fallback:', err);
+
+            const error = new Error(result.error || 'Silent print failed');
+            options.onError?.(error);
+            reject(error);
+            return;
+          } catch (err: any) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            options.onError?.(error);
+            reject(error);
+            return;
           }
         }
 
@@ -118,21 +131,34 @@ export const useThermalPrint = () => {
         usbPrinterService.isConnected &&
         receiptData != null;
 
+      // Debug logging
+      console.log('🖨️ Print Debug:', {
+        thermalEnabled: settings.thermal.enabled,
+        usbConnected: usbPrinterService.isConnected,
+        hasReceiptData: receiptData != null,
+        usbReady,
+        willUse: usbReady ? 'ESC/POS (Direct USB)' : 'Browser Popup (Fallback)'
+      });
+
       let printedCount = 0;
 
       try {
         if (usbReady && receiptData) {
           // ── ESC/POS path ────────────────────────────────────────────
+          console.log('✅ Using ESC/POS direct USB printing');
           await printReceiptESCPOS(receiptData, 'patient');
+          console.log('✅ Patient copy sent to USB printer');
           printedCount++;
 
           if (settings.thermal.copies === 2) {
             await new Promise(r => setTimeout(r, 800));
             await printReceiptESCPOS(receiptData, 'lab');
+            console.log('✅ Lab copy sent to USB printer');
             printedCount++;
           }
         } else {
           // ── Browser popup path ──────────────────────────────────────
+          console.log('⚠️ Using browser popup fallback (USB not ready)');
           await printReceipt(patientCopyElement, {
             title: `Patient Copy - ${receiptNumber}`,
           });

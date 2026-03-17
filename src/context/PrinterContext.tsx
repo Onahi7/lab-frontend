@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useCallback,
@@ -94,7 +95,8 @@ const PrinterContext = createContext<PrinterContextValue | null>(null);
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function PrinterProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, hasRole } = useAuth();
+  const canSyncPrinterSettings = isAuthenticated && hasRole('admin');
   const [settings, setSettings] = useState<PrinterSettings>(loadSettings);
   const [thermalDevice, setThermalDevice] = useState<SavedDeviceInfo | null>(
     () => usbPrinterService.getSavedDevice()
@@ -112,7 +114,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
 
   // Sync printer settings from backend when authenticated
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!canSyncPrinterSettings) return;
     settingsAPI.getPrinterSettings().then(remote => {
       if (!remote) return;
       const merged: PrinterSettings = {
@@ -124,7 +126,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     }).catch(() => {
       // Offline — keep localStorage value
     });
-  }, [isAuthenticated]);
+  }, [canSyncPrinterSettings]);
 
   const persist = useCallback((next: PrinterSettings) => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
@@ -138,11 +140,13 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
           thermal: { ...prev.thermal, ...patch },
         };
         persist(next);
-        settingsAPI.updatePrinterSettings({ thermal: next.thermal }).catch(() => {});
+        if (canSyncPrinterSettings) {
+          settingsAPI.updatePrinterSettings({ thermal: next.thermal }).catch(() => {});
+        }
         return next;
       });
     },
-    [persist]
+    [canSyncPrinterSettings, persist]
   );
 
   const updateA4Settings = useCallback(
@@ -153,11 +157,13 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
           a4: { ...prev.a4, ...patch },
         };
         persist(next);
-        settingsAPI.updatePrinterSettings({ a4: next.a4 }).catch(() => {});
+        if (canSyncPrinterSettings) {
+          settingsAPI.updatePrinterSettings({ a4: next.a4 }).catch(() => {});
+        }
         return next;
       });
     },
-    [persist]
+    [canSyncPrinterSettings, persist]
   );
 
   const connectThermalPrinter = useCallback(async () => {

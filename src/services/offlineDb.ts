@@ -104,9 +104,23 @@ export const db = new HobourDB();
 // ── Helper: upsert many records ──────────────────────────────────
 export async function bulkUpsert<T>(
   table: Table<T, string>,
-  records: T[],
+  records: Array<T & { id?: unknown }>,
 ): Promise<void> {
-  await table.bulkPut(records);
+  const validRecords = records.filter((record) => {
+    if (!record || record.id === undefined || record.id === null) return false;
+    const key = String(record.id).trim();
+    return key.length > 0;
+  });
+
+  if (validRecords.length === 0) return;
+
+  if (validRecords.length !== records.length) {
+    console.warn(
+      `[offlineDb] Skipped ${records.length - validRecords.length} record(s) with invalid id while writing ${table.name}`,
+    );
+  }
+
+  await table.bulkPut(validRecords as T[]);
 }
 
 // ── Queue an offline mutation ────────────────────────────────────

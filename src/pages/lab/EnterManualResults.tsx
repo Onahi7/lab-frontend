@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useProcessingOrders } from '@/hooks/useOrders';
+import { useProcessingOrders, useUpdateOrder } from '@/hooks/useOrders';
 import { useCreateResult } from '@/hooks/useResults';
 import { useActiveTests } from '@/hooks/useTestCatalog';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ export default function EnterManualResults() {
   const { profile, user } = useAuth();
   const { data: processingOrders, isLoading } = useProcessingOrders();
   const createResult = useCreateResult();
+  const updateOrder = useUpdateOrder();
   const { data: testCatalog } = useActiveTests();
 
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
@@ -94,11 +95,23 @@ export default function EnterManualResults() {
     }
 
     try {
+      // Save all results
       for (const result of resultsToSave) {
         await createResult.mutateAsync(result);
       }
       
-      toast.success(`${resultsToSave.length} result(s) saved successfully`);
+      // Update order status based on completion
+      const allTestsCompleted = resultsToSave.length >= selectedOrder.order_tests.length;
+      await updateOrder.mutateAsync({
+        id: selectedOrder.id,
+        updates: { 
+          status: allTestsCompleted ? 'completed' : 'processing' 
+        },
+      });
+      
+      toast.success(
+        `${resultsToSave.length} result(s) saved successfully${allTestsCompleted ? ' - Order completed!' : ''}`
+      );
       setResults({});
       setSelectedOrder(null);
     } catch (error) {

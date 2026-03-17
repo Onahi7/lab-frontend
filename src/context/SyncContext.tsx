@@ -107,9 +107,21 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   // ── Ping the API to verify reachability ────────────────────────
   const pingApi = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) {
+      setIsApiReachable(false);
+      setConnectionMode('offline');
+      return false;
+    }
+
+    const requestConfig = {
+      timeout: 5_000,
+      headers: { Authorization: `Bearer ${token}` },
+    };
+
     // 1. Try the configured API URL
     try {
-      await axios.get(`${API_BASE_URL}/health`, { timeout: 5_000 });
+      await axios.get(`${API_BASE_URL}/health`, requestConfig);
       setIsApiReachable(true);
       setConnectionMode('online');
       return true;
@@ -123,7 +135,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         const result = await window.electronAPI.discoverBackend();
         if (result?.url) {
           // Verify the discovered URL actually works
-          await axios.get(`${result.url}/health`, { timeout: 3_000 });
+          await axios.get(`${result.url}/health`, {
+            ...requestConfig,
+            timeout: 3_000,
+          });
           setLanBackendUrl(result.url);
           setIsApiReachable(true);
           setConnectionMode('lan-only');
@@ -153,11 +168,20 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     setIsSyncing(true);
     const now = Date.now();
     try {
+      const resolveEntityId = (...candidates: unknown[]): string | undefined => {
+        for (const candidate of candidates) {
+          if (candidate === undefined || candidate === null) continue;
+          const key = String(candidate).trim();
+          if (key) return key;
+        }
+        return undefined;
+      };
+
       // Pull test catalog
       const tests = await testCatalogAPI.getAll();
       const mapped: CachedTest[] = (Array.isArray(tests) ? tests : tests.data ?? []).map(
         (t: any) => ({
-          id: t.id,
+          id: resolveEntityId(t.id, t._id, t.code) || '',
           name: t.name,
           code: t.code,
           category: t.category,
@@ -177,7 +201,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         const panels = await testCatalogAPI.getPanels();
         const mappedP: CachedPanel[] = (Array.isArray(panels) ? panels : []).map(
           (p: any) => ({
-            id: p.id,
+            id: resolveEntityId(p.id, p._id, p.code) || '',
             name: p.name,
             code: p.code,
             price: Number(p.price) || 0,
@@ -196,7 +220,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         const patients = await patientsAPI.getAll({ limit: 500 });
         const list = Array.isArray(patients) ? patients : patients.data ?? [];
         const mappedPat: CachedPatient[] = list.map((p: any) => ({
-          id: p.id,
+          id: resolveEntityId(p.id, p._id, p.patientId) || '',
           fullName: p.fullName || `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim(),
           phone: p.phone,
           email: p.email,
@@ -215,8 +239,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         const orders = await ordersAPI.getAll({ limit: 200 });
         const list = Array.isArray(orders) ? orders : [];
         const mappedOrd: CachedOrder[] = list.map((o: any) => ({
-          id: o.id,
-          patientId: o.patientId || o.patient?.id,
+          id: resolveEntityId(o.id, o._id, o.orderNumber, o.order_number) || '',
+          patientId: resolveEntityId(o.patientId, o.patient?.id, o.patient?._id) || '',
           status: o.status,
           totalAmount: Number(o.totalAmount) || 0,
           paidAmount: Number(o.paidAmount) || 0,

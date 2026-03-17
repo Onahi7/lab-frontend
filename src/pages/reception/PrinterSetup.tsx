@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Accordion,
   AccordionContent,
@@ -51,6 +52,7 @@ export default function PrinterSetup() {
   const { profile } = useAuth();
   const {
     settings,
+    updateThermalSettings,
     thermalDevice,
     thermalConnected,
     webUsbSupported,
@@ -208,21 +210,69 @@ export default function PrinterSetup() {
 
             {/* Current settings (read-only info) */}
             <div className="space-y-3 pt-2 border-t">
-              <p className="text-sm font-medium text-muted-foreground">Current Settings (configured by admin)</p>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="flex justify-between bg-muted/30 rounded p-2">
-                  <span className="text-muted-foreground">Receipt copies</span>
-                  <span className="font-medium">{settings.thermal.copies}</span>
+              <p className="text-sm font-medium">Printer Settings</p>
+              
+              {/* Enable/Disable Toggle */}
+              <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
+                <div className="space-y-0.5">
+                  <Label htmlFor="thermal-enabled" className="text-sm font-medium">
+                    Enable Thermal Printing
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Print receipts directly to USB thermal printer
+                  </p>
                 </div>
-                <div className="flex justify-between bg-muted/30 rounded p-2">
-                  <span className="text-muted-foreground">Auto-print</span>
-                  <span className="font-medium">{settings.thermal.autoPrintOnPayment ? 'Yes' : 'No'}</span>
+                <Switch
+                  id="thermal-enabled"
+                  checked={settings.thermal.enabled}
+                  onCheckedChange={(checked) => updateThermalSettings({ enabled: checked })}
+                />
+              </div>
+
+              {/* Copies Setting */}
+              <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
+                <div className="space-y-0.5">
+                  <Label htmlFor="thermal-copies" className="text-sm font-medium">
+                    Number of Copies
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    1 = Patient copy only, 2 = Patient + Lab copy
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={settings.thermal.copies === 1 ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => updateThermalSettings({ copies: 1 })}
+                  >
+                    1
+                  </Button>
+                  <Button
+                    variant={settings.thermal.copies === 2 ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => updateThermalSettings({ copies: 2 })}
+                  >
+                    2
+                  </Button>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                To change print settings, contact your admin or go to{' '}
-                <strong>Admin → Printer Configuration</strong>.
-              </p>
+
+              {/* Auto-print Toggle */}
+              <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
+                <div className="space-y-0.5">
+                  <Label htmlFor="thermal-auto" className="text-sm font-medium">
+                    Auto-print on Payment
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Automatically print receipts when payment is confirmed
+                  </p>
+                </div>
+                <Switch
+                  id="thermal-auto"
+                  checked={settings.thermal.autoPrintOnPayment}
+                  onCheckedChange={(checked) => updateThermalSettings({ autoPrintOnPayment: checked })}
+                />
+              </div>
             </div>
 
             {/* Zadig driver guide */}

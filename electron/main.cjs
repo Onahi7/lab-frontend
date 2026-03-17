@@ -4,12 +4,24 @@ const http = require('http');
 const dgram = require('dgram');
 const os = require('os');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
+let updateCheckTimer = null;
+
+function broadcastUpdateStatus(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-status', payload);
+  }
+}
 
 // ── Cached server URL (persisted in userData) ────────────────────
 const STORE_PATH = path.join(app.getPath('userData'), 'server-config.json');
 let cachedServerUrl = null;
+
+// ── Cached auto-update URL (persisted in userData) ───────────────
+const UPDATE_STORE_PATH = path.join(app.getPath('userData'), 'update-config.json');
+let cachedUpdateUrl = null;
 
 function loadCachedServerUrl() {
   try {
@@ -28,6 +40,28 @@ function saveCachedServerUrl(url) {
 }
 
 loadCachedServerUrl();
+
+function loadCachedUpdateUrl() {
+  try {
+    if (fs.existsSync(UPDATE_STORE_PATH)) {
+      const data = JSON.parse(fs.readFileSync(UPDATE_STORE_PATH, 'utf8'));
+      cachedUpdateUrl = data.updateUrl || null;
+    }
+  } catch { /* ignore */ }
+}
+
+function saveCachedUpdateUrl(url) {
+  try {
+    fs.writeFileSync(UPDATE_STORE_PATH, JSON.stringify({ updateUrl: url }), 'utf8');
+    cachedUpdateUrl = url;
+  } catch { /* ignore */ }
+}
+
+function getEffectiveUpdateUrl() {
+  return cachedUpdateUrl || process.env.ELECTRON_UPDATE_URL || null;
+}
+
+loadCachedUpdateUrl();
 
 // ── LAN Discovery ────────────────────────────────────────────────
 const DISCOVERY_PORT = 41234;
@@ -218,6 +252,71 @@ function createWindow() {
   });
 }
 
+function initializeAutoUpdate() {
+  if (!app.isPackaged || process.env.VITE_DEV_SERVER_URL) return;
+
+  const feedUrl = getEffectiveUpdateUrl();
+  if (!feedUrl) {
+    console.log('[auto-update] Skipped: update URL is not configured.');
+    return;
+  }
+
+  autoUpdater.setFeedURL({
+    provider: 'generic',
+    url: feedUrl,
+    channel: 'latest',
+  });
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[auto-update] Checking for update...');
+    broadcastUpdateStatus({ type: 'checking' });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log(`[auto-update] Update available: ${info.version}`);
+    broadcastUpdateStatus({ type: 'available', version: info.version });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('[auto-update] No updates available.');
+    broadcastUpdateStatus({ type: 'not-available' });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('[auto-update] Error:', err == null ? 'unknown' : err.message);
+    broadcastUpdateStatus({ type: 'error', message: err == null ? 'unknown' : err.message });
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    console.log(`[auto-update] Downloaded ${Math.round(progressObj.percent)}%`);
+    broadcastUpdateStatus({
+      type: 'download-progress',
+      percent: Math.round(progressObj.percent),
+      transferred: progressObj.transferred,
+      total: progressObj.total,
+      bytesPerSecond: progressObj.bytesPerSecond,
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    broadcastUpdateStatus({ type: 'downloaded', version: info.version });
+  });
+
+  autoUpdater.checkForUpdates().catch((err) => {
+    console.error('[auto-update] Initial check failed:', err == null ? 'unknown' : err.message);
+  });
+
+  // Recheck periodically while app is open.
+  updateCheckTimer = setInterval(() => {
+    autoUpdater.checkForUpdates().catch(() => {
+      // Ignore transient network errors.
+    });
+  }, 60 * 60 * 1000);
+}
+
 // ── IPC Handlers ─────────────────────────────────────────────────
 
 // Online status
@@ -289,6 +388,73 @@ ipcMain.handle('get-server-url', () => cachedServerUrl);
 
 // Get local network IPs (so the UI can show them)
 ipcMain.handle('get-local-ips', () => getLocalIPs());
+
+// Get the currently configured auto-update URL
+ipcMain.handle('get-update-url', () => getEffectiveUpdateUrl());
+
+// Set and persist auto-update URL
+ipcMain.handle('set-update-url', async (_event, url) => {
+  if (!url || typeof url !== 'string') return { success: false, error: 'Invalid URL' };
+
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { success: false, error: 'Update URL must use http or https' };
+    }
+  } catch {
+    return { success: false, error: 'Invalid URL format' };
+  }
+
+  saveCachedUpdateUrl(url);
+
+  if (app.isPackaged && !process.env.VITE_DEV_SERVER_URL) {
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url,
+      channel: 'latest',
+    });
+  }
+
+  return { success: true };
+});
+
+// Manually trigger an update check
+ipcMain.handle('check-for-updates', async () => {
+  if (!app.isPackaged || process.env.VITE_DEV_SERVER_URL) {
+    return { success: false, error: 'Auto-update is only available in packaged builds' };
+  }
+
+  const feedUrl = getEffectiveUpdateUrl();
+  if (!feedUrl) {
+    return { success: false, error: 'Update URL is not configured' };
+  }
+
+  try {
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url: feedUrl,
+      channel: 'latest',
+    });
+
+    await autoUpdater.checkForUpdates();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err && err.message ? err.message : 'Failed to check updates' };
+  }
+});
+
+ipcMain.handle('install-update-now', async () => {
+  if (!app.isPackaged || process.env.VITE_DEV_SERVER_URL) {
+    return { success: false, error: 'Auto-update is only available in packaged builds' };
+  }
+
+  try {
+    autoUpdater.quitAndInstall();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err && err.message ? err.message : 'Failed to install update' };
+  }
+});
 
 // ── Native Printing ──────────────────────────────────────────────
 
@@ -392,10 +558,20 @@ ipcMain.handle('get-printers', () => {
 });
 
 // ── App Lifecycle ────────────────────────────────────────────────
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  initializeAutoUpdate();
+});
 
 app.on('window-all-closed', () => {
   app.quit();
+});
+
+app.on('before-quit', () => {
+  if (updateCheckTimer) {
+    clearInterval(updateCheckTimer);
+    updateCheckTimer = null;
+  }
 });
 
 app.on('activate', () => {

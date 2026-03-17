@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { RoleSidebar } from './RoleSidebar';
 import { Header } from './Header';
+import { UpdateBanner } from './UpdateBanner';
 import { UserRole } from '@/types/lis';
 
 interface RoleLayoutProps {
@@ -17,6 +18,7 @@ export function RoleLayout({ children, title, subtitle, role, userName }: RoleLa
       <RoleSidebar role={role} userName={userName} />
       <div className="ml-64">
         <Header title={title} subtitle={subtitle} />
+        <UpdateBanner />
         <main className="p-6">
           {children}
         </main>

@@ -157,21 +157,19 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
   return (
     <div className="lab-result-report-container">
       {/* Action buttons - hidden when printing */}
-      <div className="no-print sticky top-0 z-10 bg-white border-b shadow-sm p-4 mb-6">
-        <div className="max-w-4xl mx-auto flex gap-2 justify-end">
-          <Button onClick={handlePrint} className="flex items-center gap-2">
-            <Printer className="h-4 w-4" />
-            Print Report
-          </Button>
-          <Button 
-            onClick={handleExportPDF} 
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export PDF
-          </Button>
-        </div>
+      <div className="no-print flex gap-2 justify-end mb-6">
+        <Button onClick={handlePrint} className="flex items-center gap-2">
+          <Printer className="h-4 w-4" />
+          Print Report
+        </Button>
+        <Button 
+          onClick={handleExportPDF} 
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export PDF
+        </Button>
       </div>
 
       {/* Report content — one page per category */}
@@ -221,8 +219,8 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           body {
             margin: 0;
             padding: 0;
-            font-size: 10.5pt;
-            line-height: 1.25;
+            font-size: 9.5pt;
+            line-height: 1.15;
           }
           
           .no-print {
@@ -243,32 +241,39 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           }
 
           .report-header {
-            margin-bottom: 3.5mm;
-            padding-bottom: 2mm;
+            margin-bottom: 2.5mm;
+            padding-bottom: 1.5mm;
           }
 
           .report-header h1 {
-            font-size: 18pt;
+            font-size: 16pt;
             line-height: 1.05;
           }
 
           .patient-info-section {
-            margin-bottom: 3.5mm;
+            margin-bottom: 2.5mm;
+          }
+
+          .category-section {
+            margin-bottom: 2mm;
           }
 
           .category-section h3 {
-            font-size: 16pt;
+            font-size: 14pt;
             margin-bottom: 1.5mm;
           }
 
           .results-table {
-            font-size: 10pt;
+            font-size: 9pt;
+            margin-bottom: 2mm;
           }
 
           .results-table th,
           .results-table td {
-            padding-top: 1.2mm;
-            padding-bottom: 1.2mm;
+            padding-top: 0.8mm;
+            padding-bottom: 0.8mm;
+            padding-left: 2mm;
+            padding-right: 2mm;
           }
           
           .page-break-inside-avoid {

@@ -50,7 +50,7 @@ export default function LabDashboardPage() {
       userName={profile?.full_name}
     >
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Button 
           size="lg" 
           className="h-20 text-lg"
@@ -76,6 +76,15 @@ export default function LabDashboardPage() {
         >
           <FileText className="w-6 h-6 mr-3" />
           View All Results
+        </Button>
+        <Button 
+          size="lg" 
+          variant="default"
+          className="h-20 text-lg bg-green-600 hover:bg-green-700"
+          onClick={() => navigate('/lab/completed-orders')}
+        >
+          <CheckCircle className="w-6 h-6 mr-3" />
+          Print Reports ({completedToday})
         </Button>
       </div>
 

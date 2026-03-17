@@ -68,7 +68,7 @@ export function useActiveTests() {
     queryFn: async () => {
       return await testCatalogAPI.getActive();
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -81,6 +81,7 @@ export function useCreateTest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['test-catalog'] });
+      queryClient.invalidateQueries({ queryKey: ['test-catalog', 'active'] });
     },
   });
 }
@@ -94,6 +95,7 @@ export function useUpdateTest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['test-catalog'] });
+      queryClient.invalidateQueries({ queryKey: ['test-catalog', 'active'] });
     },
   });
 }
@@ -107,6 +109,7 @@ export function useDeleteTest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['test-catalog'] });
+      queryClient.invalidateQueries({ queryKey: ['test-catalog', 'active'] });
     },
   });
 }

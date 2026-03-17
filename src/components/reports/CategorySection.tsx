@@ -50,9 +50,9 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
   const thirdColumnLabel = isInterpretationLayout || isRangeOnlyLayout ? 'Interpretation' : 'R.Range';
 
   return (
-    <div className={`category-section mb-6`}>
+    <div className={`category-section mb-4`}>
       <h3
-        className="text-3xl font-bold uppercase tracking-wide text-center mb-2"
+        className="text-2xl font-bold uppercase tracking-wide text-center mb-3"
         style={{ color: categoryHeadingColor }}
       >
         {category.categoryDisplayName}
@@ -66,7 +66,7 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
 
         return (
           <Fragment key={`${category.category}-${group.key}-${groupIndex}`}>
-            <table className="results-table w-full border-collapse text-sm mb-4">
+            <table className="results-table w-full border-collapse text-sm mb-3">
               <colgroup>
                 {useThreeColumns ? (
                   <>
@@ -84,22 +84,37 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                 )}
               </colgroup>
               <thead>
+                {/* Panel name row - only show if there's a specific panel */}
+                {(group.panelName || group.panelCode) && group.key !== '__UNGROUPED__' && (
+                  <tr>
+                    <th
+                      colSpan={useThreeColumns ? 3 : 4}
+                      className="text-left py-1 px-3 font-bold uppercase text-sm border-b border-gray-300"
+                      style={{
+                        backgroundColor: '#f9fafb',
+                        color: primaryColor,
+                      }}
+                    >
+                      {sectionTitle}
+                    </th>
+                  </tr>
+                )}
                 <tr className="border-y border-gray-400">
                   <th
-                    className="text-left py-1.5 px-3 font-bold uppercase"
+                    className="text-left py-1 px-3 font-semibold uppercase text-xs"
                     style={{
                       backgroundColor: resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6',
                       color: primaryColor,
                     }}
                   >
-                    {sectionTitle}
+                    Test
                   </th>
-                  <th className="text-left py-1.5 px-3 text-xs font-bold uppercase tracking-wide">Result</th>
-                  <th className="text-left py-1.5 px-3 text-xs font-bold uppercase tracking-wide">
-                    {useThreeColumns ? thirdColumnLabel : 'Ranges'}
+                  <th className="text-left py-1 px-3 text-xs font-semibold uppercase tracking-wide">Result</th>
+                  <th className="text-left py-1 px-3 text-xs font-semibold uppercase tracking-wide">
+                    {useThreeColumns ? thirdColumnLabel : 'Range'}
                   </th>
                   {!useThreeColumns && (
-                    <th className="text-left py-1.5 px-3 text-xs font-bold uppercase tracking-wide">Unit</th>
+                    <th className="text-left py-1 px-3 text-xs font-semibold uppercase tracking-wide">Unit</th>
                   )}
                 </tr>
               </thead>
@@ -112,9 +127,9 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
 
                   return (
                     <tr key={`${result.testCode}-${result.resultedAt}`} className="border-b border-gray-200">
-                      <td className="py-1.5 px-3 font-semibold text-sm">{firstColumnValue}</td>
+                      <td className="py-0.5 px-3 font-medium text-sm">{firstColumnValue}</td>
                       <td
-                        className="py-1.5 px-3 font-semibold whitespace-nowrap"
+                        className="py-0.5 px-3 font-semibold whitespace-nowrap"
                         style={{
                           color:
                             result.flag === 'critical_high' || result.flag === 'critical_low'
@@ -132,9 +147,9 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                           <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
                         )}
                       </td>
-                      <td className="py-1.5 px-3 text-sm">{typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}</td>
+                      <td className="py-0.5 px-3 text-sm">{typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}</td>
                       {!useThreeColumns && (
-                        <td className="py-1.5 px-3 text-sm">{result.unit || '-'}</td>
+                        <td className="py-0.5 px-3 text-sm">{result.unit || '-'}</td>
                       )}
                     </tr>
                   );

@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Hobour Diagnostics Laboratory Information System - Frontend",
+  "author": "Hobour Diagnostics",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -58,6 +59,7 @@
     "date-fns": "^3.6.0",
     "dexie": "^4.3.0",
     "dexie-react-hooks": "^4.2.0",
+    "electron-updater": "^6.8.3",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
@@ -103,5 +105,43 @@
     "vite": "^5.4.19",
     "vitest": "^3.2.4",
     "wait-on": "^9.0.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "electron",
+      "electron-winstaller",
+      "esbuild"
+    ]
+  },
+  "build": {
+    "appId": "com.hobour.diagnostics",
+    "productName": "Hobour Diagnostics LIS",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
+    }
   }
 }

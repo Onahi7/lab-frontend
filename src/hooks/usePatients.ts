@@ -1,4 +1,4 @@
-import { patientsAPI } from '@/services/api';
+import { patientsAPI, getAccessToken } from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Patient {
@@ -69,11 +69,17 @@ export function useSearchPatients(searchTerm: string) {
     queryKey: ['patients', 'search', searchTerm],
     queryFn: async () => {
       try {
-        if (!searchTerm || searchTerm.length < 2) {
-          const response = await patientsAPI.getAll({ limit: 20 });
-          // Backend returns { data: Patient[] } for getAll
+        // If no search term, get all patients
+        if (!searchTerm || searchTerm.trim().length === 0) {
+          const response = await patientsAPI.getAll();
           return response.data || response;
         }
+        
+        // If search term is too short, return empty
+        if (searchTerm.length < 2) {
+          return [];
+        }
+        
         // Backend returns Patient[] directly for search
         return await patientsAPI.search(searchTerm);
       } catch (error) {
@@ -81,6 +87,8 @@ export function useSearchPatients(searchTerm: string) {
         return [];
       }
     },
+    enabled: !!getAccessToken(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 

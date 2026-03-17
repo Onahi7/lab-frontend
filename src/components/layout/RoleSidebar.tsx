@@ -58,6 +58,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/reception/reconciliation', icon: Calculator, label: 'Reconciliation' },
     { to: '/reception/enter-results', icon: FlaskConical, label: 'Quick Entry' },
     { to: '/reception/results', icon: FileCheck, label: 'View Results' },
+    { to: '/reception/completed-orders', icon: FileEdit, label: 'Print Reports' },
     { to: '/reception/printer', icon: Printer, label: 'Printer Setup' },
   ],
   lab_tech: [
@@ -67,6 +68,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/lab/collect', icon: TestTube, label: 'Collect Samples' },
     { to: '/lab/processing', icon: FlaskConical, label: 'Processing' },
     { to: '/lab/results', icon: FileText, label: 'Enter Results' },
+    { to: '/lab/completed-orders', icon: FileEdit, label: 'Print Reports' },
     { to: '/lab/patients', icon: Users, label: 'Patients' },
     { to: '/lab/machines', icon: Cpu, label: 'Machines' },
     { to: '/lab/test-catalog', icon: BookOpen, label: 'Test Catalog' },

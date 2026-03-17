@@ -26,6 +26,7 @@ export default function PaymentsPage() {
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [historyOrderId, setHistoryOrderId] = useState<string>('');
   const [dateRange, setDateRange] = useState<string>('today');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   
   const { data: orders, isLoading } = useOrders('all');
   const addPayment = useAddPayment();
@@ -91,20 +92,24 @@ export default function PaymentsPage() {
     .reduce((sum, o) => sum + Number(o.amountPaid || o.total || o.totalAmount || 0), 0) : 0;
 
   const handleProcessPayment = async () => {
-    if (!selectedOrder) return;
+    if (!selectedOrder || isProcessingPayment || addPayment.isPending) return;
+    setIsProcessingPayment(true);
+
     const orderId = selectedOrder.id || selectedOrder._id;
     const orderTotal = Number(selectedOrder.total || selectedOrder.totalAmount || 0);
-    const alreadyPaid = Number(selectedOrder.amountPaid || 0);
+    const alreadyPaid = Number(selectedOrder.amountPaid ?? selectedOrder.paidAmount ?? 0);
     const remaining = orderTotal - alreadyPaid;
 
     const validRows = splitRows.filter(r => r.method && parseFloat(r.amount) > 0);
     if (validRows.length === 0) {
       toast.error('Enter at least one payment amount');
+      setIsProcessingPayment(false);
       return;
     }
     const splitTotal = validRows.reduce((s, r) => s + parseFloat(r.amount), 0);
     if (splitTotal > remaining + 0.001) {
       toast.error(`Total Le ${splitTotal.toLocaleString()} exceeds remaining balance Le ${remaining.toLocaleString()}`);
+      setIsProcessingPayment(false);
       return;
     }
 
@@ -121,6 +126,8 @@ export default function PaymentsPage() {
       setSplitRows([{ method: 'cash', amount: '' }]);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to process payment');
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -371,12 +378,12 @@ export default function PaymentsPage() {
                 {Number(selectedOrder.amountPaid || 0) > 0 && (
                   <div className="flex justify-between mb-2 text-status-normal">
                     <span>Already Paid</span>
-                    <span>Le {Number(selectedOrder.amountPaid).toLocaleString()}</span>
+                    <span>Le {Number(selectedOrder.amountPaid ?? selectedOrder.paidAmount ?? 0).toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t mt-2 text-amber-600">
                   <span>Remaining Balance</span>
-                  <span>Le {(Number(selectedOrder.total || selectedOrder.totalAmount || 0) - Number(selectedOrder.amountPaid || 0)).toLocaleString()}</span>
+                  <span>Le {(Number(selectedOrder.total || selectedOrder.totalAmount || 0) - Number(selectedOrder.amountPaid ?? selectedOrder.paidAmount ?? 0)).toLocaleString()}</span>
                 </div>
               </div>
 
@@ -426,7 +433,7 @@ export default function PaymentsPage() {
 
                 {(() => {
                   const splitTotal = splitRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-                  const remaining = Number(selectedOrder?.total || selectedOrder?.totalAmount || 0) - Number(selectedOrder?.amountPaid || 0);
+                  const remaining = Number(selectedOrder?.total || selectedOrder?.totalAmount || 0) - Number(selectedOrder?.amountPaid ?? selectedOrder?.paidAmount ?? 0);
                   const diff = remaining - splitTotal;
                   if (splitTotal <= 0) return null;
                   return (
@@ -444,9 +451,9 @@ export default function PaymentsPage() {
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
             <Button
               onClick={handleProcessPayment}
-              disabled={addPayment.isPending || splitRows.every(r => !(parseFloat(r.amount) > 0))}
+              disabled={isProcessingPayment || addPayment.isPending || splitRows.every(r => !(parseFloat(r.amount) > 0))}
             >
-              {addPayment.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {(isProcessingPayment || addPayment.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Check className="w-4 h-4 mr-2" />
               Confirm Payment
             </Button>

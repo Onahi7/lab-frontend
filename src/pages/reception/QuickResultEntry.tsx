@@ -7,7 +7,7 @@ import { useActiveTests } from '@/hooks/useTestCatalog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   Search,
@@ -22,6 +22,8 @@ import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
 
 type ResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+
+const MONGO_OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 
 interface QuickEntry {
   testCode: string;
@@ -253,18 +255,32 @@ export default function QuickResultEntry() {
 
     try {
       const filled = Object.values(entries).filter(e => e.value.trim());
-      const orderId = matchedOrder.id || (matchedOrder as any)._id;
+      const orderId = (matchedOrder as any)._id || matchedOrder.id;
+      
+      // Validate orderId is a valid MongoDB ObjectId
+      if (!orderId || !MONGO_OBJECT_ID_REGEX.test(orderId)) {
+        toast.error('Invalid order ID format');
+        setIsSubmitting(false);
+        return;
+      }
 
       for (const entry of filled) {
-        await createResult.mutateAsync({
+        const payload: any = {
           orderId,
-          orderTestId: entry.orderTestId,
           testCode: entry.testCode,
           testName: entry.testName,
           value: entry.value,
           unit: entry.unit || undefined,
           referenceRange: entry.referenceRange || undefined,
           flag: entry.flag,
+        };
+
+        if (entry.orderTestId && MONGO_OBJECT_ID_REGEX.test(entry.orderTestId)) {
+          payload.orderTestId = entry.orderTestId;
+        }
+
+        await createResult.mutateAsync({
+          ...payload,
         });
       }
 
@@ -549,6 +565,9 @@ export default function QuickResultEntry() {
               <AlertTriangle className="w-5 h-5" />
               Critical Values Detected
             </DialogTitle>
+            <DialogDescription>
+              Review critical values before confirming save.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="py-4">

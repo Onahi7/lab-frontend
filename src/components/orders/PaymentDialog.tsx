@@ -22,6 +22,7 @@ import { Separator } from '@/components/ui/separator';
 import { ThermalReceipt } from '@/components/receipts/ThermalReceipt';
 import { useThermalPrint } from '@/hooks/useThermalPrint';
 import { usePrinterContext } from '@/context/PrinterContext';
+import { usbPrinterService } from '@/services/usbPrinterService';
 import { toast } from 'sonner';
 import { CreditCard, Banknote, Smartphone, Printer, Check } from 'lucide-react';
 import { format } from 'date-fns';
@@ -57,7 +58,7 @@ export function PaymentDialog({
 }: PaymentDialogProps) {
   const navigate = useNavigate();
   const { printBothCopies } = useThermalPrint();
-  const { settings } = usePrinterContext();
+  const { settings, thermalConnected } = usePrinterContext();
   const addPayment = useAddPayment();
   const patientReceiptRef = useRef<HTMLDivElement>(null);
   const labReceiptRef = useRef<HTMLDivElement>(null);
@@ -91,6 +92,14 @@ export function PaymentDialog({
   const change = receiptData.amountPaid - order.total;
 
   const handlePrintReceipts = async () => {
+    console.log('=== PRINT RECEIPTS DEBUG START ===');
+    console.log('Settings:', settings);
+    console.log('Thermal Connected (state):', thermalConnected);
+    console.log('USB Service Connected (singleton):', usbPrinterService.isConnected);
+    console.log('Receipt Data:', receiptData);
+    console.log('Patient Ref:', patientReceiptRef.current);
+    console.log('Lab Ref:', labReceiptRef.current);
+    
     setIsPrinting(true);
 
     try {
@@ -101,6 +110,9 @@ export function PaymentDialog({
         receiptData
       );
 
+      console.log('Print Result:', result);
+      console.log('=== PRINT RECEIPTS DEBUG END ===');
+
       if (result.success) {
         toast.success('Both receipts printed successfully');
         setTimeout(() => {
@@ -110,8 +122,8 @@ export function PaymentDialog({
         toast.error(`Only ${result.printedCount} of 2 receipts printed`);
       }
     } catch (error) {
-      toast.error('Failed to print receipts');
       console.error('Print error:', error);
+      toast.error('Failed to print receipts');
     } finally {
       setIsPrinting(false);
     }
@@ -301,6 +313,25 @@ export function PaymentDialog({
 
               {/* Print Receipts Button */}
               <div className="space-y-3">
+                {/* Printer Status Indicator */}
+                {settings.thermal.enabled && thermalConnected ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span>USB Thermal Printer Connected</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full" />
+                      <span>Using Browser Print Dialog</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground px-3">
+                      {!settings.thermal.enabled && '• Thermal printing is disabled'}
+                      {settings.thermal.enabled && !thermalConnected && '• USB printer not connected'}
+                    </div>
+                  </div>
+                )}
+                
                 <Button
                   onClick={handlePrintReceipts}
                   disabled={isPrinting}

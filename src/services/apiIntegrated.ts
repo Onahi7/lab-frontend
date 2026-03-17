@@ -1,15 +1,10 @@
+/**
+ * Integrated API Service with Hybrid Sync
+ * Combines existing API methods with smart connection management
+ */
+
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-// Create axios instance
-const api: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+import { connectionManager } from './connectionManager';
 
 // Token management
 const TOKEN_KEY = 'access_token';
@@ -33,103 +28,254 @@ export const clearTokens = (): void => {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 };
 
-// Request interceptor - Add auth token
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = getAccessToken();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Offline queue for operations when all backends are down
+interface QueuedOperation {
+  id: string;
+  method: string;
+  url: string;
+  data?: any;
+  timestamp: number;
+}
+
+class IntegratedApiService {
+  private api: AxiosInstance;
+  private offlineQueue: QueuedOperation[] = [];
+  private isOnline: boolean = true;
+  private isRefreshing: boolean = false;
+  private failedQueue: Array<{
+    resolve: (value?: any) => void;
+    reject: (reason?: any) => void;
+  }> = [];
+
+  constructor() {
+    // Create axios instance with dynamic baseURL
+    this.api = axios.create({
+      timeout: 15000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Setup interceptors
+    this.setupInterceptors();
+
+    // Monitor connection status
+    connectionManager.onStatusChange((status) => {
+      this.isOnline = status.online;
+      console.log(`📡 Connection: ${status.backend} (${status.url})`);
+
+      // Process offline queue when back online
+      if (this.isOnline && this.offlineQueue.length > 0) {
+        this.processOfflineQueue();
+      }
+    });
+
+    // Load offline queue from localStorage
+    this.loadOfflineQueue();
   }
-);
 
-// Response interceptor - Handle token refresh
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value?: any) => void;
-  reject: (reason?: any) => void;
-}> = [];
+  private setupInterceptors() {
+    // Request interceptor - Set dynamic baseURL and auth token
+    this.api.interceptors.request.use(
+      async (config) => {
+        try {
+          // Get best available backend
+          const backend = await connectionManager.getBestBackend();
+          config.baseURL = backend;
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
+          // Add auth token
+          const token = getAccessToken();
+          if (token && config.headers) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
 
-api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest: any = error.config;
+          return config;
+        } catch (error) {
+          // All backends down - queue operation if it's a write
+          if (config.method && config.method !== 'get') {
+            this.queueOperation(config);
+          }
+          throw new Error('Offline - operation queued');
+        }
+      },
+      (error) => Promise.reject(error)
+    );
 
-    // If error is 401 and we haven't tried to refresh yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        // If already refreshing, queue this request
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
+    // Response interceptor - Handle token refresh and errors
+    this.api.interceptors.response.use(
+      (response) => response,
+      async (error: AxiosError) => {
+        const originalRequest: any = error.config;
+
+        // Handle 401 - Token refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          if (this.isRefreshing) {
+            // If already refreshing, queue this request
+            return new Promise((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject });
+            })
+              .then((token) => {
+                if (originalRequest.headers) {
+                  originalRequest.headers.Authorization = `Bearer ${token}`;
+                }
+                return this.api(originalRequest);
+              })
+              .catch((err) => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          this.isRefreshing = true;
+
+          const refreshToken = getRefreshToken();
+          if (!refreshToken) {
+            clearTokens();
+            window.location.href = '/login';
+            return Promise.reject(error);
+          }
+
+          try {
+            // Get current backend for refresh
+            const backend = await connectionManager.getBestBackend();
+            
+            // Attempt to refresh token
+            const response = await axios.post(`${backend}/auth/refresh`, {
+              refreshToken,
+            });
+
+            const { accessToken, refreshToken: newRefreshToken } = response.data;
+            setTokens(accessToken, newRefreshToken || refreshToken);
+
+            // Update authorization header
             if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
+              originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             }
-            return api(originalRequest);
-          })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
-      }
 
-      originalRequest._retry = true;
-      isRefreshing = true;
+            this.processFailedQueue(null, accessToken);
+            this.isRefreshing = false;
 
-      const refreshToken = getRefreshToken();
-      if (!refreshToken) {
-        clearTokens();
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
-      try {
-        // Attempt to refresh token
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refreshToken,
-        });
-
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
-        setTokens(accessToken, newRefreshToken || refreshToken);
-
-        // Update authorization header
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            return this.api(originalRequest);
+          } catch (refreshError) {
+            this.processFailedQueue(refreshError, null);
+            this.isRefreshing = false;
+            clearTokens();
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
+          }
         }
 
-        processQueue(null, accessToken);
-        isRefreshing = false;
+        // If request failed due to network, try alternative backend
+        if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+          console.warn('⚠️ Backend failed, connection manager will try alternative...');
+        }
 
-        return api(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        isRefreshing = false;
-        clearTokens();
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  private processFailedQueue(error: any, token: string | null = null) {
+    this.failedQueue.forEach((prom) => {
+      if (error) {
+        prom.reject(error);
+      } else {
+        prom.resolve(token);
+      }
+    });
+    this.failedQueue = [];
+  }
+
+  private queueOperation(config: any) {
+    const operation: QueuedOperation = {
+      id: `${Date.now()}-${Math.random()}`,
+      method: config.method || 'post',
+      url: config.url || '',
+      data: config.data,
+      timestamp: Date.now(),
+    };
+
+    this.offlineQueue.push(operation);
+    console.log(`📥 Queued operation: ${operation.method.toUpperCase()} ${operation.url}`);
+
+    // Save to localStorage
+    this.saveOfflineQueue();
+  }
+
+  private async processOfflineQueue() {
+    console.log(`📤 Processing ${this.offlineQueue.length} queued operations...`);
+
+    const queue = [...this.offlineQueue];
+    this.offlineQueue = [];
+
+    for (const operation of queue) {
+      try {
+        await this.api.request({
+          method: operation.method,
+          url: operation.url,
+          data: operation.data,
+        });
+        console.log(`✅ Processed: ${operation.method.toUpperCase()} ${operation.url}`);
+      } catch (error) {
+        console.error(`❌ Failed to process: ${operation.url}`, error);
+        // Re-queue if still failing
+        this.offlineQueue.push(operation);
       }
     }
 
-    return Promise.reject(error);
+    // Update localStorage
+    this.saveOfflineQueue();
   }
-);
 
-// API methods
+  private saveOfflineQueue() {
+    localStorage.setItem('offline_queue', JSON.stringify(this.offlineQueue));
+  }
+
+  private loadOfflineQueue() {
+    try {
+      const saved = localStorage.getItem('offline_queue');
+      if (saved) {
+        this.offlineQueue = JSON.parse(saved);
+        console.log(`📦 Loaded ${this.offlineQueue.length} queued operations from storage`);
+      }
+    } catch (error) {
+      console.error('Failed to load offline queue:', error);
+    }
+  }
+
+  // Expose axios instance for use
+  getInstance(): AxiosInstance {
+    return this.api;
+  }
+
+  // Get offline queue status
+  getQueueStatus() {
+    return {
+      count: this.offlineQueue.length,
+      operations: this.offlineQueue,
+    };
+  }
+
+  // Clear offline queue
+  clearQueue() {
+    this.offlineQueue = [];
+    localStorage.removeItem('offline_queue');
+  }
+
+  // Get connection status
+  getConnectionStatus() {
+    return {
+      online: this.isOnline,
+      backend: connectionManager.getCurrentBackend(),
+    };
+  }
+}
+
+// Singleton instance
+const integratedApiService = new IntegratedApiService();
+const api = integratedApiService.getInstance();
+
+// Export API methods (same as original api.ts)
 export const authAPI = {
   login: async (email: string, password: string) => {
     const response = await api.post('/auth/login', { email, password });
@@ -212,8 +358,6 @@ export const patientsAPI = {
 export const ordersAPI = {
   getAll: async (params?: any) => {
     const response = await api.get('/orders', { params });
-    // Backend returns paginated data { data, total, page, limit }
-    // Return just the data array for compatibility
     return response.data.data || response.data;
   },
 
@@ -628,16 +772,11 @@ export const communicationLogsAPI = {
   },
 };
 
-// Critical result notifications (use resultsAPI.getCritical() instead)
-// Keeping for backward compatibility, but getUnacknowledged is duplicate of resultsAPI.getCritical
 export const criticalResultsAPI = {
   getUnacknowledged: async () => {
     const response = await api.get('/results/critical');
     return response.data;
   },
-
-  // Note: acknowledge endpoint does not exist in backend
-  // Critical results should be handled through result verification workflow
 };
 
 export const reconciliationAPI = {
@@ -734,5 +873,8 @@ export const settingsAPI = {
     return response.data;
   },
 };
+
+// Export service instance for queue management
+export const apiService = integratedApiService;
 
 export default api;

@@ -35,6 +35,7 @@ import QCDataEntry from "./pages/lab/QCDataEntry";
 import CollectSamplesPage from "./pages/lab/CollectSamplesPage";
 import EnterResultsPage from "./pages/lab/EnterResultsPage";
 import ResultsPage from "./pages/lab/ResultsPage";
+import CompletedOrdersPage from "./pages/lab/CompletedOrdersPage";
 import EditableResultReport from "./pages/lab/EditableResultReport";
 import LabReportPage from "./pages/lab/LabReportPage";
 import PublicLabReportPage from "./pages/lab/PublicLabReportPage";
@@ -129,6 +130,12 @@ function AppRoutes() {
       <Route path="/reception/printer" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><PrinterSetup /></RoleGuard>
       } />
+      <Route path="/reception/completed-orders" element={
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><CompletedOrdersPage /></RoleGuard>
+      } />
+      <Route path="/reception/reports/:orderId" element={
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><LabReportPage /></RoleGuard>
+      } />
 
       {/* Lab Routes */}
       <Route path="/lab" element={
@@ -151,6 +158,9 @@ function AppRoutes() {
       } />
       <Route path="/lab/results" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><ResultsPage /></RoleGuard>
+      } />
+      <Route path="/lab/completed-orders" element={
+        <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><CompletedOrdersPage /></RoleGuard>
       } />
       <Route path="/lab/patients" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin']}><PatientsPage /></RoleGuard>

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useOrder } from '@/hooks/useOrders';
 import { getPatientName } from '@/utils/orderHelpers';
 import { useThermalPrint } from '@/hooks/useThermalPrint';
+import { usePrinterContext } from '@/context/PrinterContext';
 import type { ReceiptData } from '@/utils/escpos';
 
 export default function PaymentReceipt() {
@@ -18,8 +19,10 @@ export default function PaymentReceipt() {
   const { profile } = useAuth();
   const { data: order, isLoading } = useOrder(orderId!);
   const { printBothCopies } = useThermalPrint();
+  const { settings } = usePrinterContext();
   const patientReceiptRef = useRef<HTMLDivElement>(null);
   const labReceiptRef = useRef<HTMLDivElement>(null);
+  const autoPrintTriggeredRef = useRef(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printCount, setPrintCount] = useState(0);
 
@@ -96,6 +99,21 @@ export default function PaymentReceipt() {
       setIsPrinting(false);
     }
   };
+
+  useEffect(() => {
+    if (!receiptData) return;
+    if (!settings.thermal.autoPrintOnPayment) return;
+    if (autoPrintTriggeredRef.current) return;
+
+    // Wait for receipt preview refs to be mounted before printing.
+    const timer = setTimeout(() => {
+      if (!patientReceiptRef.current || !labReceiptRef.current) return;
+      autoPrintTriggeredRef.current = true;
+      void handlePrintBoth();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [receiptData, settings.thermal.autoPrintOnPayment]);
 
   const ReceiptContent = ({ copyType }: { copyType: 'patient' | 'lab' }) => (
     <div className="receipt">

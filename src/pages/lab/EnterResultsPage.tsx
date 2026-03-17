@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { FileText, Check, AlertTriangle, Loader2, Search, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,8 @@ import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
 import { SendToAnalyzerDialog } from '@/components/machines/SendToAnalyzerDialog';
 
 type ResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+
+const MONGO_OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 
 // Standard options for qualitative/semi-quantitative tests
 const QUALITATIVE_OPTIONS: Record<string, string[]> = {
@@ -330,36 +332,53 @@ export default function EnterResultsPage() {
     try {
       const entries = Object.values(resultEntries);
       
+      // Get valid MongoDB ObjectId for orderId
+      const orderId = (selectedOrder as any)._id || selectedOrder.id;
+      
+      // Validate orderId is a valid MongoDB ObjectId
+      if (!orderId || !MONGO_OBJECT_ID_REGEX.test(orderId)) {
+        toast.error('Invalid order ID format');
+        setIsSubmitting(false);
+        return;
+      }
+      
       // Create results
       for (const entry of entries) {
-        await createResult.mutateAsync({
-          orderId: selectedOrder.id || (selectedOrder as any)._id,
-          orderTestId: entry.orderTestId,
+        const payload: any = {
+          orderId: orderId,
           testCode: entry.testCode,
           testName: entry.testName,
           value: entry.value,
           unit: entry.unit || undefined,
           referenceRange: entry.referenceRange || undefined,
           flag: entry.flag,
-        } as any);
+        };
+
+        if (entry.orderTestId && MONGO_OBJECT_ID_REGEX.test(entry.orderTestId)) {
+          payload.orderTestId = entry.orderTestId;
+        }
+
+        await createResult.mutateAsync({
+          ...payload,
+        });
       }
 
       // Update order status if all tests have results
       const orderTests = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
       if (entries.length >= orderTests.length) {
         await updateOrder.mutateAsync({
-          id: selectedOrder.id || (selectedOrder as any)._id,
+          id: orderId,
           updates: { status: 'completed' },
         });
       } else {
         await updateOrder.mutateAsync({
-          id: selectedOrder.id || (selectedOrder as any)._id,
+          id: orderId,
           updates: { status: 'processing' },
         });
       }
 
       toast.success('Results submitted successfully');
-      localStorage.removeItem(getDraftStorageKey(selectedOrder.id || (selectedOrder as any)._id));
+      localStorage.removeItem(getDraftStorageKey(orderId));
       setShowConfirmModal(false);
       setResultEntries({});
       setSelectedOrder(null);
@@ -726,6 +745,9 @@ export default function EnterResultsPage() {
               <AlertTriangle className="w-5 h-5" />
               Critical Values Detected
             </DialogTitle>
+            <DialogDescription>
+              Review critical results and confirm submission.
+            </DialogDescription>
           </DialogHeader>
           
           <div className="py-4">
