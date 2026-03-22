@@ -53,7 +53,7 @@ export function generateMessageControlId(): string {
  */
 export function buildMSH(
   messageType: string,
-  sendingApp: string = 'LabConnect',
+  sendingApp: string = 'HARBOUR',
   sendingFacility: string = 'LIS',
   receivingApp: string = '',
   receivingFacility: string = ''
@@ -204,7 +204,7 @@ export function buildOrderMessage(
   // MSH - Message Header
   segments.push(buildMSH(
     'ORM^O01^ORM_O01',
-    'LabConnect',
+    'HARBOUR',
     'LIS',
     receivingApp,
     receivingFacility

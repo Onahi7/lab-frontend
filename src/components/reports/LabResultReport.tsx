@@ -1,10 +1,11 @@
 import { useRef, useEffect } from 'react';
 import { useLabReport } from '../../hooks/useLabReport';
-import { useReportTemplates } from '../../hooks/useReportTemplates';
+import { useDefaultTemplate } from '../../hooks/useReportTemplates';
 import { usePrinterContext } from '@/context/PrinterContext';
+import { usePaginatedReport } from './SmartPaginatedReport';
 import { ReportHeader } from './ReportHeader';
 import { PatientInfoSection } from './PatientInfoSection';
-import { CategorySection } from './CategorySection';
+import { PaginatedCategorySection } from './PaginatedCategorySection';
 import { VerificationSection } from './VerificationSection';
 import { ReportFooter } from './ReportFooter';
 import { Button } from '../ui/button';
@@ -46,7 +47,7 @@ interface LabResultReportProps {
  */
 export function LabResultReport({ orderId, onPrintComplete }: LabResultReportProps) {
   const { reportData, loading, error, refetch } = useLabReport(orderId);
-  const { template, loading: templateLoading } = useReportTemplates();
+  const { data: template, isLoading: templateLoading } = useDefaultTemplate();
   const { settings: printerSettings } = usePrinterContext();
   const printRef = useRef<HTMLDivElement>(null);
   const margins = template?.margins;
@@ -60,7 +61,59 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
   // Use admin-configured paper size and orientation
   const pageSize = `${printerSettings.a4.paperSize} ${printerSettings.a4.orientation}`;
 
+  // Use smart pagination to split results across pages intelligently
+  // Heights calibrated to print layout (mm)
+  const paginatedPages = usePaginatedReport(
+    reportData?.resultsByCategory || [],
+    {
+      headerHeight: 26,        // header with logo + lab name
+      patientInfoHeight: 22,   // patient info grid
+      footerHeight: 16,        // footer with wave + disclaimer
+      categoryTitleHeight: 8,  // category heading
+      panelHeaderHeight: 6,    // panel header row
+      tableHeaderHeight: 6,    // table column headers
+      testRowHeight: 5.8,      // row height for 13px font
+      totalPageHeight: 297,
+      margins: marginTop + marginBottom,
+      maxTestsBeforeSplit: 20, // allow FBC-sized panels to split across pages
+    }
+  );
+
+  // Debug: Log pagination results and report data
+  useEffect(() => {
+    console.log('🔍 Report Data:', {
+      hasData: !!reportData,
+      orderId,
+      paginatedPages: paginatedPages.length,
+    });
+
+    if (paginatedPages.length > 0) {
+      console.log('📄 Paginated Report:', {
+        totalPages: paginatedPages.length,
+        pages: paginatedPages.map(p => ({
+          pageNumber: p.pageNumber,
+          categories: p.categories.map(c => ({
+            name: c.categoryDisplayName,
+            panels: c.panels.length,
+            totalTests: c.panels.reduce((sum, panel) => sum + panel.results.length, 0),
+          })),
+        })),
+      });
+    }
+
+    if (reportData) {
+      console.log('📊 Report Content:', {
+        patient: reportData.patientInfo.fullName,
+        orderNumber: reportData.orderInfo.orderNumber,
+        categories: reportData.resultsByCategory.length,
+        totalResults: reportData.resultsByCategory.reduce((sum, cat) => sum + cat.results.length, 0),
+      });
+    }
+  }, [paginatedPages, reportData, orderId]);
+
   // Inject @page rule matching admin settings before printing
+  // We use @page { margin: 0 } and apply margins as padding on .report-page
+  // so that flexbox footer-at-bottom works correctly.
   const applyPrintPageRule = () => {
     const styleId = '__lab_report_page_style';
     let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
@@ -69,11 +122,26 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
       styleEl.id = styleId;
       document.head.appendChild(styleEl);
     }
-    styleEl.textContent = `@media print { @page { size: ${pageSize}; margin: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm; } }`;
+    styleEl.textContent = `@media print {
+      @page { size: ${pageSize}; margin: 0; }
+      .report-page { padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm !important; }
+    }`;
   };
 
   const handlePrint = async () => {
+    console.log('🖨️ Print button clicked');
+    console.log('Report ref:', printRef.current ? 'Found' : 'Not found');
+    console.log('Report data:', reportData ? 'Loaded' : 'Not loaded');
+    console.log('Paginated pages:', paginatedPages.length);
+
+    // Apply print styles first
     applyPrintPageRule();
+
+    // Small delay to ensure styles are applied
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    console.log('🖨️ Triggering window.print()');
+
     // Electron: silent native print with configured settings
     if (window.electronAPI?.printSilent) {
       await window.electronAPI.printSilent({
@@ -83,6 +151,7 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
         silent: true,
       });
     } else {
+      // Use window.print() for browser print
       window.print();
     }
     onPrintComplete?.();
@@ -91,6 +160,9 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
   const handleExportPDF = async () => {
     try {
       applyPrintPageRule();
+      // Small delay to ensure styles are applied
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       // Electron: native PDF export with save dialog
       if (window.electronAPI?.printToPDF) {
         await window.electronAPI.printToPDF({
@@ -102,7 +174,7 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
       }
     } catch (err) {
       console.error('Failed to export PDF:', err);
-      alert('Failed to export PDF. Please try using your browser\'s print function.');
+      alert('Failed to export PDF. Please try using your browser\'s print function and select "Save as PDF".');
     }
   };
 
@@ -162,8 +234,8 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           <Printer className="h-4 w-4" />
           Print Report
         </Button>
-        <Button 
-          onClick={handleExportPDF} 
+        <Button
+          onClick={handleExportPDF}
           variant="outline"
           className="flex items-center gap-2"
         >
@@ -172,42 +244,52 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
         </Button>
       </div>
 
-      {/* Report content — one page per category */}
+      {/* Report content — intelligently paginated */}
       <div ref={printRef} className="report-pages">
-        {reportData.resultsByCategory.map((category, index) => {
-          const isLast = index === reportData.resultsByCategory.length - 1;
+        {paginatedPages.map((page) => {
           return (
             <div
-              key={category.category}
-              className={`report-page w-full max-w-[210mm] mx-auto bg-white p-8 print:p-0 ${
-                index < reportData.resultsByCategory.length - 1 ? 'report-page-break' : ''
-              }`}
-              style={{ minHeight: '297mm' }}
+              key={page.pageNumber}
+              className={`report-page w-full mx-auto bg-white p-8 print:p-0 ${!page.isLastPage ? 'report-page-break' : ''
+                }`}
             >
-              <ReportHeader
-                laboratoryInfo={reportData.laboratoryInfo}
-                template={template}
-              />
-              <PatientInfoSection
-                patientInfo={reportData.patientInfo}
-                orderInfo={reportData.orderInfo}
-                template={template}
-              />
-              <CategorySection
-                category={category}
-                template={template}
-                pageBreakBefore={false}
-              />
-              {isLast && (
-                <>
-                  <VerificationSection verificationInfo={reportData.verificationInfo} />
-                  <ReportFooter
-                    laboratoryInfo={reportData.laboratoryInfo}
-                    reportMetadata={reportData.reportMetadata}
+              <div className="report-content flex-grow">
+                {/* Header on every page */}
+                <ReportHeader
+                  laboratoryInfo={reportData.laboratoryInfo}
+                  template={template}
+                />
+
+                {/* Patient info on every page */}
+                <PatientInfoSection
+                  patientInfo={reportData.patientInfo}
+                  orderInfo={reportData.orderInfo}
+                  template={template}
+                />
+
+                {/* Render categories for this page */}
+                {page.categories.map((pageCategory, idx) => (
+                  <PaginatedCategorySection
+                    key={`${pageCategory.category}-${idx}`}
+                    pageCategory={pageCategory}
                     template={template}
                   />
-                </>
-              )}
+                ))}
+
+              </div>
+
+              {/* Verification + Footer pinned to bottom of page */}
+              <div className="report-footer-container mt-auto">
+                {/* Verification section only on last page */}
+                {page.isLastPage && (
+                  <VerificationSection verificationInfo={reportData.verificationInfo} />
+                )}
+                <ReportFooter
+                  laboratoryInfo={reportData.laboratoryInfo}
+                  reportMetadata={reportData.reportMetadata}
+                  template={template}
+                />
+              </div>
             </div>
           );
         })}
@@ -216,84 +298,231 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
       {/* Print-specific styles */}
       <style>{`
         @media print {
-          body {
-            margin: 0;
-            padding: 0;
-            font-size: 9.5pt;
-            line-height: 1.15;
-          }
-          
-          .no-print {
+          /* Hide ALL UI chrome: sidebar, nav, buttons, fixed overlays, etc. */
+          .no-print,
+          aside,
+          nav,
+          header:not(.report-header),
+          button,
+          .fixed,
+          .sticky,
+          .z-50,
+          [role="navigation"] {
             display: none !important;
           }
 
+          /* Reset the entire document */
+          html, body, #root {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          /* ===== CRITICAL: Remove RoleLayout sidebar offset ===== */
+          /* The RoleLayout wraps content in div.ml-64 — this pushes
+             everything 256px to the right. We MUST reset ALL margin-left
+             and padding on every ancestor of the report. */
+          #root > div,
+          #root > div > div,
+          .ml-64,
+          [class*="ml-"] {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+
+          main, main.p-6 {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+
+          /* Report container — full width, no constraints */
+          .lab-result-report-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
+
+          /* Report pages container — full width */
+          .report-pages {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: visible !important;
+          }
+
+          /* ===== Each report page ===== */
           .report-page {
-            max-width: 100%;
-            margin: 0;
-            padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
-            box-shadow: none;
-            min-height: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 8mm !important;
+            box-shadow: none !important;
+            border: none !important;
+            overflow: visible !important;
+            /* Flex column fills the page so footer sticks to bottom */
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 100vh !important;
+            box-sizing: border-box !important;
           }
 
+          /* Page break between pages (except the last one) */
           .report-page-break {
-            page-break-after: always;
-            break-after: page;
+            page-break-after: always !important;
+            break-after: page !important;
           }
 
-          .report-header {
-            margin-bottom: 2.5mm;
-            padding-bottom: 1.5mm;
+          .report-page:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
 
-          .report-header h1 {
-            font-size: 16pt;
-            line-height: 1.05;
+          /* Report content area — grows to push footer to bottom */
+          .report-content {
+            overflow: visible !important;
+            flex: 1 1 auto !important;
           }
 
-          .patient-info-section {
-            margin-bottom: 2.5mm;
+          /* Footer pinned to bottom of each page */
+          .report-footer-container {
+            margin-top: auto !important;
+            flex-shrink: 0 !important;
           }
 
-          .category-section {
-            margin-bottom: 2mm;
-          }
-
-          .category-section h3 {
-            font-size: 14pt;
-            margin-bottom: 1.5mm;
-          }
-
-          .results-table {
-            font-size: 9pt;
-            margin-bottom: 2mm;
-          }
-
-          .results-table th,
-          .results-table td {
-            padding-top: 0.8mm;
-            padding-bottom: 0.8mm;
-            padding-left: 2mm;
-            padding-right: 2mm;
-          }
-          
-          .page-break-inside-avoid {
-            page-break-inside: avoid;
-            break-inside: avoid;
-          }
-          
+          /* @page margins set to 0 — the .report-page padding handles edge spacing.
+             The dynamically injected @page rule from admin settings overrides this. */
           @page {
-            size: ${pageSize} portrait;
-            margin: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
+            size: A4 portrait;
+            margin: 0;
           }
-          
-          /* Ensure colors print */
+
+          /* Preserve all colors and backgrounds */
           * {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Prevent individual rows from breaking mid-element */
+          .page-break-inside-avoid,
+          .results-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* Ensure tables span full width */
+          .results-table {
+            width: 100% !important;
+          }
+
+          /* ===== PRINT LAYOUT — sized to fit A4 ===== */
+
+          /* Header */
+          .report-header {
+            padding-bottom: 2mm !important;
+            margin-bottom: 3mm !important;
+          }
+          .report-header h1 {
+            font-size: 22px !important;
+            line-height: 1.2 !important;
+          }
+          .report-header img {
+            height: 48px !important;
+          }
+          .report-header .flex {
+            gap: 8px !important;
+          }
+          .report-header .text-right {
+            font-size: 12px !important;
+          }
+
+          /* Patient info section */
+          .patient-info-section {
+            margin-bottom: 3mm !important;
+          }
+          .patient-info-section .grid {
+            gap: 12px !important;
+          }
+          .patient-info-section p {
+            font-size: 12.5px !important;
+            line-height: 1.4 !important;
+            margin: 0 !important;
+          }
+          .patient-info-section h3 {
+            font-size: 12px !important;
+            margin: 0 !important;
+            padding-bottom: 2px !important;
+          }
+          .patient-info-section .space-y-1 > * + * {
+            margin-top: 2px !important;
+          }
+
+          /* Category headings */
+          .category-section {
+            margin-bottom: 2mm !important;
+          }
+          .category-section > h3 {
+            font-size: 16px !important;
+            margin-bottom: 2mm !important;
+            line-height: 1.2 !important;
+          }
+
+          /* Results table */
+          .results-table {
+            margin-bottom: 2mm !important;
+            font-size: 13px !important;
+          }
+          .results-table th {
+            padding: 3px 8px !important;
+            font-size: 11px !important;
+          }
+          .results-table td {
+            padding: 2px 8px !important;
+            font-size: 13px !important;
+            line-height: 1.35 !important;
+          }
+
+          /* Verification section */
+          .verification-section {
+            margin-top: 5mm !important;
+            margin-bottom: 2mm !important;
+          }
+          .verification-section .grid {
+            gap: 20px !important;
+          }
+          .verification-section p,
+          .verification-section .text-sm {
+            font-size: 13px !important;
+          }
+
+          /* Footer */
+          .report-footer {
+            margin-top: 2mm !important;
+            padding-top: 1mm !important;
+          }
+          .report-footer .decorative-wave svg {
+            height: 28px !important;
+          }
+          .report-footer .decorative-wave {
+            margin-bottom: 1mm !important;
+          }
+          .report-footer .grid {
+            gap: 12px !important;
+          }
+          .report-footer-container {
+            margin-top: 3mm !important;
           }
         }
 
-        /* Screen preview: visual page separation */
         @media screen {
           .report-page + .report-page {
             margin-top: 2rem;

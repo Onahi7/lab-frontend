@@ -9,12 +9,13 @@ interface ReportFooterProps {
 
 function formatDateTime(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric',
+  return date.toLocaleDateString('en-GB', {
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+  }) + ', ' + date.toLocaleTimeString('en-GB', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 }
 
@@ -25,25 +26,25 @@ export function ReportFooter({ laboratoryInfo, reportMetadata, template }: Repor
   const styling = template?.styling;
 
   const showWave = footerSettings?.showWave ?? footer?.showWaveDesign ?? true;
-  const primaryColor = footer?.waveColor1 || colors?.primary || styling?.primaryColor || '#1e40af';
+  const primaryColor = footer?.waveColor1 || colors?.primary || styling?.primaryColor || '#1e3a8a';
   const secondaryColor = footer?.waveColor2 || colors?.secondary || styling?.secondaryColor || '#10b981';
   const disclaimerText =
     footerSettings?.disclaimerText ||
     footer?.disclaimerText ||
     'All tests conducted using calibrated, automated systems ensuring high accuracy and precision. For detailed interpretation, kindly consult your healthcare provider.';
   const footerText = footer?.footerText || 'OPEN 24/7 | ONSITE & ONLINE ACCESS | TRUSTED BY CLINICS & HOSPITALS';
-  
+
   return (
     <div className="report-footer mt-6 pt-2">
       {/* Decorative wave */}
       {showWave && (
         <div className="decorative-wave mb-2">
-          <svg 
-            viewBox="0 0 1200 100" 
+          <svg
+            viewBox="0 0 1200 100"
             className="w-full h-10"
             preserveAspectRatio="none"
           >
-            <path 
+            <path
               d="M0,40 Q300,0 600,35 T1200,40 L1200,100 L0,100 Z"
               fill={primaryColor}
               opacity="0.9"
@@ -67,7 +68,10 @@ export function ReportFooter({ laboratoryInfo, reportMetadata, template }: Repor
           <div />
         )}
 
-        <div className="text-right text-[11px] font-semibold tracking-wide text-white bg-blue-900/80 px-3 py-1 rounded-sm">
+        <div
+          className="text-right text-[11px] font-semibold tracking-wide text-white px-3 py-1 rounded-sm"
+          style={{ backgroundColor: primaryColor }}
+        >
           {footerText}
         </div>
       </div>

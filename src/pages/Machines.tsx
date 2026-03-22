@@ -587,7 +587,7 @@ function MachineConfigForm({
             <div>
               <h4 className="text-sm font-medium mb-2">TCP Bridge Setup (Recommended)</h4>
               <p className="text-xs text-muted-foreground mb-2">
-                For direct TCP connections from analyzers, run the LabConnect TCP Bridge on your local network:
+                For direct TCP connections from analyzers, run the HARBOUR TCP Bridge on your local network:
               </p>
               <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside mb-3">
                 <li>Download the TCP Bridge from <code className="bg-background px-1 rounded">middleware/tcp-bridge/</code></li>

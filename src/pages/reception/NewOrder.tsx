@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
@@ -313,7 +313,7 @@ export default function NewOrder() {
             {/* Receipt Details */}
             <div className="bg-muted rounded-lg p-6 mb-6">
               <div className="text-center mb-4 pb-4 border-b">
-                <h3 className="font-bold text-lg">LabConnect LIS</h3>
+                <h3 className="font-bold text-lg">HARBOUR</h3>
                 <p className="text-sm text-muted-foreground">Laboratory Information System</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {new Date().toLocaleString()}

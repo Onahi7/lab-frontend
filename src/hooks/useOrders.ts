@@ -149,7 +149,9 @@ export function useOrders(status?: string) {
   return useQuery({
     queryKey: ['orders', status],
     queryFn: async () => {
-      const params: any = {};
+      const params: any = {
+        limit: 100, // Increase limit to show more orders
+      };
       if (status && status !== 'all') {
         params.status = status;
       }

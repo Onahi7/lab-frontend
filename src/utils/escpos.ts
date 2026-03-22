@@ -143,7 +143,7 @@ export function buildReceiptESCPOS(
   b.init();
   b.align('center');
   b.bold(true).fontSize(0x11);
-  b.line('HABOUR');
+  b.line('HARBOUR');
   b.fontSize(0x00);
   b.line('LABORATORY');
   b.bold(false);

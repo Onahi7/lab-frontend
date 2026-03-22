@@ -181,7 +181,7 @@ export default function PrinterSettings() {
           </style>
         </head>
         <body>
-          <h1>HABOUR LABORATORY</h1>
+          <h1>HARBOUR LABORATORY</h1>
           <p><strong>A4 Printer Test Page</strong></p>
           <p>Paper: ${settings.a4.paperSize} &nbsp;|&nbsp; Orientation: ${settings.a4.orientation}</p>
           <p>Printed: ${format(new Date(), 'dd/MM/yyyy HH:mm:ss')}</p>
@@ -195,7 +195,7 @@ export default function PrinterSettings() {
               <tr><td>ALT</td><td>45 U/L</td><td>7 – 40</td><td style="color:red">High</td></tr>
             </tbody>
           </table>
-          <p class="footer">This is a test print — HABOUR Diagnostics, Freetown Sierra Leone</p>
+          <p class="footer">This is a test print — HARBOUR Diagnostics, Freetown Sierra Leone</p>
         </body>
       </html>
     `);

@@ -1,4 +1,5 @@
-import { MainLayout } from '@/components/layout/MainLayout';
+import { RoleLayout } from '@/components/layout/RoleLayout';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSync } from '@/context/SyncContext';
@@ -18,6 +19,7 @@ import {
 
 export default function Settings() {
   const { connectionMode, lanBackendUrl, setServerUrl, isApiReachable } = useSync();
+  const { profile } = useAuth();
   const [serverIp, setServerIp] = useState(lanBackendUrl || '');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -78,7 +80,7 @@ export default function Settings() {
   ];
 
   return (
-    <MainLayout title="Settings" subtitle="Configure system preferences">
+    <RoleLayout title="Settings" subtitle="Configure system preferences" role="admin" userName={profile?.full_name}>
       <div className="max-w-4xl">
         {/* Server Connection */}
         <div className="bg-card border rounded-lg p-6 mb-6">
@@ -86,9 +88,9 @@ export default function Settings() {
             <Wifi className="w-5 h-5 text-primary" />
             <h2 className="font-semibold text-lg">Server Connection</h2>
             <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
-              connectionMode === 'online' ? 'bg-green-100 text-green-700' :
-              connectionMode === 'lan-only' ? 'bg-blue-100 text-blue-700' :
-              'bg-red-100 text-red-700'
+              connectionMode === 'online' ? 'bg-status-normal/15 text-status-normal' :
+              connectionMode === 'lan-only' ? 'bg-primary/10 text-primary' :
+              'bg-status-critical/15 text-status-critical'
             }`}>
               {connectionMode === 'online' ? 'Online' : connectionMode === 'lan-only' ? 'LAN Connected' : 'Offline'}
             </span>
@@ -140,7 +142,7 @@ export default function Settings() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Laboratory Name</label>
-              <Input defaultValue="Habour" className="mt-1" />
+              <Input defaultValue="HARBOUR" className="mt-1" />
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">License Number</label>
@@ -214,6 +216,6 @@ export default function Settings() {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </RoleLayout>
   );
 }

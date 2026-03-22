@@ -29,7 +29,7 @@ export function ConnectionStatus() {
   const { label, variant, icon: Icon } = getStatusInfo();
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
+    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 no-print">
       {pendingCount > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>

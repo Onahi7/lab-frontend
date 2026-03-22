@@ -10,7 +10,7 @@ import { MachineStatusCard } from '@/components/dashboard/MachineStatusCard';
 import { LiveConnectionMonitor } from '@/components/machines/LiveConnectionMonitor';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getPatientName, getTestCodes, getOrderId, getOrderPriority } from '@/utils/orderHelpers';
+import { getPatientName, getTestCodes, getGroupedTestsByPanel, getOrderId, getOrderPriority } from '@/utils/orderHelpers';
 import { 
   TestTube, 
   FileText, 
@@ -53,7 +53,7 @@ export default function LabDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Button 
           size="lg" 
-          className="h-20 text-lg"
+          className="h-24 text-lg"
           onClick={() => navigate('/lab/collect')}
         >
           <TestTube className="w-6 h-6 mr-3" />
@@ -62,7 +62,7 @@ export default function LabDashboardPage() {
         <Button 
           size="lg" 
           variant="secondary"
-          className="h-20 text-lg"
+          className="h-24 text-lg"
           onClick={() => navigate('/lab/processing')}
         >
           <FlaskConical className="w-6 h-6 mr-3" />
@@ -71,7 +71,7 @@ export default function LabDashboardPage() {
         <Button 
           size="lg" 
           variant="outline"
-          className="h-20 text-lg"
+          className="h-24 text-lg"
           onClick={() => navigate('/lab/results')}
         >
           <FileText className="w-6 h-6 mr-3" />
@@ -79,8 +79,8 @@ export default function LabDashboardPage() {
         </Button>
         <Button 
           size="lg" 
-          variant="default"
-          className="h-20 text-lg bg-green-600 hover:bg-green-700"
+          variant="outline"
+          className="h-24 text-lg"
           onClick={() => navigate('/lab/completed-orders')}
         >
           <CheckCircle className="w-6 h-6 mr-3" />
@@ -156,7 +156,7 @@ export default function LabDashboardPage() {
                             {getOrderPriority(order)}
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">{getTestCodes(order)}</p>
+                        <p className="text-sm text-muted-foreground">{getGroupedTestsByPanel(order)}</p>
                       </div>
                       <Button size="sm" onClick={() => navigate(`/lab/collect?order=${getOrderId(order)}`)}>
                         Collect
@@ -193,7 +193,7 @@ export default function LabDashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">{getPatientName(order)}</p>
-                      <p className="text-sm text-muted-foreground">{getTestCodes(order)}</p>
+                      <p className="text-sm text-muted-foreground">{getGroupedTestsByPanel(order)}</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => navigate(`/lab/processing?order=${getOrderId(order)}`)}>
                       Enter Results

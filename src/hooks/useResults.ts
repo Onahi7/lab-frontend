@@ -92,6 +92,20 @@ export function useCreateResult() {
   });
 }
 
+export function useCreateBulkResults() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (results: ResultCreate[]) => {
+      return await resultsAPI.createBulk(results);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['results'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}
+
 export function useVerifyResult() {
   const queryClient = useQueryClient();
   

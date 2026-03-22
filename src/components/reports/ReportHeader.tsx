@@ -1,66 +1,101 @@
 import { LaboratoryInfo } from '../../hooks/useLabReport';
-import { ReportTemplate } from '../../hooks/useReportTemplates';
 
 interface ReportHeaderProps {
   laboratoryInfo: LaboratoryInfo;
-  template?: ReportTemplate;
 }
 
-export function ReportHeader({ laboratoryInfo, template }: ReportHeaderProps) {
-  const headerSettings = template?.headerSettings;
-  const header = template?.header;
-  const colors = template?.colors;
-  const styling = template?.styling;
+export function ReportHeader({ laboratoryInfo }: ReportHeaderProps) {
+  const primaryColor = '#1e3a8a';
+  const secondaryColor = '#16a34a';
+  const showLogo = true;
 
-  const primaryColor = colors?.primary || styling?.primaryColor || '#1e3a8a';
-  const secondaryColor = colors?.secondary || styling?.secondaryColor || '#6b7280';
-  const showLogo = headerSettings?.showLogo ?? header?.showLogo ?? true;
-  const resolvedLogo = template?.logo || header?.logoUrl || laboratoryInfo.logo;
-  const logoSrc = resolvedLogo?.startsWith('/')
-    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${resolvedLogo}`
-    : resolvedLogo;
+  // Keep logo code-driven with an optional env override and no template/database dependency.
+  // Use the resized logo from public folder
+  const hardcodedLogoUrl = import.meta.env.VITE_REPORT_HEADER_LOGO || '/logo_resized.png';
+  const logoSrc = hardcodedLogoUrl;
 
-  const labName = headerSettings?.labName || header?.labName || laboratoryInfo.name;
-  const motto = header?.motto || header?.tagline;
-  const address = headerSettings?.address || header?.address || laboratoryInfo.address;
-  const phone = headerSettings?.phone || header?.phone || laboratoryInfo.phone;
-  const email = headerSettings?.email || header?.email || laboratoryInfo.email;
-  
+  const defaultLabName = 'HARBOUR Medical Diagnostic';
+  const defaultMotto = 'Automated Precision...';
+  const defaultAddress = '114, Fourah Bay Road, Freetown, Sierra leone';
+  const defaultPhone = '+232744414434';
+  const defaultEmail = 'habourlab@gmail.com';
+
+  const labName = defaultLabName;
+  const motto = defaultMotto;
+  const address = defaultAddress;
+  const phone = defaultPhone;
+  const email = defaultEmail;
+
+  // Attempt to split the first word from the rest for dynamic styling
+  const labNameTrimmed = labName.trim();
+  const firstSpaceIndex = labNameTrimmed.indexOf(' ');
+  const firstWord = firstSpaceIndex > -1 ? labNameTrimmed.substring(0, firstSpaceIndex) : labNameTrimmed;
+  const restWords = firstSpaceIndex > -1 ? labNameTrimmed.substring(firstSpaceIndex + 1) : '';
+  const showLabName = true;
+  const showAddress = true;
+
   return (
-    <div 
-      className="report-header pb-3 mb-4"
-      style={{
-        borderBottom: `2px solid ${header?.headerBorderColor || primaryColor}`,
-      }}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
+    <div className="report-header w-full pb-1">
+      <div className="flex items-center justify-between gap-4 w-full">
+        {/* Left Side: Logo + Lab Name */}
+        <div className="flex items-center gap-4 min-w-0">
           {showLogo && logoSrc && (
-            <img 
-              src={logoSrc}
-              alt="Laboratory Logo" 
-              className="h-14 w-auto"
-            />
+            <div className="flex items-center justify-start">
+              <img
+                src={logoSrc}
+                alt="Laboratory Logo"
+                className="h-[76px] w-auto object-contain"
+              />
+            </div>
           )}
-          <div>
-            {headerSettings?.showLabName !== false && (
-              <h1 className="text-3xl font-bold leading-tight" style={{ color: primaryColor }}>
-                {labName}
-              </h1>
-            )}
-            {motto && (
-              <p className="text-xs italic mt-1" style={{ color: secondaryColor }}>
-                Motto: {motto}
-              </p>
-            )}
-          </div>
+
+          {!showLogo && showLabName && (
+            <div className="flex flex-col justify-center leading-tight">
+              <span
+                className="font-bold tracking-wide uppercase"
+                style={{ color: primaryColor, fontSize: '28px', lineHeight: '1.1' }}
+              >
+                {firstWord}
+              </span>
+              {restWords && (
+                <span
+                  className="font-medium"
+                  style={{ color: secondaryColor, fontSize: '18px', lineHeight: '1.1' }}
+                >
+                  {restWords}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="text-right text-xs leading-snug text-gray-700 mt-1">
-          {phone && <p>{phone}</p>}
-          {email && <p>{email}</p>}
-          {headerSettings?.showAddress !== false && address && <p>{address}</p>}
+        {/* Right Side: Contact Info */}
+        <div
+          className="flex flex-col items-end text-[11px] leading-[1.3] text-right shrink-0 max-w-[340px]"
+          style={{ color: primaryColor }}
+        >
+          {phone && <span className="font-semibold tracking-[0.1px]">{phone}</span>}
+          {email && <span className="font-medium">{email}</span>}
+          {showAddress && address && <span className="font-medium">{address}</span>}
         </div>
+      </div>
+
+      {/* Accent Divider */}
+      <div className="relative w-full h-[4px] mt-[8px]">
+        <div className="absolute inset-0" style={{ backgroundColor: secondaryColor }} />
+        <div className="absolute right-0 top-0 h-full w-[33%]" style={{ backgroundColor: primaryColor }} />
+      </div>
+
+      {/* Motto */}
+      <div className="w-full text-left mt-[3px]">
+        {motto && (
+          <span
+            className="italic text-[11px] font-semibold"
+            style={{ color: primaryColor }}
+          >
+            {motto.toLowerCase().startsWith('motto') ? motto : `Motto: ${motto}`}
+          </span>
+        )}
       </div>
     </div>
   );

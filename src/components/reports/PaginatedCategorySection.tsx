@@ -1,71 +1,53 @@
 import { Fragment } from 'react';
-import { ResultCategory } from '../../hooks/useLabReport';
+import { PageCategory } from './SmartPaginatedReport';
 import { ReportTemplate } from '../../hooks/useReportTemplates';
 
-interface CategorySectionProps {
-  category: ResultCategory;
+interface PaginatedCategorySectionProps {
+  pageCategory: PageCategory;
   template?: ReportTemplate;
-  pageBreakBefore?: boolean;
 }
 
-export function CategorySection({ category, template, pageBreakBefore = false }: CategorySectionProps) {
+/**
+ * Renders a category section for a single page
+ * Handles continuation markers and panel grouping
+ */
+export function PaginatedCategorySection({ pageCategory, template }: PaginatedCategorySectionProps) {
   const colors = template?.colors;
   const resultsSection = template?.resultsSection;
 
   const primaryColor = colors?.primary || template?.styling?.primaryColor || '#1e3a8a';
   const categoryHeadingColor = resultsSection?.categoryHeaderColor || '#9f1239';
+  const tableHeaderBg = resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6';
 
-  const groupedResults = category.results.reduce((groups, result, index) => {
-    const panelKey = result.panelCode || result.panelName || '__UNGROUPED__';
-    const existingGroup = groups.find((group) => group.key === panelKey);
-
-    if (existingGroup) {
-      existingGroup.results.push(result);
-      return groups;
-    }
-
-    groups.push({
-      key: panelKey,
-      panelCode: result.panelCode,
-      panelName: result.panelName,
-      firstIndex: index,
-      results: [result],
-    });
-
-    return groups;
-  }, [] as Array<{ key: string; panelCode?: string; panelName?: string; firstIndex: number; results: ResultCategory['results'] }>);
-
-  groupedResults.sort((a, b) => {
-    const aIsPanel = a.key !== '__UNGROUPED__';
-    const bIsPanel = b.key !== '__UNGROUPED__';
-    if (aIsPanel !== bIsPanel) return aIsPanel ? -1 : 1;
-    return a.firstIndex - b.firstIndex;
-  });
-
-  const hasPanelGrouping = groupedResults.some((group) => group.panelCode || group.panelName);
-  const isInterpretationLayout = category.category === 'immunoassay' || category.category === 'serology';
-  const isRangeOnlyLayout = category.category === 'microbiology' || category.category === 'urinalysis';
+  // Determine if this category uses special layouts
+  const isInterpretationLayout = pageCategory.category === 'immunoassay' || pageCategory.category === 'serology';
+  const isRangeOnlyLayout = pageCategory.category === 'microbiology' || pageCategory.category === 'urinalysis';
   const useThreeColumns = isInterpretationLayout || isRangeOnlyLayout;
-
   const thirdColumnLabel = isInterpretationLayout || isRangeOnlyLayout ? 'Interpretation' : 'R.Range';
 
+  // Shared header cell styles for consistency
+  const headerCellClass = "text-left py-1 px-3 font-semibold uppercase text-xs";
+
   return (
-    <div className={`category-section mb-4`}>
+    <div className="category-section mb-4">
+      {/* Category title */}
       <h3
         className="text-2xl font-bold uppercase tracking-wide text-center mb-3"
         style={{ color: categoryHeadingColor }}
       >
-        {category.categoryDisplayName}
+        {pageCategory.categoryDisplayName}
+        {pageCategory.isContinuation && (
+          <span className="text-base font-normal ml-2">(continued)</span>
+        )}
       </h3>
 
-      {groupedResults.map((group, groupIndex) => {
-        const sectionTitle =
-          group.panelName ||
-          group.panelCode ||
-          (hasPanelGrouping ? category.categoryDisplayName : category.categoryDisplayName);
+      {/* Render each panel */}
+      {pageCategory.panels.map((panel, panelIndex) => {
+        const panelTitle = panel.panelName || panel.panelCode;
+        const showPanelHeader = Boolean(panelTitle);
 
         return (
-          <Fragment key={`${category.category}-${group.key}-${groupIndex}`}>
+          <Fragment key={`panel-${panelIndex}`}>
             <table className="results-table w-full border-collapse text-sm mb-3">
               <colgroup>
                 {useThreeColumns ? (
@@ -84,8 +66,8 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                 )}
               </colgroup>
               <thead>
-                {/* Panel name row - only show if there's a specific panel */}
-                {(group.panelName || group.panelCode) && group.key !== '__UNGROUPED__' && (
+                {/* Panel name row - show if there's a specific panel */}
+                {showPanelHeader && (
                   <tr>
                     <th
                       colSpan={useThreeColumns ? 3 : 4}
@@ -95,45 +77,37 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                         color: primaryColor,
                       }}
                     >
-                      {sectionTitle}
+                      {panelTitle}
+                      {panel.isContinuation && (
+                        <span className="text-xs font-normal ml-2">(continued)</span>
+                      )}
                     </th>
                   </tr>
                 )}
+                {/* Table header row — all columns get the same background */}
                 <tr className="border-y border-gray-400">
                   <th
-                    className="text-left py-1 px-3 font-semibold uppercase text-xs"
-                    style={{
-                      backgroundColor: resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6',
-                      color: primaryColor,
-                    }}
+                    className={headerCellClass}
+                    style={{ backgroundColor: tableHeaderBg, color: primaryColor }}
                   >
                     Test
                   </th>
                   <th
-                    className="text-left py-1 px-3 font-semibold uppercase text-xs"
-                    style={{
-                      backgroundColor: resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6',
-                      color: primaryColor,
-                    }}
+                    className={headerCellClass}
+                    style={{ backgroundColor: tableHeaderBg, color: primaryColor }}
                   >
                     Result
                   </th>
                   <th
-                    className="text-left py-1 px-3 font-semibold uppercase text-xs"
-                    style={{
-                      backgroundColor: resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6',
-                      color: primaryColor,
-                    }}
+                    className={headerCellClass}
+                    style={{ backgroundColor: tableHeaderBg, color: primaryColor }}
                   >
                     {useThreeColumns ? thirdColumnLabel : 'Range'}
                   </th>
                   {!useThreeColumns && (
                     <th
-                      className="text-left py-1 px-3 font-semibold uppercase text-xs"
-                      style={{
-                        backgroundColor: resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6',
-                        color: primaryColor,
-                      }}
+                      className={headerCellClass}
+                      style={{ backgroundColor: tableHeaderBg, color: primaryColor }}
                     >
                       Unit
                     </th>
@@ -141,14 +115,14 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                 </tr>
               </thead>
               <tbody>
-                {group.results.map((result) => {
+                {panel.results.map((result, resultIndex) => {
                   const firstColumnValue = result.testName || result.testCode;
                   const thirdColumnValue = useThreeColumns
                     ? (result.comments || result.referenceRange || '-')
                     : (result.referenceRange || '-');
 
                   return (
-                    <tr key={`${result.testCode}-${result.resultedAt}`} className="border-b border-gray-200">
+                    <tr key={`result-${resultIndex}`} className="border-b border-gray-200">
                       <td className="py-0.5 px-3 font-medium text-sm">{firstColumnValue}</td>
                       <td
                         className="py-0.5 px-3 font-semibold whitespace-nowrap"
@@ -169,7 +143,9 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                           <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
                         )}
                       </td>
-                      <td className="py-0.5 px-3 text-sm">{typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}</td>
+                      <td className="py-0.5 px-3 text-sm">
+                        {typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}
+                      </td>
                       {!useThreeColumns && (
                         <td className="py-0.5 px-3 text-sm">{result.unit || '-'}</td>
                       )}

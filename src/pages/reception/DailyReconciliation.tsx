@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -7,11 +7,26 @@ import {
   useReconciliations,
 } from '@/hooks/useReconciliation';
 import { useDailyIncome, useOutstandingBalances } from '@/hooks/useOrders';
+import { useExpenditures, useCreateExpenditure, useDeleteExpenditure } from '@/hooks/useExpenditures';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   Calculator,
@@ -22,53 +37,121 @@ import {
   Loader2,
   Banknote,
   Smartphone,
-  CreditCard,
   TrendingDown,
+  Receipt,
+  Plus,
+  Trash2,
+  ShoppingCart,
+  FlaskConical,
+  Wrench,
+  Zap,
+  Truck,
+  Users,
+  Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+
+const CATEGORIES = [
+  { value: 'supplies', label: 'Supplies', icon: ShoppingCart },
+  { value: 'reagents', label: 'Reagents', icon: FlaskConical },
+  { value: 'equipment', label: 'Equipment', icon: Wrench },
+  { value: 'utilities', label: 'Utilities', icon: Zap },
+  { value: 'transport', label: 'Transport', icon: TransportIcon },
+  { value: 'maintenance', label: 'Maintenance', icon: Wrench },
+  { value: 'staff', label: 'Staff', icon: Users },
+  { value: 'cleaning', label: 'Cleaning', icon: Sparkles },
+  { value: 'other', label: 'Other', icon: HelpCircle },
+];
+
+function TransportIcon(props: any) {
+  return <Truck {...props} />;
+}
+
+const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'orange_money', label: 'Orange Money' },
+  { value: 'afrimoney', label: 'Afrimoney' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function DailyReconciliation() {
   const { profile } = useAuth();
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
+  
+  // Reconciliation Form State
   const [actualCash, setActualCash] = useState('');
-  const [actualCard, setActualCard] = useState('');
-  const [actualMobileMoney, setActualMobileMoney] = useState('');
+  const [actualOrangeMoney, setActualOrangeMoney] = useState('');
+  const [actualAfrimoney, setActualAfrimoney] = useState('');
   const [notes, setNotes] = useState('');
 
-  const { data: expected, isLoading: loadingExpected } =
-    useExpectedAmounts(selectedDate);
-  const { data: reconciliations } = useReconciliations('all');
-  const createReconciliation = useCreateReconciliation();
+  // Expenditure Form State
+  const [showAddExpenditure, setShowAddExpenditure] = useState(false);
+  const [desc, setDesc] = useState('');
+  const [amt, setAmt] = useState('');
+  const [cat, setCat] = useState('supplies');
+  const [payMethod, setPayMethod] = useState('cash');
+  const [receiptNum, setReceiptNum] = useState('');
+  const [vend, setVend] = useState('');
+  const [expNotes, setExpNotes] = useState('');
 
-  // Actual collected from Payment records for the selected date
   const todayStart = new Date(selectedDate);
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(selectedDate);
   todayEnd.setHours(23, 59, 59, 999);
+
+  const { data: expected, isLoading: loadingExpected } = useExpectedAmounts(selectedDate);
+  const { data: reconciliations } = useReconciliations('all');
+  const createReconciliation = useCreateReconciliation();
+
   const { data: dailyIncome } = useDailyIncome(todayStart.toISOString(), todayEnd.toISOString());
   const todayData = Array.isArray(dailyIncome) && dailyIncome.length > 0 ? dailyIncome[0] : null;
 
   const { data: outstandingData } = useOutstandingBalances();
 
-  const actualCashNum = parseFloat(actualCash) || 0;
-  const actualCardNum = parseFloat(actualCard) || 0;
-  const actualMobileMoneyNum = parseFloat(actualMobileMoney) || 0;
-  const actualTotal = actualCashNum + actualCardNum + actualMobileMoneyNum;
+  const { data: expenditures, isLoading: loadingExp } = useExpenditures({
+    startDate: todayStart.toISOString(),
+    endDate: todayEnd.toISOString(),
+  });
+  const createExpenditure = useCreateExpenditure();
+  const deleteExpenditure = useDeleteExpenditure();
 
-  const cashVariance = actualCashNum - (expected?.expectedCash || 0);
-  const cardVariance = actualCardNum - (expected?.expectedCard || 0);
-  const mobileMoneyVariance =
-    actualMobileMoneyNum - (expected?.expectedMobileMoney || 0);
-  const totalVariance = actualTotal - (expected?.expectedTotal || 0);
+  const actualCashNum = parseFloat(actualCash) || 0;
+  const actualOrangeNum = parseFloat(actualOrangeMoney) || 0;
+  const actualAfriNum = parseFloat(actualAfrimoney) || 0;
+  const actualTotal = actualCashNum + actualOrangeNum + actualAfriNum;
+
+  // Deduct expenditures mapping from Expected totals
+  const cashExpendituresTotal = Array.isArray(expenditures) 
+    ? expenditures.filter(e => e.paymentMethod === 'cash').reduce((sum, e) => sum + (e.amount || 0), 0)
+    : 0;
+
+  const orangeExpendituresTotal = Array.isArray(expenditures)
+    ? expenditures.filter(e => e.paymentMethod === 'orange_money').reduce((sum, e) => sum + (e.amount || 0), 0)
+    : 0;
+
+  const afriExpendituresTotal = Array.isArray(expenditures)
+    ? expenditures.filter(e => e.paymentMethod === 'afrimoney').reduce((sum, e) => sum + (e.amount || 0), 0)
+    : 0;
+
+  const netExpectedCash = (expected?.expectedCash || 0) - cashExpendituresTotal;
+  const netExpectedOrange = (expected?.expectedOrangeMoney || 0) - orangeExpendituresTotal;
+  const netExpectedAfri = (expected?.expectedAfrimoney || 0) - afriExpendituresTotal;
+  const netExpectedTotal = netExpectedCash + netExpectedOrange + netExpectedAfri;
+
+  const cashVariance = actualCashNum - netExpectedCash;
+  const orangeVariance = actualOrangeNum - netExpectedOrange;
+  const afriVariance = actualAfriNum - netExpectedAfri;
+  const totalVariance = actualTotal - netExpectedTotal;
 
   const hasVariance = Math.abs(totalVariance) > 0.01;
 
-  const handleSubmit = async () => {
-    if (!actualCash || !actualCard || !actualMobileMoney) {
-      toast.error('Please enter all actual amounts');
+  const handleSubmitReconciliation = async () => {
+    if (actualCash === '' || actualOrangeMoney === '' || actualAfrimoney === '') {
+      toast.error('Please enter all actual amounts (enter 0 if none)');
       return;
     }
 
@@ -81,19 +164,70 @@ export default function DailyReconciliation() {
       await createReconciliation.mutateAsync({
         reconciliationDate: new Date(selectedDate),
         actualCash: actualCashNum,
-        actualCard: actualCardNum,
-        actualMobileMoney: actualMobileMoneyNum,
+        actualOrangeMoney: actualOrangeNum,
+        actualAfrimoney: actualAfriNum,
         notes: notes || undefined,
       });
 
       toast.success('Reconciliation submitted successfully');
       setActualCash('');
-      setActualCard('');
-      setActualMobileMoney('');
+      setActualOrangeMoney('');
+      setActualAfrimoney('');
       setNotes('');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to submit reconciliation');
     }
+  };
+
+  const handleAddExpenditure = async () => {
+    if (!desc.trim()) {
+      toast.error('Please enter a description');
+      return;
+    }
+    if (!amt || parseFloat(amt) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    try {
+      await createExpenditure.mutateAsync({
+        description: desc.trim(),
+        amount: parseFloat(amt),
+        category: cat,
+        expenditureDate: new Date(selectedDate),
+        paymentMethod: payMethod,
+        receiptNumber: receiptNum || undefined,
+        vendor: vend || undefined,
+        notes: expNotes || undefined,
+      });
+
+      toast.success('Expenditure recorded successfully');
+      setShowAddExpenditure(false);
+      setDesc('');
+      setAmt('');
+      setCat('supplies');
+      setPayMethod('cash');
+      setReceiptNum('');
+      setVend('');
+      setExpNotes('');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to record expenditure');
+    }
+  };
+
+  const handleDeleteExpenditure = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this expenditure?')) return;
+    try {
+      await deleteExpenditure.mutateAsync(id);
+      toast.success('Expenditure deleted');
+    } catch {
+      toast.error('Failed to delete expenditure');
+    }
+  };
+
+  const getCategoryIcon = (categoryVal: string) => {
+    const found = CATEGORIES.find((c) => c.value === categoryVal);
+    return found ? found.icon : HelpCircle;
   };
 
   const todayReconciliation = reconciliations?.find((r: any) => {
@@ -110,398 +244,410 @@ export default function DailyReconciliation() {
   return (
     <RoleLayout
       title="Daily Reconciliation"
-      subtitle="Submit end-of-day cash reconciliation"
+      subtitle="Submit end-of-day cash reconciliation and record expenses"
       role="receptionist"
       userName={profile?.full_name}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Label className="text-muted-foreground">Select Date</Label>
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            max={new Date().toISOString().split('T')[0]}
+            className="w-40"
+          />
+        </div>
+      </div>
+
+      {/* Top Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Expected After Expenses */}
+        <div className="bg-card border-l-4 border-l-primary border rounded-lg p-5 flex items-start gap-4">
+          <div className="p-3 rounded-lg bg-primary/10">
+            <Calculator className="w-6 h-6 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-muted-foreground">Net Expected Total</p>
+            <p className="text-3xl font-bold mt-1">
+              Le {netExpectedTotal.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 text-amber-600">
+              Le {(expected?.expectedTotal || 0).toLocaleString()} (Collected) - Le {(cashExpendituresTotal + orangeExpendituresTotal + afriExpendituresTotal).toLocaleString()} (Expenses)
+            </p>
+          </div>
+        </div>
+
+        {/* Collected Today */}
+        <div className="bg-card border-l-4 border-l-status-normal border rounded-lg p-5 flex items-start gap-4">
+          <div className="p-3 rounded-lg bg-status-normal/10">
+            <Banknote className="w-6 h-6 text-status-normal" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-muted-foreground">Gross Collected Today</p>
+            <p className="text-3xl font-bold text-status-normal mt-1">
+              Le {(todayData?.totalIncome || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {todayData?.paymentCount || 0} order payments today
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-card border rounded-lg p-4">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Banknote className="w-3 h-3" /> Expected Cash
+          </p>
+          <p className="text-xl font-bold mt-1">
+            Le {netExpectedCash.toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Less cash expenses</p>
+        </div>
+        <div className="bg-card border rounded-lg p-4">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Smartphone className="w-3 h-3 text-orange-500" /> Orange / Afrimoney
+          </p>
+          <p className="text-xl font-bold mt-1">
+            Le {(netExpectedOrange + netExpectedAfri).toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Expected mobile</p>
+        </div>
+        <div className="bg-card border rounded-lg p-4">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Receipt className="w-3 h-3 text-status-critical" /> Total Expenses
+          </p>
+          <p className="text-xl font-bold text-status-critical mt-1">
+            Le {(cashExpendituresTotal + orangeExpendituresTotal + afriExpendituresTotal).toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">{Array.isArray(expenditures) ? expenditures.length : 0} items</p>
+        </div>
+        <div className="bg-card border rounded-lg p-4">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <TrendingDown className="w-3 h-3 text-amber-600" /> Outstanding
+          </p>
+          <p className="text-xl font-bold text-amber-600 mt-1">
+            Le {(outstandingData?.summary?.totalOutstanding || 0).toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            System total pending
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Expenditures Section */}
+        <div className="bg-card border rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-muted-foreground" />
+              Expenditures & Expenses
+            </h3>
+            <Button size="sm" onClick={() => setShowAddExpenditure(true)} disabled={!!todayReconciliation}>
+              <Plus className="w-4 h-4 mr-1" /> Add
+            </Button>
+          </div>
+          
+          <div className="space-y-3">
+            {loadingExp ? (
+              <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+            ) : Array.isArray(expenditures) && expenditures.length > 0 ? (
+              expenditures.map((exp: any) => {
+                const CatIcon = getCategoryIcon(exp.category);
+                return (
+                  <div key={exp._id || exp.id} className="flex flex-col border rounded-lg p-3 text-sm">
+                    <div className="flex justify-between items-start mb-1">
+                      <p className="font-medium">{exp.description}</p>
+                      <p className="font-bold text-status-critical">Le {Number(exp.amount).toLocaleString()}</p>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 capitalize"><CatIcon className="w-3.5 h-3.5" /> {exp.category}</span>
+                        <span className="capitalize">{exp.paymentMethod?.replace(/_/g, ' ')}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {exp.flagged && (
+                          <Badge variant="outline" className="bg-status-critical/10 text-status-critical text-[10px] py-0">Flagged</Badge>
+                        )}
+                        {!todayReconciliation && !exp.flagged && (
+                          <button onClick={() => handleDeleteExpenditure(exp._id || exp.id)} className="text-muted-foreground hover:text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {exp.flagged && exp.flagReason && (
+                      <p className="mt-2 text-xs text-status-critical bg-status-critical/10 p-2 rounded w-full">
+                        <strong>Admin Flag:</strong> {exp.flagReason}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-center text-sm text-muted-foreground py-4">No expenditures recorded today</p>
+            )}
+          </div>
+        </div>
+
         {/* Reconciliation Form */}
         <div className="space-y-6">
           <div className="bg-card border rounded-lg p-6">
-            <h3 className="font-semibold text-lg mb-4">Submit Reconciliation</h3>
+            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-muted-foreground" />
+              Final Summary & Count
+            </h3>
 
-            <div className="space-y-4">
-              <div>
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  max={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-
-              {todayReconciliation ? (
-                <div className="bg-muted rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="w-5 h-5 text-status-normal" />
-                    <p className="font-medium">Reconciliation Already Submitted</p>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Submitted on {format(new Date(todayReconciliation.submittedAt), 'MMM dd, yyyy HH:mm')}
-                  </p>
+            {todayReconciliation ? (
+              <div className="bg-muted rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-5 h-5 text-status-normal" />
+                  <p className="font-medium">Reconciliation Already Submitted</p>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Submitted on {format(new Date(todayReconciliation.submittedAt), 'MMM dd, yyyy HH:mm')}
+                </p>
+                <div className="flex justify-between items-center">
                   <Badge
                     variant="outline"
                     className={cn('capitalize', statusStyles[todayReconciliation.status as keyof typeof statusStyles])}
                   >
                     {todayReconciliation.status}
                   </Badge>
-                </div>
-              ) : loadingExpected ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <>
-                  {/* Expected Amounts */}
-                  <div className="bg-muted rounded-lg p-4">
-                    <h4 className="font-medium mb-3">Expected Amounts (System)</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Cash:</span>
-                        <span className="font-medium">
-                          Le {(expected?.expectedCash || 0).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Card:</span>
-                        <span className="font-medium">
-                          Le {(expected?.expectedCard || 0).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Mobile Money:</span>
-                        <span className="font-medium">
-                          Le {(expected?.expectedMobileMoney || 0).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between pt-2 border-t font-bold">
-                        <span>Total:</span>
-                        <span>Le {(expected?.expectedTotal || 0).toLocaleString()}</span>
-                      </div>
-                    </div>
-                    <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
-                      <div className="flex justify-between">
-                        <span>Total Orders:</span>
-                        <span>{expected?.totalOrders || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Paid Orders:</span>
-                        <span>{expected?.paidOrders || 0}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actual Amounts */}
-                  <div>
-                    <h4 className="font-medium mb-3">Actual Amounts (Counted)</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <Label>Cash</Label>
-                        <Input
-                          type="number"
-                          placeholder="0.00"
-                          value={actualCash}
-                          onChange={(e) => setActualCash(e.target.value)}
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-                      <div>
-                        <Label>Card</Label>
-                        <Input
-                          type="number"
-                          placeholder="0.00"
-                          value={actualCard}
-                          onChange={(e) => setActualCard(e.target.value)}
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-                      <div>
-                        <Label>Mobile Money</Label>
-                        <Input
-                          type="number"
-                          placeholder="0.00"
-                          value={actualMobileMoney}
-                          onChange={(e) => setActualMobileMoney(e.target.value)}
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Variance Display */}
-                  {(actualCash || actualCard || actualMobileMoney) && (
-                    <div
-                      className={cn(
-                        'rounded-lg p-4',
-                        hasVariance
-                          ? 'bg-status-warning/10 border border-status-warning/20'
-                          : 'bg-status-normal/10 border border-status-normal/20'
-                      )}
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        {hasVariance ? (
-                          <>
-                            <AlertTriangle className="w-5 h-5 text-status-warning" />
-                            <h4 className="font-medium">Variance Detected</h4>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="w-5 h-5 text-status-normal" />
-                            <h4 className="font-medium">Balanced</h4>
-                          </>
-                        )}
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Cash Variance:</span>
-                          <span
-                            className={cn(
-                              'font-medium',
-                              cashVariance > 0
-                                ? 'text-status-normal'
-                                : cashVariance < 0
-                                ? 'text-status-critical'
-                                : ''
-                            )}
-                          >
-                            {cashVariance > 0 ? '+' : ''}Le {cashVariance.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Card Variance:</span>
-                          <span
-                            className={cn(
-                              'font-medium',
-                              cardVariance > 0
-                                ? 'text-status-normal'
-                                : cardVariance < 0
-                                ? 'text-status-critical'
-                                : ''
-                            )}
-                          >
-                            {cardVariance > 0 ? '+' : ''}Le {cardVariance.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Mobile Money Variance:</span>
-                          <span
-                            className={cn(
-                              'font-medium',
-                              mobileMoneyVariance > 0
-                                ? 'text-status-normal'
-                                : mobileMoneyVariance < 0
-                                ? 'text-status-critical'
-                                : ''
-                            )}
-                          >
-                            {mobileMoneyVariance > 0 ? '+' : ''}Le{' '}
-                            {mobileMoneyVariance.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between pt-2 border-t font-bold">
-                          <span>Total Variance:</span>
-                          <span
-                            className={cn(
-                              totalVariance > 0
-                                ? 'text-status-normal'
-                                : totalVariance < 0
-                                ? 'text-status-critical'
-                                : ''
-                            )}
-                          >
-                            {totalVariance > 0 ? '+' : ''}Le {totalVariance.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  {todayReconciliation.reviewNotes && (
+                    <span className="text-xs text-muted-foreground italic max-w-[200px] truncate text-right">
+                      Notes: {todayReconciliation.reviewNotes}
+                    </span>
                   )}
-
-                  {/* Notes */}
-                  {hasVariance && (
+                </div>
+              </div>
+            ) : loadingExpected ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Actual Amounts */}
+                <div>
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Banknote className="w-4 h-4 text-muted-foreground" />
+                    Enter Final Drawer Count (Net)
+                  </h4>
+                  <div className="space-y-3">
                     <div>
-                      <Label>
-                        Notes <span className="text-status-critical">*</span>
+                      <Label className="flex items-center gap-1">
+                        <Banknote className="w-3.5 h-3.5" /> Cash (Le)
                       </Label>
-                      <Textarea
-                        placeholder="Explain the variance (required when there's a difference)"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows={3}
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={actualCash}
+                        onChange={(e) => setActualCash(e.target.value)}
+                        min="0"
+                        step="0.01"
                       />
                     </div>
-                  )}
+                    <div>
+                      <Label className="flex items-center gap-1">
+                        <Smartphone className="w-3.5 h-3.5 text-orange-500" /> Orange Money (Le)
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={actualOrangeMoney}
+                        onChange={(e) => setActualOrangeMoney(e.target.value)}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <Label className="flex items-center gap-1">
+                        <Smartphone className="w-3.5 h-3.5 text-red-500" /> Afrimoney (Le)
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={actualAfrimoney}
+                        onChange={(e) => setActualAfrimoney(e.target.value)}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={createReconciliation.isPending}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {createReconciliation.isPending && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {/* Variance Display */}
+                {(actualCash || actualOrangeMoney || actualAfrimoney) && (
+                  <div
+                    className={cn(
+                      'rounded-lg p-4',
+                      hasVariance
+                        ? 'bg-status-warning/10 border border-status-warning/20'
+                        : 'bg-status-normal/10 border border-status-normal/20'
                     )}
-                    <Calculator className="w-4 h-4 mr-2" />
-                    Submit Reconciliation
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Reconciliations */}
-        <div className="bg-card border rounded-lg p-6">
-          <h3 className="font-semibold text-lg mb-4">Recent Reconciliations</h3>
-          <div className="space-y-3">
-            {reconciliations?.slice(0, 10).map((rec: any) => (
-              <div
-                key={rec._id || rec.id}
-                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-medium">
-                    {format(new Date(rec.reconciliationDate), 'MMM dd, yyyy')}
-                  </p>
-                  <Badge
-                    variant="outline"
-                    className={cn('capitalize', statusStyles[rec.status as keyof typeof statusStyles])}
                   >
-                    {rec.status === 'pending' && <Clock className="w-3 h-3 mr-1" />}
-                    {rec.status === 'approved' && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                    {rec.status === 'rejected' && <XCircle className="w-3 h-3 mr-1" />}
-                    {rec.status}
-                  </Badge>
-                </div>
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Expected:</span>
-                    <span>Le {rec.expectedTotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Actual:</span>
-                    <span>Le {rec.actualTotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between font-medium">
-                    <span>Variance:</span>
-                    <span
-                      className={cn(
-                        rec.totalVariance > 0
-                          ? 'text-status-normal'
-                          : rec.totalVariance < 0
-                          ? 'text-status-critical'
-                          : ''
+                    <div className="flex items-center gap-2 mb-3">
+                      {hasVariance ? (
+                        <>
+                          <AlertTriangle className="w-5 h-5 text-status-warning" />
+                          <h4 className="font-medium">Variance Detected</h4>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-5 h-5 text-status-normal" />
+                          <h4 className="font-medium">Balanced</h4>
+                        </>
                       )}
-                    >
-                      {rec.totalVariance > 0 ? '+' : ''}Le{' '}
-                      {rec.totalVariance.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-                {rec.reviewNotes && (
-                  <p className="text-xs text-muted-foreground mt-2 italic">
-                    Admin: {rec.reviewNotes}
-                  </p>
-                )}
-              </div>
-            ))}
-            {(!reconciliations || reconciliations.length === 0) && (
-              <p className="text-center text-muted-foreground py-8">
-                No reconciliations yet
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Collected Today Panel */}
-        <div className="space-y-4">
-          <div className="bg-card border rounded-lg p-6">
-            <h3 className="font-semibold text-lg mb-4">Collected Today (System)</h3>
-            {!todayData ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No payments recorded for this date</p>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-sm">
-                    <Banknote className="w-4 h-4 text-muted-foreground" /> Cash
-                  </span>
-                  <span className="font-semibold">Le {(todayData.cashPayments || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-sm">
-                    <Smartphone className="w-4 h-4 text-muted-foreground" /> Orange Money
-                  </span>
-                  <span className="font-semibold">Le {(todayData.orangeMoneyPayments || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-sm">
-                    <CreditCard className="w-4 h-4 text-muted-foreground" /> Afrimoney
-                  </span>
-                  <span className="font-semibold">Le {(todayData.afrimoneyPayments || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between pt-3 border-t font-bold">
-                  <span>Total collected</span>
-                  <span className="text-status-normal">Le {(todayData.totalIncome || 0).toLocaleString()}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{todayData.paymentCount || 0} payment transaction(s)</p>
-              </div>
-            )}
-          </div>
-
-          {/* Outstanding Balances Panel */}
-          <div className="bg-card border rounded-lg p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingDown className="w-5 h-5 text-amber-500" />
-              <h3 className="font-semibold text-lg">Outstanding Balances</h3>
-            </div>
-            {!outstandingData ? (
-              <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-            ) : outstandingData.summary.totalOutstanding === 0 ? (
-              <p className="text-sm text-status-normal text-center py-4">All orders fully paid ✓</p>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Partial ({outstandingData.summary.partialCount})</p>
-                    <p className="font-bold text-amber-600">Le {(outstandingData.summary.partialBalance || 0).toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">remaining</p>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Unpaid ({outstandingData.summary.pendingCount})</p>
-                    <p className="font-bold text-destructive">Le {(outstandingData.summary.pendingBalance || 0).toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">owed</p>
-                  </div>
-                </div>
-                <div className="flex justify-between font-bold text-sm pt-2 border-t">
-                  <span>Total outstanding</span>
-                  <span className="text-amber-600">Le {(outstandingData.summary.totalOutstanding || 0).toLocaleString()}</span>
-                </div>
-                <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
-                  {outstandingData.orders.slice(0, 20).map((o: any) => (
-                    <div key={o._id} className="flex items-center justify-between text-sm border-b pb-2 last:border-0">
-                      <div>
-                        <p className="font-mono text-xs">{o.orderNumber}</p>
-                        <p className="text-muted-foreground">
-                          {o.patientId?.firstName} {o.patientId?.lastName}
-                        </p>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Banknote className="w-3 h-3" /> Net Cash Variance:
+                        </span>
+                        <span
+                          className={cn(
+                            'font-medium',
+                            cashVariance > 0 ? 'text-status-normal' : cashVariance < 0 ? 'text-status-critical' : ''
+                          )}
+                        >
+                          {cashVariance > 0 ? '+' : ''}Le {cashVariance.toLocaleString()}
+                        </span>
                       </div>
-                      <div className="text-right">
-                        <Badge variant="outline" className={cn('text-xs', o.paymentStatus === 'partial' ? 'text-amber-600' : 'text-destructive')}>
-                          {o.paymentStatus}
-                        </Badge>
-                        <p className="font-semibold text-amber-600">Le {Number(o.balance || o.total).toLocaleString()}</p>
+                      <div className="flex justify-between">
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Smartphone className="w-3 h-3" /> Orange Money Variance:
+                        </span>
+                        <span
+                          className={cn(
+                            'font-medium',
+                            orangeVariance > 0 ? 'text-status-normal' : orangeVariance < 0 ? 'text-status-critical' : ''
+                          )}
+                        >
+                          {orangeVariance > 0 ? '+' : ''}Le {orangeVariance.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Smartphone className="w-3 h-3" /> Afrimoney Variance:
+                        </span>
+                        <span
+                          className={cn(
+                            'font-medium',
+                            afriVariance > 0 ? 'text-status-normal' : afriVariance < 0 ? 'text-status-critical' : ''
+                          )}
+                        >
+                          {afriVariance > 0 ? '+' : ''}Le {afriVariance.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t font-bold mt-2">
+                        <span>Total Net Variance:</span>
+                        <span
+                          className={cn(
+                            totalVariance > 0 ? 'text-status-normal' : totalVariance < 0 ? 'text-status-critical' : ''
+                          )}
+                        >
+                          {totalVariance > 0 ? '+' : ''}Le {totalVariance.toLocaleString()}
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {hasVariance && (
+                  <div>
+                    <Label>
+                      Notes <span className="text-status-critical">*</span>
+                    </Label>
+                    <Textarea
+                      placeholder="Explain the variance (required when there's a difference)"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleSubmitReconciliation}
+                  disabled={createReconciliation.isPending}
+                  className="w-full"
+                  size="lg"
+                >
+                  {createReconciliation.isPending && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  <Calculator className="w-4 h-4 mr-2" />
+                  Submit Reconciliation
+                </Button>
+              </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Add Expenditure Dialog */}
+      <Dialog open={showAddExpenditure} onOpenChange={setShowAddExpenditure}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record Day's Expenditure</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Description</Label>
+              <Input placeholder="What was purchased/paid for?" value={desc} onChange={e => setDesc(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Amount (Le)</Label>
+                <Input type="number" min="0" value={amt} onChange={e => setAmt(e.target.value)} placeholder="0" />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Select value={cat} onValueChange={setCat}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Payment Method</Label>
+                <Select value={payMethod} onValueChange={setPayMethod}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Receipt / Invoice #</Label>
+                <Input value={receiptNum} onChange={e => setReceiptNum(e.target.value)} placeholder="Optional" />
+              </div>
+            </div>
+            <div>
+              <Label>Vendor</Label>
+              <Input value={vend} onChange={e => setVend(e.target.value)} placeholder="Optional" />
+            </div>
+            <div>
+              <Label>Additional Notes</Label>
+              <Textarea value={expNotes} onChange={e => setExpNotes(e.target.value)} placeholder="Optional details..." rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddExpenditure(false)}>Cancel</Button>
+            <Button onClick={handleAddExpenditure} disabled={createExpenditure.isPending}>
+              {createExpenditure.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Save Expenditure
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </RoleLayout>
   );
 }

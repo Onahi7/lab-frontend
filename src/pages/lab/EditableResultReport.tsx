@@ -165,7 +165,7 @@ export default function EditableResultReport() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">HABOUR</h1>
+                <h1 className="text-2xl font-bold text-gray-900">HARBOUR</h1>
                 <p className="text-xs text-gray-500 italic">Motto: Automated Precision...</p>
               </div>
             </div>

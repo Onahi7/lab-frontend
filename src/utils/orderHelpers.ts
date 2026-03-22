@@ -116,6 +116,48 @@ export function getTestCodes(order: any): string {
 }
 
 /**
+ * Get tests grouped by panel name
+ * Tests with panel names are grouped, tests without panels are listed individually
+ */
+export function getGroupedTestsByPanel(order: any): string {
+  const tests = getOrderTests(order);
+  
+  if (!Array.isArray(tests) || tests.length === 0) {
+    return 'No tests';
+  }
+  
+  // Separate tests with panels from tests without panels
+  const panelGroups = new Map<string, string[]>();
+  const individualTests: string[] = [];
+  
+  tests.forEach(test => {
+    const panelName = test.panelName || test.panel_name;
+    const testCode = test.testCode || test.test_code || 'Unknown';
+    
+    if (panelName) {
+      // Has a panel - group it
+      if (!panelGroups.has(panelName)) {
+        panelGroups.set(panelName, []);
+      }
+      panelGroups.get(panelName)!.push(testCode);
+    } else {
+      // No panel - list individually
+      individualTests.push(testCode);
+    }
+  });
+  
+  // Format panels as "Panel Name (count)"
+  const panelSummaries = Array.from(panelGroups.entries()).map(([panelName, codes]) => {
+    return `${panelName} (${codes.length})`;
+  });
+  
+  // Combine panel summaries with individual tests
+  const allItems = [...panelSummaries, ...individualTests];
+  
+  return allItems.join(', ');
+}
+
+/**
  * Get order ID (handles both id and _id)
  */
 export function getOrderId(order: any): string {

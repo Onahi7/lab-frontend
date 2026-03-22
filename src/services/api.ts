@@ -330,6 +330,11 @@ export const resultsAPI = {
     return response.data;
   },
 
+  createBulk: async (data: any[]) => {
+    const response = await api.post('/results/bulk', data);
+    return response.data;
+  },
+
   update: async (id: string, data: any) => {
     const response = await api.patch(`/results/${id}`, data);
     return response.data;
@@ -673,6 +678,49 @@ export const reconciliationAPI = {
 
   getPendingCount: async () => {
     const response = await api.get('/reconciliation/pending/count');
+    return response.data;
+  },
+};
+
+export const expendituresAPI = {
+  getAll: async (params?: { startDate?: string; endDate?: string; category?: string }) => {
+    const response = await api.get('/expenditures', { params });
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/expenditures/${id}`);
+    return response.data;
+  },
+
+  create: async (data: any) => {
+    const response = await api.post('/expenditures', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await api.patch(`/expenditures/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    await api.delete(`/expenditures/${id}`);
+  },
+
+  flag: async (id: string, reason: string) => {
+    const response = await api.post(`/expenditures/${id}/flag`, { reason });
+    return response.data;
+  },
+
+  unflag: async (id: string) => {
+    const response = await api.post(`/expenditures/${id}/unflag`);
+    return response.data;
+  },
+
+  getSummary: async (startDate?: string, endDate?: string) => {
+    const response = await api.get('/expenditures/summary', {
+      params: { startDate, endDate },
+    });
     return response.data;
   },
 };

@@ -31,15 +31,15 @@ export function ResultRow({ result, template, compact = false }: ResultRowProps)
       return colors?.critical || '#dc2626';
     }
     if (flag === 'high' || flag === 'low') {
-      return colors?.abnormal || '#ea580c';
+      return colors?.abnormal || '#dc2626';
     }
     return undefined;
   };
 
   return (
     <tr className="border-b border-gray-200">
-      <td className="py-2 px-3">
-        <div className="font-semibold text-sm">{result.testCode}</div>
+      <td className="py-0.5 px-3">
+        <div className="font-medium text-sm">{result.testCode}</div>
         {!compact && <div className="text-xs text-gray-600">{result.testName}</div>}
         {result.isAmended && (
           <div className="text-xs text-orange-600 font-semibold mt-1">
@@ -51,7 +51,7 @@ export function ResultRow({ result, template, compact = false }: ResultRowProps)
         )}
       </td>
       <td 
-        className={`py-2 px-3 ${getFlagClass(result.flag)}`}
+        className={`py-0.5 px-3 ${getFlagClass(result.flag)}`}
         style={{ color: getFlagColor(result.flag) }}
       >
         <span className="font-semibold">{result.value}</span>
@@ -59,8 +59,8 @@ export function ResultRow({ result, template, compact = false }: ResultRowProps)
           <span className="ml-1 text-lg">{getFlagIndicator(result.flag)}</span>
         )}
       </td>
-      <td className="py-2 px-3 text-sm">{result.referenceRange || ''}</td>
-      <td className="py-2 px-3 text-sm">{result.unit || ''}</td>
+      <td className="py-0.5 px-3 text-sm">{result.referenceRange || ''}</td>
+      <td className="py-0.5 px-3 text-sm">{result.unit || ''}</td>
     </tr>
   );
 }

@@ -1,479 +1,663 @@
 ﻿import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { RoleLayout } from '@/components/layout/RoleLayout';
-import { useAuth } from '@/context/AuthContext';
-import { useTestCatalog, useCreateTest, useUpdateTest, useDeleteTest } from '@/hooks/useTestCatalog';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Edit, Trash2, Save, X, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Search, Loader2, CheckCircle, XCircle, Layers } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import type { Database } from '@/integrations/supabase/types';
+import { useAuth } from '@/context/AuthContext';
+import { RoleLayout } from '@/components/layout/RoleLayout';
+import api from '@/services/api';
 
-type TestCategory = Database['public']['Enums']['test_category'];
-type SampleType = Database['public']['Enums']['sample_type'];
+interface ReferenceRange {
+  ageGroup?: string;
+  ageMin?: number;
+  ageMax?: number;
+  gender?: 'M' | 'F' | 'all';
+  pregnancy?: boolean;
+  condition?: string;
+  range: string;
+  unit?: string;
+  criticalLow?: string;
+  criticalHigh?: string;
+}
+
+interface Test {
+  _id: string;
+  code: string;
+  name: string;
+  category: string;
+  sampleType: string;
+  price: number;
+  unit?: string;
+  referenceRange?: string;
+  referenceRanges?: ReferenceRange[];
+  panelCode?: string;
+  panelName?: string;
+  linkedTests?: string[];
+  turnaroundTime?: number;
+  machineId?: string;
+  isActive: boolean;
+  description?: string;
+}
+
+const CATEGORIES = [
+  { value: 'hematology', label: 'Hematology' },
+  { value: 'chemistry', label: 'Clinical Chemistry' },
+  { value: 'immunoassay', label: 'Immunoassay' },
+  { value: 'serology', label: 'Serology' },
+  { value: 'urinalysis', label: 'Urinalysis' },
+  { value: 'microbiology', label: 'Microbiology' },
+  { value: 'other', label: 'Other' },
+];
+
+const SAMPLE_TYPES = [
+  { value: 'serum', label: 'Serum' },
+  { value: 'plasma', label: 'Plasma' },
+  { value: 'whole blood', label: 'Whole Blood' },
+  { value: 'urine', label: 'Urine' },
+  { value: 'csf', label: 'CSF' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function TestCatalogManagement() {
-  const { profile } = useAuth();
-  const { pathname } = useLocation();
-  const sidebarRole = pathname.startsWith('/lab') ? 'lab_tech' : 'admin';
-  const isAdmin = profile?.role === 'admin';
-  const { data: tests, isLoading } = useTestCatalog();
-  const createTest = useCreateTest();
-  const updateTest = useUpdateTest();
-  const deleteTest = useDeleteTest();
-
+  const queryClient = useQueryClient();
+  const { hasRole, profile, primaryRole } = useAuth();
+  const isAdmin = hasRole('admin');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [showPanelComponents, setShowPanelComponents] = useState(false);
-  const [showDialog, setShowDialog] = useState(false);
-  const [editingTest, setEditingTest] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    code: '',
-    name: '',
-    category: 'other' as TestCategory,
-    price: '',
-    turnaround_time: '60',
-    sample_type: 'blood' as SampleType,
-    reference_range: '',
-    unit: '',
-    is_active: true
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTest, setEditingTest] = useState<Test | null>(null);
+  const [formData, setFormData] = useState<Partial<Test>>({});
+  const [referenceRanges, setReferenceRanges] = useState<ReferenceRange[]>([]);
+
+  // Fetch all tests
+  const { data: tests = [], isLoading } = useQuery({
+    queryKey: ['tests'],
+    queryFn: async () => {
+      const response = await api.get('/test-catalog');
+      return response.data;
+    },
   });
 
-  const isPanelComponent = (test: any) => Number(test.price) === 0 && !test.isActive;
+  // Create test mutation
+  const createTest = useMutation({
+    mutationFn: async (data: Partial<Test>) => {
+      const response = await api.post('/test-catalog', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests'] });
+      toast.success('Test created successfully');
+      handleCloseDialog();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to create test');
+    },
+  });
 
-  const panelComponentCount = tests?.filter(isPanelComponent).length ?? 0;
+  // Update test mutation
+  const updateTest = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Test> }) => {
+      const response = await api.patch(`/test-catalog/${id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests'] });
+      toast.success('Test updated successfully');
+      handleCloseDialog();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update test');
+    },
+  });
 
-  const filteredTests = tests?.filter(test => {
-    if (!showPanelComponents && isPanelComponent(test)) return false;
+  // Delete test mutation
+  const deleteTest = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/test-catalog/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tests'] });
+      toast.success('Test deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete test');
+    },
+  });
+
+  const handleOpenDialog = (test?: Test) => {
+    if (test) {
+      setEditingTest(test);
+      setFormData(test);
+      setReferenceRanges(test.referenceRanges || []);
+    } else {
+      setEditingTest(null);
+      setFormData({ isActive: true });
+      setReferenceRanges([]);
+    }
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingTest(null);
+    setFormData({});
+    setReferenceRanges([]);
+  };
+
+  const handleSubmit = () => {
+    const data = {
+      ...formData,
+      referenceRanges: referenceRanges.length > 0 ? referenceRanges : undefined,
+    };
+
+    if (editingTest) {
+      updateTest.mutate({ id: editingTest._id, data });
+    } else {
+      createTest.mutate(data);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this test?')) {
+      deleteTest.mutate(id);
+    }
+  };
+
+  const handleDuplicate = (test: Test) => {
+    const duplicated = {
+      ...test,
+      code: `${test.code}_COPY`,
+      name: `${test.name} (Copy)`,
+    };
+    delete (duplicated as any)._id;
+    handleOpenDialog(duplicated as Test);
+  };
+
+  const addReferenceRange = () => {
+    setReferenceRanges([
+      ...referenceRanges,
+      { range: '', gender: 'all', ageGroup: 'Adults' },
+    ]);
+  };
+
+  const updateReferenceRange = (index: number, field: keyof ReferenceRange, value: any) => {
+    const updated = [...referenceRanges];
+    updated[index] = { ...updated[index], [field]: value };
+    setReferenceRanges(updated);
+  };
+
+  const removeReferenceRange = (index: number) => {
+    setReferenceRanges(referenceRanges.filter((_, i) => i !== index));
+  };
+
+  // Filter tests
+  const filteredTests = tests.filter((test: Test) => {
+    const matchesCategory = selectedCategory === 'all' || test.category === selectedCategory;
     const matchesSearch = test.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          test.code.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || test.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    return matchesCategory && matchesSearch;
   });
-
-  const handleAdd = () => {
-    setEditingTest(null);
-    setFormData({
-      code: '',
-      name: '',
-      category: 'other',
-      price: '',
-      turnaround_time: '60',
-      sample_type: 'blood',
-      reference_range: '',
-      unit: '',
-      is_active: true
-    });
-    setShowDialog(true);
-  };
-
-  const handleEdit = (test: any) => {
-    setEditingTest(test);
-    setFormData({
-      code: test.code,
-      name: test.name,
-      category: test.category,
-      price: test.price.toString(),
-      turnaround_time: test.turnaroundTime?.toString() || '60',
-      sample_type: test.sampleType,
-      reference_range: test.referenceRange || '',
-      unit: test.unit || '',
-      is_active: test.isActive
-    });
-    setShowDialog(true);
-  };
-
-  const handleSave = async () => {
-    if (!formData.code || !formData.name || !formData.price) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    try {
-      const testData = {
-        code: formData.code.toUpperCase(),
-        name: formData.name,
-        category: formData.category,
-        price: parseFloat(formData.price),
-        turnaroundTime: parseInt(formData.turnaround_time),
-        sampleType: formData.sample_type,
-        referenceRange: formData.reference_range || null,
-        unit: formData.unit || null,
-        isActive: formData.is_active
-      };
-
-      if (editingTest) {
-        await updateTest.mutateAsync({ id: editingTest.id, updates: testData });
-        toast.success('Test updated successfully');
-      } else {
-        await createTest.mutateAsync(testData);
-        toast.success('Test created successfully');
-      }
-      setShowDialog(false);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to save test');
-    }
-  };
-
-  const handleDelete = async (test: any) => {
-    if (!confirm(`Are you sure you want to delete ${test.name}?`)) return;
-
-    try {
-      await deleteTest.mutateAsync(test.id);
-      toast.success('Test deleted successfully');
-    } catch (error) {
-      toast.error('Failed to delete test');
-    }
-  };
-
-  const handleToggleActive = async (test: any) => {
-    try {
-      await updateTest.mutateAsync({
-        id: test.id,
-        updates: { isActive: !test.isActive }
-      });
-      toast.success(`Test ${test.isActive ? 'deactivated' : 'activated'}`);
-    } catch (error) {
-      toast.error('Failed to update test status');
-    }
-  };
 
   return (
     <RoleLayout 
       title="Test Catalog Management" 
-      subtitle="Manage laboratory tests and pricing"
-      role={sidebarRole}
+      subtitle="Manage tests, reference ranges, and categories"
+      role={primaryRole || 'admin'} 
       userName={profile?.full_name}
     >
-      {/* Actions Bar */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tests..."
-              className="pl-10 w-80"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="hematology">Hematology</SelectItem>
-              <SelectItem value="chemistry">Chemistry</SelectItem>
-              <SelectItem value="immunoassay">Immunoassay</SelectItem>
-              <SelectItem value="urinalysis">Urinalysis</SelectItem>
-              <SelectItem value="microbiology">Microbiology</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-          <button
-            onClick={() => setShowPanelComponents(v => !v)}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-md text-sm border transition-colors',
-              showPanelComponents
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background text-muted-foreground border-input hover:bg-accent'
-            )}
-            title={showPanelComponents ? 'Hide panel sub-components' : 'Show panel sub-components'}
-          >
-            <Layers className="w-4 h-4" />
-            Panel Components ({panelComponentCount})
-          </button>
+      <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          {!isAdmin && <p className="text-sm text-amber-600">(Lab Technician View - Delete restricted to Admins)</p>}
         </div>
-        {isAdmin && (
-          <Button onClick={handleAdd}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Test
-          </Button>
-        )}
+        <Button onClick={() => handleOpenDialog()}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add New Test
+        </Button>
       </div>
 
-      {/* Stats */}
-      {(() => {
-        const orderableTests = tests?.filter(t => !isPanelComponent(t)) ?? [];
-        const priced = orderableTests.filter(t => Number(t.price) > 0);
-        const avgPrice = priced.length ? Math.round(priced.reduce((sum, t) => sum + Number(t.price), 0) / priced.length) : 0;
-        return (
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-card border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Orderable Tests</p>
-              <p className="text-2xl font-bold">{orderableTests.length}</p>
-              <p className="text-xs text-muted-foreground mt-1">{panelComponentCount} panel sub-components hidden</p>
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Search</Label>
+              <Input
+                placeholder="Search by test name or code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <div className="bg-card border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Active Tests</p>
-              <p className="text-2xl font-bold text-status-normal">
-                {orderableTests.filter(t => t.isActive).length}
-              </p>
-            </div>
-            <div className="bg-card border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Inactive Tests</p>
-              <p className="text-2xl font-bold text-muted-foreground">
-                {orderableTests.filter(t => !t.isActive).length}
-              </p>
-            </div>
-            <div className="bg-card border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Avg Price</p>
-              <p className="text-2xl font-bold">Le {avgPrice.toLocaleString()}</p>
+            <div>
+              <Label>Category</Label>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map(cat => (
+                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        );
-      })()}
+        </CardContent>
+      </Card>
 
-      {/* Tests Table */}
-      <div className="bg-card border rounded-lg overflow-hidden">
+      {/* Tests List */}
+      <div className="grid grid-cols-1 gap-4">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
+          <div className="text-center py-8">Loading tests...</div>
+        ) : filteredTests.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No tests found</div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Sample Type</th>
-                <th>Price</th>
-                <th>TAT</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTests?.map(test => (
-                <tr key={test.id}>
-                  <td className="font-mono font-semibold">{test.code}</td>
-                  <td>
-                    <div>
-                      <p className="font-medium">{test.name}</p>
-                      {test.referenceRange && (
-                        <p className="text-xs text-muted-foreground">
-                          Range: {test.referenceRange} {test.unit}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <Badge variant="outline" className="capitalize">
-                      {test.category}
-                    </Badge>
-                  </td>
-                  <td className="capitalize">{test.sampleType}</td>
-                  <td className="font-semibold">Le {Number(test.price).toLocaleString()}</td>
-                  <td>{test.turnaroundTime} min</td>
-                  <td>
-                    {isAdmin ? (
-                      <button
-                        onClick={() => handleToggleActive(test)}
-                        className="flex items-center gap-1"
-                      >
-                        {test.isActive ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 text-status-normal" />
-                            <span className="text-sm text-status-normal">Active</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">Inactive</span>
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <span className={cn('text-sm flex items-center gap-1', test.isActive ? 'text-status-normal' : 'text-muted-foreground')}>
-                        {test.isActive ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+          filteredTests.map((test: Test) => (
+            <Card key={test._id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <CardTitle>{test.name}</CardTitle>
+                      <Badge variant={test.isActive ? 'default' : 'secondary'}>
                         {test.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(test)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(test)}
-                          className="text-status-critical hover:text-status-critical"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      </Badge>
+                      {test.linkedTests && test.linkedTests.length > 0 && (
+                        <Badge variant="outline">Linked</Badge>
                       )}
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {(!filteredTests || filteredTests.length === 0) && (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-muted-foreground">
-                    No tests found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    <CardDescription>
+                      Code: {test.code} | Category: {test.category} | Price: ${test.price}
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleDuplicate(test)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleOpenDialog(test)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    {isAdmin && (
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(test._id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-semibold">Sample:</span> {test.sampleType}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Unit:</span> {test.unit || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">TAT:</span> {test.turnaroundTime || 'N/A'} min
+                  </div>
+                  <div>
+                    <span className="font-semibold">Panel:</span> {test.panelName || 'N/A'}
+                  </div>
+                </div>
+                {test.referenceRange && (
+                  <div className="mt-2 text-sm">
+                    <span className="font-semibold">Reference Range:</span> {test.referenceRange}
+                  </div>
+                )}
+                {test.referenceRanges && test.referenceRanges.length > 0 && (
+                  <div className="mt-2">
+                    <span className="font-semibold text-sm">Dynamic Ranges:</span>
+                    <div className="mt-1 space-y-1">
+                      {test.referenceRanges.map((range, idx) => (
+                        <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
+                          {range.ageGroup} {range.gender !== 'all' && `(${range.gender})`}: {range.range} {range.unit}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {test.linkedTests && test.linkedTests.length > 0 && (
+                  <div className="mt-2 text-sm">
+                    <span className="font-semibold">Linked Tests:</span> {test.linkedTests.join(', ')}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl">
+      {/* Edit/Create Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingTest ? 'Edit Test' : 'Add New Test'}</DialogTitle>
+            <DialogTitle>
+              {editingTest ? 'Edit Test' : 'Create New Test'}
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">Test Code *</Label>
-              <Input
-                id="code"
-                placeholder="CBC"
-                value={formData.code}
-                onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                disabled={!!editingTest}
-              />
-            </div>
+          <Tabs defaultValue="basic" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="ranges">Reference Ranges</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="name">Test Name *</Label>
-              <Input
-                id="name"
-                placeholder="Complete Blood Count"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="category">Category *</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, category: value as TestCategory }))}
-              >
-                <SelectTrigger id="category">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hematology">Hematology</SelectItem>
-                  <SelectItem value="chemistry">Chemistry</SelectItem>
-                  <SelectItem value="immunoassay">Immunoassay</SelectItem>
-                  <SelectItem value="urinalysis">Urinalysis</SelectItem>
-                  <SelectItem value="microbiology">Microbiology</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sample_type">Sample Type *</Label>
-              <Select
-                value={formData.sample_type}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, sample_type: value as SampleType }))}
-              >
-                <SelectTrigger id="sample_type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="blood">Blood</SelectItem>
-                  <SelectItem value="urine">Urine</SelectItem>
-                  <SelectItem value="stool">Stool</SelectItem>
-                  <SelectItem value="swab">Swab</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="price">Price (Le) *</Label>
-              <Input
-                id="price"
-                type="number"
-                placeholder="2500"
-                value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tat">Turnaround Time (minutes) *</Label>
-              <Input
-                id="tat"
-                type="number"
-                placeholder="60"
-                value={formData.turnaround_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, turnaround_time: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="unit">Unit</Label>
-              <Input
-                id="unit"
-                placeholder="g/dL"
-                value={formData.unit}
-                onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="reference_range">Reference Range</Label>
-              <Input
-                id="reference_range"
-                placeholder="12.0-17.5"
-                value={formData.reference_range}
-                onChange={(e) => setFormData(prev => ({ ...prev, reference_range: e.target.value }))}
-              />
-            </div>
-
-            <div className="col-span-2 flex items-center gap-2">
-              {isAdmin && (
-                <>
-                  <input
-                    type="checkbox"
-                    id="is_active"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                    className="rounded"
+            {/* Basic Info Tab */}
+            <TabsContent value="basic" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Test Code *</Label>
+                  <Input
+                    value={formData.code || ''}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                    placeholder="e.g., PSA, CA125"
                   />
-                  <Label htmlFor="is_active" className="cursor-pointer">Active</Label>
-                </>
+                </div>
+                <div>
+                  <Label>Test Name *</Label>
+                  <Input
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g., Prostate Specific Antigen"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Category *</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map(cat => (
+                        <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Sample Type *</Label>
+                  <Select
+                    value={formData.sampleType}
+                    onValueChange={(value) => setFormData({ ...formData, sampleType: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sample type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SAMPLE_TYPES.map(type => (
+                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label>Price *</Label>
+                  <Input
+                    type="number"
+                    value={formData.price || ''}
+                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label>Unit</Label>
+                  <Input
+                    value={formData.unit || ''}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    placeholder="e.g., mg/dL, ng/mL"
+                  />
+                </div>
+                <div>
+                  <Label>Turnaround Time (min)</Label>
+                  <Input
+                    type="number"
+                    value={formData.turnaroundTime || ''}
+                    onChange={(e) => setFormData({ ...formData, turnaroundTime: parseInt(e.target.value) })}
+                    placeholder="15"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Panel Code</Label>
+                  <Input
+                    value={formData.panelCode || ''}
+                    onChange={(e) => setFormData({ ...formData, panelCode: e.target.value.toUpperCase() })}
+                    placeholder="e.g., TUMOR, CARDIAC"
+                  />
+                </div>
+                <div>
+                  <Label>Panel Name</Label>
+                  <Input
+                    value={formData.panelName || ''}
+                    onChange={(e) => setFormData({ ...formData, panelName: e.target.value })}
+                    placeholder="e.g., Tumor Markers, Cardiac Markers"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Simple Reference Range</Label>
+                <Input
+                  value={formData.referenceRange || ''}
+                  onChange={(e) => setFormData({ ...formData, referenceRange: e.target.value })}
+                  placeholder="e.g., 0-4.0 ng/mL or < 35 U/mL"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Use this for tests with a single reference range. For age/gender-specific ranges, use the Reference Ranges tab.
+                </p>
+              </div>
+
+              <div>
+                <Label>Description</Label>
+                <Input
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Optional description"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={formData.isActive !== false}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="isActive">Active (available for ordering)</Label>
+              </div>
+            </TabsContent>
+
+            {/* Reference Ranges Tab */}
+            <TabsContent value="ranges" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-gray-600">
+                  Add multiple reference ranges for different age groups, genders, or conditions
+                </p>
+                <Button size="sm" onClick={addReferenceRange}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Range
+                </Button>
+              </div>
+
+              {referenceRanges.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No dynamic ranges defined. Click "Add Range" to create age/gender-specific ranges.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {referenceRanges.map((range, index) => (
+                    <Card key={index}>
+                      <CardContent className="pt-4">
+                        <div className="flex justify-between items-start mb-4">
+                          <h4 className="font-semibold">Range #{index + 1}</h4>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeReferenceRange(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label>Age Group Label</Label>
+                            <Input
+                              value={range.ageGroup || ''}
+                              onChange={(e) => updateReferenceRange(index, 'ageGroup', e.target.value)}
+                              placeholder="e.g., Adults, 40-49 years"
+                            />
+                          </div>
+                          <div>
+                            <Label>Gender</Label>
+                            <Select
+                              value={range.gender || 'all'}
+                              onValueChange={(value) => updateReferenceRange(index, 'gender', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All</SelectItem>
+                                <SelectItem value="M">Male</SelectItem>
+                                <SelectItem value="F">Female</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                          <div>
+                            <Label>Min Age (years)</Label>
+                            <Input
+                              type="number"
+                              value={range.ageMin || ''}
+                              onChange={(e) => updateReferenceRange(index, 'ageMin', e.target.value ? parseInt(e.target.value) : undefined)}
+                              placeholder="Optional"
+                            />
+                          </div>
+                          <div>
+                            <Label>Max Age (years)</Label>
+                            <Input
+                              type="number"
+                              value={range.ageMax || ''}
+                              onChange={(e) => updateReferenceRange(index, 'ageMax', e.target.value ? parseInt(e.target.value) : undefined)}
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                          <div>
+                            <Label>Range Value *</Label>
+                            <Input
+                              value={range.range}
+                              onChange={(e) => updateReferenceRange(index, 'range', e.target.value)}
+                              placeholder="e.g., 0-4.5, < 35, > 100"
+                            />
+                          </div>
+                          <div>
+                            <Label>Unit</Label>
+                            <Input
+                              value={range.unit || ''}
+                              onChange={(e) => updateReferenceRange(index, 'unit', e.target.value)}
+                              placeholder="e.g., ng/mL, U/mL"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <Label>Condition (Optional)</Label>
+                          <Input
+                            value={range.condition || ''}
+                            onChange={(e) => updateReferenceRange(index, 'condition', e.target.value)}
+                            placeholder="e.g., pre-menopausal, follicular, pregnancy"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Use for special conditions like menstrual cycle phases, pregnancy, etc.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center space-x-2 mt-4">
+                          <input
+                            type="checkbox"
+                            id={`pregnancy-${index}`}
+                            checked={range.pregnancy || false}
+                            onChange={(e) => updateReferenceRange(index, 'pregnancy', e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label htmlFor={`pregnancy-${index}`}>Pregnancy-specific range</Label>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
-            </div>
-          </div>
+            </TabsContent>
+
+            {/* Advanced Tab */}
+            <TabsContent value="advanced" className="space-y-4">
+              <div>
+                <Label>Linked Tests</Label>
+                <Input
+                  value={formData.linkedTests?.join(', ') || ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    linkedTests: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
+                  })}
+                  placeholder="e.g., HSCRP (comma-separated test codes)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Tests that should be automatically included when this test is ordered (e.g., CRP includes HSCRP)
+                </p>
+              </div>
+
+              <div>
+                <Label>Machine ID</Label>
+                <Input
+                  value={formData.machineId || ''}
+                  onChange={(e) => setFormData({ ...formData, machineId: e.target.value })}
+                  placeholder="Optional machine/analyzer ID"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDialog(false)}>
+            <Button variant="outline" onClick={handleCloseDialog}>
+              <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={createTest.isPending || updateTest.isPending}
-            >
-              {(createTest.isPending || updateTest.isPending) && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              {editingTest ? 'Update' : 'Create'}
+            <Button onClick={handleSubmit} disabled={!formData.code || !formData.name || !formData.category}>
+              <Save className="h-4 w-4 mr-2" />
+              {editingTest ? 'Update Test' : 'Create Test'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
     </RoleLayout>
   );
 }

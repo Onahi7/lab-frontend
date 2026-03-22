@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useProcessingOrders, useUpdateOrder } from '@/hooks/useOrders';
-import { useCreateResult } from '@/hooks/useResults';
+import { useCreateResult, useCreateBulkResults } from '@/hooks/useResults';
 import { useActiveTests } from '@/hooks/useTestCatalog';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,7 @@ export default function EnterResultsPage() {
   const { socket } = useWebSocket();
   const updateOrder = useUpdateOrder();
   const createResult = useCreateResult();
+  const createBulkResults = useCreateBulkResults();
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -97,9 +98,18 @@ export default function EnterResultsPage() {
 
   const getDraftStorageKey = (orderId?: string) => `result-draft:${orderId || 'unknown'}`;
 
-  const selectedOrderTests: any[] = selectedOrder
-    ? (selectedOrder as any).tests || (selectedOrder as any).order_tests || []
-    : [];
+  // Memoize the selected order ID to prevent infinite loops
+  const selectedOrderId = useMemo(() => {
+    if (!selectedOrder) return null;
+    return selectedOrder.id || (selectedOrder as any)._id;
+  }, [selectedOrder?.id, (selectedOrder as any)?._id]);
+
+  // Memoize the order tests to prevent infinite loops
+  const selectedOrderTests = useMemo(() => {
+    if (!selectedOrder) return [];
+    return (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
+  }, [selectedOrder?.id, (selectedOrder as any)?._id]);
+
   const totalTests = selectedOrderTests.length;
   const completedTests = selectedOrderTests.filter((test: any) => {
     const testKey = test.id || test._id || test.testCode || test.test_code;
@@ -158,21 +168,18 @@ export default function EnterResultsPage() {
   // Clear live-update indicators when the selected order changes
   useEffect(() => {
     setLiveUpdates({});
-  }, [selectedOrder]);
+  }, [selectedOrderId]);
 
   // Real-time collaboration: listen for results saved by other users
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !selectedOrderId) return;
 
     const handleResultCreated = (result: any) => {
       // Only react if it belongs to the currently selected order
-      if (!selectedOrder) return;
-      const currentOrderId = selectedOrder.id || (selectedOrder as any)._id;
-      if (result.orderId !== currentOrderId) return;
+      if (result.orderId !== selectedOrderId) return;
 
       // Find the matching orderTest entry
-      const orderTests: any[] = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
-      const matchingTest = orderTests.find(
+      const matchingTest = selectedOrderTests.find(
         (t: any) => (t.testCode || t.test_code) === result.testCode,
       );
       if (!matchingTest) return;
@@ -207,7 +214,7 @@ export default function EnterResultsPage() {
     return () => {
       socket.off('result:created', handleResultCreated);
     };
-  }, [socket, selectedOrder]);
+  }, [socket, selectedOrderId, selectedOrderTests]);
 
   // Get reference info from test catalog
   const getTestInfo = (testCode: string, patientAge?: number, patientGender?: string) => {
@@ -298,6 +305,9 @@ export default function EnterResultsPage() {
         orderTestId: entryKey,
         testCode,
         testName: orderTest.testName || orderTest.test_name || testCode,
+        panelCode: orderTest.panelCode || orderTest.panel_code,
+        panelName: orderTest.panelName || orderTest.panel_name,
+        category: orderTest.category,
         value,
         unit: testInfo.unit,
         referenceRange: testInfo.referenceRange,
@@ -342,8 +352,8 @@ export default function EnterResultsPage() {
         return;
       }
       
-      // Create results
-      for (const entry of entries) {
+      // Prepare all results for bulk insert
+      const resultsToCreate = entries.map(entry => {
         const payload: any = {
           orderId: orderId,
           testCode: entry.testCode,
@@ -352,16 +362,20 @@ export default function EnterResultsPage() {
           unit: entry.unit || undefined,
           referenceRange: entry.referenceRange || undefined,
           flag: entry.flag,
+          panelCode: entry.panelCode || undefined,
+          panelName: entry.panelName || undefined,
+          category: entry.category || undefined,
         };
 
         if (entry.orderTestId && MONGO_OBJECT_ID_REGEX.test(entry.orderTestId)) {
           payload.orderTestId = entry.orderTestId;
         }
 
-        await createResult.mutateAsync({
-          ...payload,
-        });
-      }
+        return payload;
+      });
+
+      // Create all results in one bulk operation (much faster!)
+      await createBulkResults.mutateAsync(resultsToCreate);
 
       // Update order status if all tests have results
       const orderTests = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];

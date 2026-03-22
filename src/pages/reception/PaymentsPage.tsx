@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders, useAddPayment, usePaymentHistory, usePaymentStats, useDailyIncome } from '@/hooks/useOrders';
@@ -153,29 +153,46 @@ export default function PaymentsPage() {
         </Select>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-card border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-          <p className="text-2xl font-bold text-amber-600">
-            Le {pendingTotal.toLocaleString()}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Pending &amp; partial orders
-          </p>
+      {/* Financial Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Outstanding Balance — Primary */}
+        <div className="bg-card border-l-4 border-l-amber-500 border rounded-lg p-5 flex items-start gap-4">
+          <div className="p-3 rounded-lg bg-amber-500/10">
+            <CreditCard className="w-6 h-6 text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-muted-foreground">Outstanding Balance</p>
+            <p className="text-3xl font-bold text-amber-600 mt-1">
+              Le {pendingTotal.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              From pending & partially paid orders
+            </p>
+          </div>
         </div>
-        <div className="bg-card border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Collected ({dateRange})</p>
-          <p className="text-2xl font-bold text-status-normal">
-            Le {(paymentStats?.paidRevenue || 0).toLocaleString()}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {paymentStats?.paidOrders || 0} orders
-          </p>
+
+        {/* Collected Revenue — Primary */}
+        <div className="bg-card border-l-4 border-l-status-normal border rounded-lg p-5 flex items-start gap-4">
+          <div className="p-3 rounded-lg bg-status-normal/10">
+            <Banknote className="w-6 h-6 text-status-normal" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-muted-foreground">Collected ({dateRange === 'today' ? 'Today' : dateRange === 'week' ? '7 Days' : '30 Days'})</p>
+            <p className="text-3xl font-bold text-status-normal mt-1">
+              Le {(paymentStats?.paidRevenue || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {paymentStats?.paidOrders || 0} fully paid orders
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* Secondary stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-card border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">Total Revenue</p>
-          <p className="text-2xl font-bold">
+          <p className="text-xs font-medium text-muted-foreground">Total Revenue</p>
+          <p className="text-xl font-bold mt-1">
             Le {(paymentStats?.totalRevenue || 0).toLocaleString()}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -183,39 +200,79 @@ export default function PaymentsPage() {
           </p>
         </div>
         <div className="bg-card border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />
             Avg Daily Income
           </p>
-          <p className="text-2xl font-bold">
+          <p className="text-xl font-bold mt-1">
             Le {dailyIncome && dailyIncome.length > 0 
               ? Math.round(dailyIncome.reduce((sum: number, day: any) => sum + day.totalIncome, 0) / dailyIncome.length).toLocaleString()
               : '0'}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {dailyIncome?.length || 0} days
+            {dailyIncome?.length || 0} day(s) sampled
+          </p>
+        </div>
+        <div className="bg-card border rounded-lg p-4">
+          <p className="text-xs font-medium text-muted-foreground">Paid Today</p>
+          <p className="text-xl font-bold text-status-normal mt-1">
+            Le {paidTodayTotal.toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Today's collections only
+          </p>
+        </div>
+        <div className="bg-card border rounded-lg p-4">
+          <p className="text-xs font-medium text-muted-foreground">Pending Orders</p>
+          <p className="text-xl font-bold text-amber-600 mt-1">
+            {Array.isArray(orders) ? orders.filter(o => ['pending', 'partial'].includes(o.paymentStatus || o.payment_status || '')).length : 0}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Awaiting full payment
           </p>
         </div>
       </div>
 
       {/* Daily Income Breakdown */}
       {dailyIncome && dailyIncome.length > 0 && (
-        <div className="bg-card border rounded-lg p-4 mb-6">
-          <h3 className="font-semibold mb-4">Daily Income Breakdown</h3>
-          <div className="space-y-2">
+        <div className="bg-card border rounded-lg p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">Daily Income Breakdown</h3>
+            <span className="text-xs text-muted-foreground">
+              Last {dailyIncome.length} day(s)
+            </span>
+          </div>
+          <div className="divide-y">
             {dailyIncome.slice(0, 7).map((day: any, index: number) => (
-              <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
+              <div key={index} className="flex items-center justify-between py-3">
                 <div>
-                  <p className="font-medium">{format(new Date(day.date), 'MMM dd, yyyy')}</p>
-                  <p className="text-xs text-muted-foreground">{day.orderCount} orders</p>
+                  <p className="font-medium text-sm">{format(new Date(day.date), 'EEE, MMM dd')}</p>
+                  <p className="text-xs text-muted-foreground">{day.orderCount} order{day.orderCount !== 1 ? 's' : ''}</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold">Le {day.totalIncome.toLocaleString()}</p>
-                  <div className="flex gap-2 text-xs text-muted-foreground mt-1">
-                    {day.cashPayments > 0 && <span>Cash: Le {day.cashPayments.toLocaleString()}</span>}
-                    {day.orangeMoneyPayments > 0 && <span>Orange Money: Le {day.orangeMoneyPayments.toLocaleString()}</span>}
-                    {day.afrimoneyPayments > 0 && <span>Afrimoney: Le {day.afrimoneyPayments.toLocaleString()}</span>}
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-2">
+                    {day.cashPayments > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-status-normal/10 text-status-normal text-xs">
+                        <Banknote className="w-3 h-3" />
+                        Le {day.cashPayments.toLocaleString()}
+                      </span>
+                    )}
+                    {day.orangeMoneyPayments > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-xs">
+                        <Smartphone className="w-3 h-3" />
+                        Le {day.orangeMoneyPayments.toLocaleString()}
+                      </span>
+                    )}
+                    {day.afrimoneyPayments > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
+                        <Smartphone className="w-3 h-3" />
+                        Le {day.afrimoneyPayments.toLocaleString()}
+                      </span>
+                    )}
                   </div>
+                  <p className="font-bold text-sm min-w-[100px] text-right">
+                    Le {day.totalIncome.toLocaleString()}
+                  </p>
                 </div>
               </div>
             ))}

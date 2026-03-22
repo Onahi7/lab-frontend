@@ -11,7 +11,7 @@ function formatDate(dateString: string | undefined): string {
   if (!dateString) return '-';
   const date = new Date(dateString);
   return date.toLocaleDateString('en-GB', {
-    year: 'numeric',
+    year: '2-digit',
     month: '2-digit',
     day: '2-digit',
   });
@@ -27,59 +27,120 @@ export function PatientInfoSection({ patientInfo, orderInfo, template }: Patient
   const showReported = patientSection?.showReportedDate ?? true;
   const showPrinted = patientSection?.showPrintedDate ?? true;
 
+  const primaryColor = template?.colors?.primary || template?.styling?.primaryColor || '#1e3a8a';
+
   const patientAge = Number.isFinite(patientInfo.age)
-    ? `${patientInfo.age} Year${patientInfo.age === 1 ? '' : 's'}`
+    ? `${patientInfo.age} Years`
     : '-';
 
-  const orderingPhysician = orderInfo.orderingPhysician || '____________________';
-  const copiesTo = orderInfo.orderingPhysician || '____________________';
-  
+  // Sanitize name fields
+  function sanitizeName(value: string | undefined | null): string {
+    if (!value) return '';
+    const cleaned = value
+      .replace(/\bundefined\b/gi, '')
+      .replace(/\bnull\b/gi, '')
+      .trim();
+    return cleaned || '';
+  }
+
+  const orderingPhysician = sanitizeName(orderInfo.orderingPhysician);
+  const copiesTo = sanitizeName((orderInfo as any).copiesTo) || sanitizeName(orderInfo.orderingPhysician);
+
+  const printedDate = formatDate(new Date().toISOString());
+
   return (
-    <div className="patient-info-section mb-5">
-      <div className="grid grid-cols-3 gap-6 border-b border-gray-300 pb-2 mb-2">
-        <h3 className="text-sm font-bold uppercase text-gray-700">Patient</h3>
-        <h3 className="text-sm font-bold uppercase text-gray-700">Doctor</h3>
-        <h3 className="text-sm font-bold uppercase text-gray-700">Copies To</h3>
+    <div className="patient-info-section mb-[6px] w-full">
+      <div 
+        className="flex w-full pb-[2px] mb-[4px] pt-[2px]"
+        style={{ borderBottom: `1.5px solid ${primaryColor}` }}
+      >
+        <div className="w-[38%]">
+          <h3 className="text-[12px] font-bold uppercase tracking-wide" style={{ color: primaryColor }}>Patient</h3>
+        </div>
+        <div className="w-[32%] text-center">
+          <h3 className="text-[12px] font-bold uppercase tracking-wide" style={{ color: primaryColor }}>Doctor</h3>
+        </div>
+        <div className="w-[30%] text-center">
+          <h3 className="text-[12px] font-bold uppercase tracking-wide ml-8" style={{ color: primaryColor }}>Copies To</h3>
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 text-sm">
-        <div className="space-y-1">
+      <div 
+        className="flex w-full text-[10px] pb-1 font-bold"
+        style={{ borderBottom: `1.5px solid ${primaryColor}` }}
+      >
+        {/* Patient Col */}
+        <div className="w-[38%] space-y-[2px]">
           {patientSettings?.showName !== false && (
-            <p><span className="font-semibold uppercase text-xs">Name:</span> {patientInfo.fullName || '-'}</p>
+            <div className="flex">
+              <span className="uppercase text-[9px] w-[65px] flex-shrink-0 text-gray-600 mt-[1px]">NAME:</span> 
+              <span className="font-serif text-[13px] font-normal text-black leading-tight">{patientInfo.fullName || '-'}</span>
+            </div>
           )}
           {patientSettings?.showAge !== false && (
-            <p><span className="font-semibold uppercase text-xs">Age:</span> {patientAge}</p>
+            <div className="flex">
+              <span className="uppercase text-[9px] w-[65px] flex-shrink-0 text-gray-600 self-center">AGE:</span> 
+              <span className="text-black">{patientAge}</span>
+            </div>
           )}
           {patientSettings?.showGender !== false && (
-            <p><span className="font-semibold uppercase text-xs">Gender:</span> {patientInfo.gender || '-'}</p>
+            <div className="flex">
+              <span className="uppercase text-[9px] w-[65px] flex-shrink-0 text-gray-600 self-center">GENDER:</span> 
+              <span className="text-black">{patientInfo.gender || '-'}</span>
+            </div>
           )}
           {patientSettings?.showPatientId !== false && (
-            <p><span className="font-semibold uppercase text-xs">ID Number:</span> {patientInfo.patientId || '-'}</p>
+            <div className="flex">
+              <span className="uppercase text-[9px] w-[65px] flex-shrink-0 text-gray-600 self-center">ID NUMBER:</span> 
+              <span className="text-black">{patientInfo.patientId?.substring(0, 8) || '-'}</span>
+            </div>
           )}
         </div>
 
-        <div className="space-y-1">
-          {showDoctor && (
-            <p><span className="font-semibold uppercase text-xs">Name:</span> {orderingPhysician}</p>
-          )}
-          {showCollected && (
-            <p><span className="font-semibold uppercase text-xs">Collected:</span> {formatDate(orderInfo.collectedAt || orderInfo.orderDate)}</p>
-          )}
-          {showReceived && (
-            <p><span className="font-semibold uppercase text-xs">Received:</span> {formatDate(orderInfo.receivedAt || orderInfo.orderDate)}</p>
-          )}
+        {/* Doctor Col */}
+        <div className="w-[32%] space-y-[2px] flex justify-center mt-auto">
+          <div className="w-full pl-6">
+            {showDoctor && (
+              <div className="flex mb-2">
+                <span className="uppercase text-[9px] text-gray-600 mr-2">{orderingPhysician}</span> 
+              </div>
+            )}
+            {showCollected && (
+              <div className="flex justify-between w-[150px]">
+                <span className="uppercase text-[9px] text-gray-600 self-center">COLLECTED:</span> 
+                <span className="text-black text-[11px] font-medium tracking-wide">{formatDate(orderInfo.collectedAt || orderInfo.orderDate)}</span>
+              </div>
+            )}
+            {showReceived && (
+              <div className="flex justify-between w-[150px]">
+                <span className="uppercase text-[9px] text-gray-600 self-center">RECEIVED:</span> 
+                <span className="text-black text-[11px] font-medium tracking-wide">{formatDate(orderInfo.receivedAt || orderInfo.orderDate)}</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="space-y-1">
-          {showCopiesTo && (
-            <p><span className="font-semibold uppercase text-xs">Name:</span> {copiesTo}</p>
-          )}
-          {showReported && (
-            <p><span className="font-semibold uppercase text-xs">Reported:</span> {formatDate(orderInfo.reportedAt || orderInfo.orderDate)}</p>
-          )}
-          {showPrinted && (
-            <p><span className="font-semibold uppercase text-xs">Printed:</span> {formatDate(orderInfo.reportedAt || orderInfo.orderDate)}</p>
-          )}
+        {/* Copies To Col */}
+        <div className="w-[30%] space-y-[2px] flex justify-center mt-auto">
+          <div className="w-full pl-6">
+             {showCopiesTo && (
+              <div className="flex mb-2">
+                <span className="uppercase text-[9px] text-gray-600 mr-2">{copiesTo !== orderingPhysician ? copiesTo : ''}</span> 
+              </div>
+            )}
+            {showReported && (
+              <div className="flex justify-between w-[150px]">
+                <span className="uppercase text-[9px] text-gray-600 self-center">REPORTED:</span> 
+                <span className="text-black text-[11px] font-medium tracking-wide">{formatDate(orderInfo.reportedAt || orderInfo.orderDate)}</span>
+              </div>
+            )}
+            {showPrinted && (
+              <div className="flex justify-between w-[150px]">
+                <span className="uppercase text-[9px] text-gray-600 self-center">PRINTED:</span> 
+                <span className="text-black text-[11px] font-medium tracking-wide">{printedDate}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

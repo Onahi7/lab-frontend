@@ -6,17 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Printer, Loader2, FileText, Eye, PrinterIcon } from 'lucide-react';
+import { Search, Printer, Loader2, FileText, Eye, PrinterIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getPatientName, getOrderId } from '@/utils/orderHelpers';
 import { useNavigate } from 'react-router-dom';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function CompletedOrdersPage() {
   const { profile, primaryRole } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Fetch orders with status 'completed' or 'processing' (orders with results)
   const { data: completedOrders, isLoading: loadingCompleted } = useOrders('completed');
@@ -46,6 +49,18 @@ export default function CompletedOrdersPage() {
     );
   });
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
   const handlePrintReport = (orderId: string) => {
     // Navigate to the appropriate route based on user role
     const reportPath = primaryRole === 'receptionist' 
@@ -66,7 +81,7 @@ export default function CompletedOrdersPage() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allOrderIds = filteredOrders.map(order => getOrderId(order));
+      const allOrderIds = paginatedOrders.map(order => getOrderId(order));
       setSelectedOrders(new Set(allOrderIds));
     } else {
       setSelectedOrders(new Set());
@@ -88,8 +103,8 @@ export default function CompletedOrdersPage() {
     setSelectedOrders(new Set());
   };
 
-  const isAllSelected = filteredOrders.length > 0 && selectedOrders.size === filteredOrders.length;
-  const isIndeterminate = selectedOrders.size > 0 && selectedOrders.size < filteredOrders.length;
+  const isAllSelected = paginatedOrders.length > 0 && selectedOrders.size === paginatedOrders.length;
+  const isIndeterminate = selectedOrders.size > 0 && selectedOrders.size < paginatedOrders.length;
 
   return (
     <RoleLayout 
@@ -107,7 +122,7 @@ export default function CompletedOrdersPage() {
               placeholder="Search by patient name, order number..." 
               className="pl-10 w-96"
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={e => handleSearchChange(e.target.value)}
             />
           </div>
           {selectedOrders.size > 0 && (
@@ -121,7 +136,7 @@ export default function CompletedOrdersPage() {
           )}
         </div>
         <div className="text-sm text-muted-foreground">
-          {filteredOrders.length} order(s) with results
+          Showing {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length} order(s)
         </div>
       </div>
 
@@ -157,7 +172,7 @@ export default function CompletedOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders?.map(order => {
+              {paginatedOrders?.map(order => {
                 const orderId = getOrderId(order);
                 const patientName = getPatientName(order);
                 const patientId = order.patientId?.patientId || order.patients?.patient_id;
@@ -232,9 +247,9 @@ export default function CompletedOrdersPage() {
                   </tr>
                 );
               })}
-              {(!filteredOrders || filteredOrders.length === 0) && (
+              {(!paginatedOrders || paginatedOrders.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={7} className="text-center py-12 text-muted-foreground">
                     {searchTerm ? 'No orders found matching your search' : 'No completed orders yet'}
                   </td>
                 </tr>
@@ -243,6 +258,64 @@ export default function CompletedOrdersPage() {
           </table>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            
+            {/* Page numbers */}
+            <div className="flex gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className="w-10"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Info Box */}
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
