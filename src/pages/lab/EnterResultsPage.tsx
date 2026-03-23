@@ -348,6 +348,17 @@ export default function EnterResultsPage() {
     try {
       const entries = Object.values(resultEntries);
 
+      // Filter out entries without values (important for urinalysis where not all tests are filled)
+      const entriesWithValues = entries.filter(entry => 
+        entry?.value?.toString().trim() !== ''
+      );
+
+      if (entriesWithValues.length === 0) {
+        toast.error('Please enter at least one result value');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Get valid MongoDB ObjectId for orderId
       const orderId = (selectedOrder as any)._id || selectedOrder.id;
 
@@ -358,8 +369,8 @@ export default function EnterResultsPage() {
         return;
       }
 
-      // Prepare all results for bulk insert
-      const resultsToCreate = entries.map(entry => {
+      // Prepare all results for bulk insert (only entries with values)
+      const resultsToCreate = entriesWithValues.map(entry => {
         const payload: any = {
           orderId: orderId,
           testCode: entry.testCode,
@@ -385,7 +396,7 @@ export default function EnterResultsPage() {
 
       // Update order status if all tests have results
       const orderTests = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
-      if (entries.length >= orderTests.length) {
+      if (entriesWithValues.length >= orderTests.length) {
         await updateOrder.mutateAsync({
           id: orderId,
           updates: { status: 'completed' },
@@ -402,8 +413,10 @@ export default function EnterResultsPage() {
       setShowConfirmModal(false);
       setResultEntries({});
       setSelectedOrder(null);
-    } catch (error) {
-      toast.error('Failed to submit results');
+    } catch (error: any) {
+      console.error('Failed to submit results:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to submit results';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -32,8 +32,8 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
     <div className="category-section mb-4">
       {/* Category title */}
       <h3
-        className="text-2xl font-bold uppercase tracking-wide text-center mb-3"
-        style={{ color: categoryHeadingColor }}
+        className="text-2xl font-extrabold uppercase tracking-wide text-center mb-3"
+        style={{ color: categoryHeadingColor, fontWeight: 800 }}
       >
         {pageCategory.categoryDisplayName}
         {pageCategory.isContinuation && (
