@@ -18,27 +18,27 @@ interface SoundConfig {
 
 const SOUNDS: Record<SoundType, SoundConfig> = {
   'new-order': {
-    path: '/sounds/new-order.mp3',
+    path: '/sounds/new-order.wav',
     volume: 0.7,
     description: 'New order created'
   },
   'sample-collected': {
-    path: '/sounds/sample-collected.mp3',
+    path: '/sounds/sample-ready.wav',
     volume: 0.7,
     description: 'Sample collected'
   },
   'results-ready': {
-    path: '/sounds/results-ready.mp3',
+    path: '/sounds/success.wav',
     volume: 0.7,
     description: 'Results ready'
   },
   'urgent-order': {
-    path: '/sounds/urgent-order.mp3',
+    path: '/sounds/critical-alert.wav',
     volume: 0.9,
     description: 'Urgent order alert'
   },
   'payment-received': {
-    path: '/sounds/payment-received.mp3',
+    path: '/sounds/success.wav',
     volume: 0.6,
     description: 'Payment received'
   }
