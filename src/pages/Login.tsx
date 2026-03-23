@@ -61,22 +61,22 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Wavy Purple Background */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[#a94d7f]">
+      {/* Left Side - Wavy Background with Logo Colors */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[#16a34a]">
         {/* Wavy Pattern SVG */}
         <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 500 500">
           <defs>
             <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style={{ stopColor: '#a94d7f', stopOpacity: 1 }} />
-              <stop offset="100%" style={{ stopColor: '#8b3d6a', stopOpacity: 1 }} />
+              <stop offset="0%" style={{ stopColor: '#16a34a', stopOpacity: 1 }} />
+              <stop offset="100%" style={{ stopColor: '#15803d', stopOpacity: 1 }} />
             </linearGradient>
           </defs>
           {/* Wave layers */}
-          <path d="M0,100 Q125,50 250,100 T500,100 L500,0 L0,0 Z" fill="rgba(139, 61, 106, 0.3)" />
-          <path d="M0,200 Q125,150 250,200 T500,200 L500,0 L0,0 Z" fill="rgba(139, 61, 106, 0.2)" />
-          <path d="M0,300 Q125,250 250,300 T500,300 L500,0 L0,0 Z" fill="rgba(139, 61, 106, 0.15)" />
-          <path d="M0,400 Q125,350 250,400 T500,400 L500,500 L0,500 Z" fill="rgba(139, 61, 106, 0.2)" />
-          <path d="M0,450 Q125,400 250,450 T500,450 L500,500 L0,500 Z" fill="rgba(139, 61, 106, 0.15)" />
+          <path d="M0,100 Q125,50 250,100 T500,100 L500,0 L0,0 Z" fill="rgba(21, 128, 61, 0.3)" />
+          <path d="M0,200 Q125,150 250,200 T500,200 L500,0 L0,0 Z" fill="rgba(21, 128, 61, 0.2)" />
+          <path d="M0,300 Q125,250 250,300 T500,300 L500,0 L0,0 Z" fill="rgba(21, 128, 61, 0.15)" />
+          <path d="M0,400 Q125,350 250,400 T500,400 L500,500 L0,500 Z" fill="rgba(21, 128, 61, 0.2)" />
+          <path d="M0,450 Q125,400 250,450 T500,450 L500,500 L0,500 Z" fill="rgba(21, 128, 61, 0.15)" />
         </svg>
       </div>
 
@@ -109,7 +109,7 @@ export default function Login() {
                 onChange={e => setLoginEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="h-12 border-gray-300 focus:border-[#a94d7f] focus:ring-[#a94d7f]"
+                className="h-12 border-gray-300 focus:border-[#16a34a] focus:ring-[#16a34a]"
               />
             </div>
 
@@ -120,7 +120,7 @@ export default function Login() {
                 </Label>
                 <button
                   type="button"
-                  className="text-sm text-[#a94d7f] hover:text-[#8b3d6a] font-medium"
+                  className="text-sm text-[#16a34a] hover:text-[#15803d] font-medium"
                   onClick={() => toast.info('Contact your administrator to reset password')}
                 >
                   Forgot Password?
@@ -135,7 +135,7 @@ export default function Login() {
                   onChange={e => setLoginPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="h-12 pr-10 border-gray-300 focus:border-[#a94d7f] focus:ring-[#a94d7f]"
+                  className="h-12 pr-10 border-gray-300 focus:border-[#16a34a] focus:ring-[#16a34a]"
                 />
                 <button
                   type="button"
@@ -150,7 +150,7 @@ export default function Login() {
 
             <Button 
               type="submit" 
-              className="w-full h-12 text-base font-medium bg-[#a94d7f] hover:bg-[#8b3d6a] text-white"
+              className="w-full h-12 text-base font-medium bg-[#16a34a] hover:bg-[#15803d] text-white"
               disabled={isLoading}
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
