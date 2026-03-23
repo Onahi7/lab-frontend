@@ -3,7 +3,7 @@ import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useProcessingOrders, useUpdateOrder } from '@/hooks/useOrders';
 import { useCreateResult, useCreateBulkResults } from '@/hooks/useResults';
-import { useActiveTests } from '@/hooks/useTestCatalog';
+import { useAllTests } from '@/hooks/useTestCatalog';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
 import { SendToAnalyzerDialog } from '@/components/machines/SendToAnalyzerDialog';
 
-type ResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+type ResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high' | 'no_range';
 
 const MONGO_OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 
@@ -74,12 +74,15 @@ interface ResultEntry {
   unit: string;
   referenceRange: string;
   flag: ResultFlag;
+  panelCode?: string;
+  panelName?: string;
+  category?: string;
 }
 
 export default function EnterResultsPage() {
   const { profile, user, primaryRole } = useAuth();
   const { data: processingOrders, isLoading } = useProcessingOrders();
-  const { data: testCatalog } = useActiveTests();
+  const { data: testCatalog } = useAllTests(); // Use ALL tests, not just active ones
   const { socket } = useWebSocket();
   const updateOrder = useUpdateOrder();
   const createResult = useCreateResult();
@@ -220,17 +223,18 @@ export default function EnterResultsPage() {
   const getTestInfo = (testCode: string, patientAge?: number, patientGender?: string) => {
     const test = testCatalog?.find((t: any) => t.code === testCode);
     if (!test) {
-      return { unit: '', referenceRange: '' };
+      return { unit: '', referenceRange: '', criticalLow: '', criticalHigh: '' };
     }
 
     let referenceRange = test.referenceRange || '';
     let matchedAgeGroup = '';
+    let criticalLow = '';
+    let criticalHigh = '';
 
     if (test.referenceRanges && test.referenceRanges.length > 0) {
       let matchedRange: any;
 
       if (patientAge !== undefined) {
-        // Try to find an age + gender specific match first
         matchedRange = test.referenceRanges.find((r: any) => {
           const ageMatch =
             (r.ageMin === undefined || patientAge >= r.ageMin) &&
@@ -239,7 +243,6 @@ export default function EnterResultsPage() {
           return ageMatch && genderMatch;
         });
 
-        // Relax gender constraint if no full match (e.g. gender 'O' or mismatch)
         if (!matchedRange) {
           matchedRange = test.referenceRanges.find((r: any) => {
             return (
@@ -250,7 +253,6 @@ export default function EnterResultsPage() {
         }
       }
 
-      // Final fallback: use the first entry if still nothing matched and no simple range string
       if (!matchedRange && !referenceRange) {
         matchedRange = test.referenceRanges[0];
       }
@@ -258,6 +260,8 @@ export default function EnterResultsPage() {
       if (matchedRange) {
         referenceRange = `${matchedRange.range} ${matchedRange.unit || test.unit || ''}`.trim();
         matchedAgeGroup = matchedRange.ageGroup || '';
+        criticalLow = matchedRange.criticalLow || '';
+        criticalHigh = matchedRange.criticalHigh || '';
       }
     }
 
@@ -265,25 +269,27 @@ export default function EnterResultsPage() {
       unit: test.unit || '',
       referenceRange,
       ageGroup: matchedAgeGroup,
+      criticalLow,
+      criticalHigh,
     };
   };
 
-  const calculateFlag = (value: string, rangeStr: string): ResultFlag => {
+  const calculateFlag = (value: string, rangeStr: string, critLow?: string, critHigh?: string): ResultFlag => {
     const numValue = parseFloat(value);
-    if (isNaN(numValue) || !rangeStr) return 'normal';
+    if (isNaN(numValue)) return 'normal';
+    if (!rangeStr) return 'no_range';
 
-    // Parse reference range like "70-100" or "4.5-11.0 g/dL"
     const match = rangeStr.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
-    if (!match) return 'normal';
+    if (!match) return 'no_range';
 
     const low = parseFloat(match[1]);
     const high = parseFloat(match[2]);
 
-    const criticalLow = low * 0.5;
-    const criticalHigh = high * 1.5;
+    const cLow = critLow ? parseFloat(critLow) : low * 0.5;
+    const cHigh = critHigh ? parseFloat(critHigh) : high * 1.5;
 
-    if (numValue < criticalLow) return 'critical_low';
-    if (numValue > criticalHigh) return 'critical_high';
+    if (!isNaN(cLow) && numValue < cLow) return 'critical_low';
+    if (!isNaN(cHigh) && numValue > cHigh) return 'critical_high';
     if (numValue < low) return 'low';
     if (numValue > high) return 'high';
     return 'normal';
@@ -295,7 +301,7 @@ export default function EnterResultsPage() {
     const patientAge = patient?.age;
     const patientGender = patient?.gender;
     const testInfo = getTestInfo(testCode, patientAge, patientGender);
-    const flag = calculateFlag(value, testInfo.referenceRange);
+    const flag = calculateFlag(value, testInfo.referenceRange, testInfo.criticalLow, testInfo.criticalHigh);
     const entryKey = orderTest.id || orderTest._id || testCode;
 
     setResultEntries(prev => ({
@@ -409,6 +415,7 @@ export default function EnterResultsPage() {
     high: 'bg-status-warning/10 text-status-warning',
     critical_low: 'bg-status-critical/10 text-status-critical',
     critical_high: 'bg-status-critical/10 text-status-critical',
+    no_range: 'bg-muted text-muted-foreground',
   };
 
   // Filter the order list by the search term
@@ -663,7 +670,7 @@ export default function EnterResultsPage() {
                             <div className="col-span-1 flex flex-col items-end gap-1">
                               {entry?.value && (
                                 <Badge variant="outline" className={cn('text-xs', flagStyles[entry.flag])}>
-                                  {entry.flag === 'normal' ? '✓' : entry.flag === 'critical_high' || entry.flag === 'critical_low' ? '!!' : entry.flag === 'high' ? '↑' : '↓'}
+                                  {entry.flag === 'normal' ? '✓' : entry.flag === 'critical_high' || entry.flag === 'critical_low' ? '!!' : entry.flag === 'high' ? '↑' : entry.flag === 'low' ? '↓' : '—'}
                                 </Badge>
                               )}
                               {liveUpdates[testKey] && (
@@ -772,7 +779,10 @@ export default function EnterResultsPage() {
                 .map(entry => (
                   <div key={entry.orderTestId} className="flex items-center justify-between p-3 bg-status-critical/10 rounded-lg">
                     <span className="font-medium">{entry.testCode}</span>
-                    <span className="font-bold">{entry.value} {entry.unit}</span>
+                    <div className="text-center">
+                      <span className="font-bold">{entry.value} {entry.unit}</span>
+                      <p className="text-xs text-muted-foreground">{entry.referenceRange || 'No range'}</p>
+                    </div>
                     <Badge variant="outline" className="bg-status-critical/10 text-status-critical">
                       {entry.flag.replace('_', ' ').toUpperCase()}
                     </Badge>

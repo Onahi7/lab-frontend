@@ -72,6 +72,17 @@ export function useActiveTests() {
   });
 }
 
+// Hook to get ALL tests (including inactive ones) for result entry
+export function useAllTests() {
+  return useQuery({
+    queryKey: ['test-catalog', 'all'],
+    queryFn: async () => {
+      return await testCatalogAPI.getAll();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useCreateTest() {
   const queryClient = useQueryClient();
 

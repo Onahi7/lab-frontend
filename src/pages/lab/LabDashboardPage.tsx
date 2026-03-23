@@ -76,7 +76,7 @@ export default function LabDashboardPage() {
           )}
         </button>
         <button 
-          onClick={() => navigate('/lab/results')}
+          onClick={() => navigate('/lab/processing')}
           className="group flex flex-col items-center justify-center gap-2.5 p-5 rounded-xl border bg-card hover:bg-secondary hover:shadow-md transition-all duration-200"
         >
           <div className="w-12 h-12 rounded-xl bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">

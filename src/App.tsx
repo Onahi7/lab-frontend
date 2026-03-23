@@ -34,7 +34,6 @@ import ResultVerification from "./pages/lab/ResultVerification";
 import QCDataEntry from "./pages/lab/QCDataEntry";
 import CollectSamplesPage from "./pages/lab/CollectSamplesPage";
 import EnterResultsPage from "./pages/lab/EnterResultsPage";
-import ResultsPage from "./pages/lab/ResultsPage";
 import CompletedOrdersPage from "./pages/lab/CompletedOrdersPage";
 import EditableResultReport from "./pages/lab/EditableResultReport";
 import LabReportPage from "./pages/lab/LabReportPage";
@@ -135,9 +134,6 @@ function AppRoutes() {
       <Route path="/reception/reconciliation" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><DailyReconciliation /></RoleGuard>
       } />
-      <Route path="/reception/results" element={
-        <RoleGuard allowedRoles={['receptionist', 'admin']}><ResultsPage /></RoleGuard>
-      } />
       <Route path="/reception/enter-results" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><EnterResultsPage /></RoleGuard>
       } />
@@ -175,9 +171,6 @@ function AppRoutes() {
       } />
       <Route path="/lab/enter-results" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><EnterManualResults /></RoleGuard>
-      } />
-      <Route path="/lab/results" element={
-        <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><ResultsPage /></RoleGuard>
       } />
       <Route path="/lab/completed-orders" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin', 'receptionist']}><CompletedOrdersPage /></RoleGuard>
@@ -235,9 +228,6 @@ function AppRoutes() {
       } />
       <Route path="/admin/orders" element={
         <RoleGuard allowedRoles={['admin']}><OrdersPage /></RoleGuard>
-      } />
-      <Route path="/admin/results" element={
-        <RoleGuard allowedRoles={['admin']}><ResultsPage /></RoleGuard>
       } />
       <Route path="/admin/machines" element={
         <RoleGuard allowedRoles={['admin']}><Machines /></RoleGuard>

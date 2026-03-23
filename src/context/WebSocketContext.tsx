@@ -3,7 +3,6 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
 import { notificationService } from '@/services/notificationService';
-import { notificationService } from '@/services/notificationService';
 import { soundService } from '@/services/soundService';
 
 interface WebSocketContextType {

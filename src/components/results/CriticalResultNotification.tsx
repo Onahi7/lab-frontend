@@ -42,7 +42,7 @@ export function CriticalResultNotificationSystem() {
               action: {
                 label: 'View',
                 onClick: () => {
-                  navigate('/lab/results');
+                  navigate('/lab/processing');
                 }
               }
             }
@@ -88,7 +88,7 @@ export function CriticalResultNotificationSystem() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => navigate('/lab/results')}
+                onClick={() => navigate('/lab/processing')}
                 className="shrink-0"
               >
                 <CheckCircle className="w-4 h-4 mr-1" />

@@ -67,7 +67,6 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/lab/pending', icon: ClipboardList, label: 'Pending Samples' },
     { to: '/lab/collect', icon: TestTube, label: 'Collect Samples' },
     { to: '/lab/processing', icon: FlaskConical, label: 'Processing' },
-    { to: '/lab/results', icon: FileText, label: 'Enter Results' },
     { to: '/lab/completed-orders', icon: FileEdit, label: 'Print Reports' },
     { to: '/lab/patients', icon: Users, label: 'Patients' },
     { to: '/lab/machines', icon: Cpu, label: 'Machines' },

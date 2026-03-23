@@ -3,7 +3,7 @@ import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders, useUpdateOrder } from '@/hooks/useOrders';
 import { useCreateResult } from '@/hooks/useResults';
-import { useActiveTests } from '@/hooks/useTestCatalog';
+import { useAllTests } from '@/hooks/useTestCatalog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,7 @@ interface QuickEntry {
 export default function QuickResultEntry() {
   const { profile, primaryRole } = useAuth();
   const { data: allOrders, isLoading: ordersLoading } = useOrders('all');
-  const { data: testCatalog } = useActiveTests();
+  const { data: testCatalog } = useAllTests(); // Use ALL tests, not just active ones
   const createResult = useCreateResult();
   const updateOrder = useUpdateOrder();
 
