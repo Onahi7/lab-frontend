@@ -11,6 +11,7 @@ import { RoleGuard } from "./components/auth/RoleGuard";
 import { Loader2 } from "lucide-react";
 
 // Pages
+//pages
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
