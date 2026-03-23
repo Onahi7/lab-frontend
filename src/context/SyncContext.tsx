@@ -67,6 +67,8 @@ export const useSync = () => useContext(SyncContext);
 const PING_INTERVAL = 15_000;   // check API every 15 s
 const SYNC_INTERVAL = 60_000;   // full data pull every 60 s
 const FLUSH_INTERVAL = 10_000;  // try flushing mutations every 10 s
+const MAX_RETRIES = 5;          // max retry attempts for failed mutations
+const BATCH_SIZE = 10;          // process mutations in batches
 
 // ── Provider ─────────────────────────────────────────────────────
 export function SyncProvider({ children }: { children: React.ReactNode }) {
@@ -270,10 +272,15 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     const pending = await db.pendingMutations
       .where('status')
       .equals('pending')
+      .limit(BATCH_SIZE) // Process in batches for better performance
       .sortBy('createdAt');
+
+    if (pending.length === 0) return;
 
     // Use LAN URL if available and configured URL isn't reachable
     const baseUrl = lanBackendUrl || API_BASE_URL;
+
+    console.log(`[Sync] Flushing ${pending.length} pending mutations...`);
 
     for (const mut of pending) {
       try {
@@ -290,23 +297,36 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           url: `${baseUrl}${mut.url}`,
           data: mut.body,
           headers,
-          timeout: 10_000,
+          timeout: 15_000, // Increased timeout for poor networks
         });
 
         await db.pendingMutations.delete(mut.id!);
+        console.log(`[Sync] ✓ Mutation ${mut.id} synced successfully`);
       } catch (err: any) {
         const retries = (mut.retries || 0) + 1;
-        if (retries >= 5) {
+        const isNetworkError = !err.response || err.code === 'ECONNABORTED';
+        
+        if (retries >= MAX_RETRIES) {
           await db.pendingMutations.update(mut.id!, {
             status: 'failed',
             retries,
-            error: err?.message,
+            error: err?.message || 'Max retries exceeded',
           });
+          console.error(`[Sync] ✗ Mutation ${mut.id} failed after ${MAX_RETRIES} retries`);
         } else {
+          // Exponential backoff for network errors
+          const backoffDelay = isNetworkError ? Math.min(1000 * Math.pow(2, retries), 30000) : 0;
+          
           await db.pendingMutations.update(mut.id!, {
             status: 'pending',
             retries,
+            error: err?.message,
           });
+          
+          if (backoffDelay > 0) {
+            console.log(`[Sync] ⏳ Mutation ${mut.id} retry ${retries}/${MAX_RETRIES} (backoff: ${backoffDelay}ms)`);
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          }
         }
       }
     }

@@ -84,9 +84,10 @@ const roleLabels: Record<UserRole, string> = {
 interface RoleSidebarProps {
   role: UserRole;
   userName?: string;
+  onClose?: () => void;
 }
 
-export function RoleSidebar({ role, userName }: RoleSidebarProps) {
+export function RoleSidebar({ role, userName, onClose }: RoleSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -98,17 +99,28 @@ export function RoleSidebar({ role, userName }: RoleSidebarProps) {
   };
 
   return (
-    <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col h-screen fixed left-0 top-0">
+    <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col h-screen">
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <FlaskConical className="w-6 h-6 text-sidebar-primary-foreground" />
+      <div className="p-5 border-b border-sidebar-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center shadow-lg shadow-sidebar-primary/20">
+              <FlaskConical className="w-5 h-5 text-sidebar-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-bold text-base tracking-tight">HARBOUR</h1>
+              <p className="text-[11px] text-sidebar-foreground/50 font-medium">{roleLabels[role]} Portal</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-lg">HARBOUR</h1>
-            <p className="text-xs text-sidebar-foreground/60">{roleLabels[role]} Portal</p>
-          </div>
+          {/* Close button for mobile */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -121,22 +133,23 @@ export function RoleSidebar({ role, userName }: RoleSidebarProps) {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map(({ to, icon: Icon, label }) => {
           const isActive = location.pathname === to;
           return (
             <NavLink
               key={to}
               to={to}
+              onClick={onClose}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
                 isActive 
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground' 
-                  : 'hover:bg-sidebar-accent text-sidebar-foreground'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm shadow-sidebar-primary/25 font-semibold' 
+                  : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground font-medium'
               )}
             >
-              <Icon className="w-5 h-5" />
-              <span className="font-medium">{label}</span>
+              <Icon className="w-4.5 h-4.5 flex-shrink-0" style={{ width: '18px', height: '18px' }} />
+              <span>{label}</span>
             </NavLink>
           );
         })}

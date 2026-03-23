@@ -74,7 +74,7 @@ export function useActiveTests() {
 
 export function useCreateTest() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (test: TestCatalogCreate) => {
       return await testCatalogAPI.create(test);
@@ -88,7 +88,7 @@ export function useCreateTest() {
 
 export function useUpdateTest() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: TestCatalogUpdate }) => {
       return await testCatalogAPI.update(id, updates);
@@ -102,7 +102,7 @@ export function useUpdateTest() {
 
 export function useDeleteTest() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       return await testCatalogAPI.delete(id);

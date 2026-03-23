@@ -58,7 +58,27 @@ import { PrinterProvider } from "./context/PrinterContext";
 import Machines from "./pages/Machines";
 import Settings from "./pages/Settings";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Keep cached data for 24 hours in memory
+      gcTime: 1000 * 60 * 60 * 24,
+      // Consider data stale after 60 seconds
+      staleTime: 1000 * 60,
+      // Retry up to 2 times with exponential backoff
+      retry: 2,
+      retryDelay: (attempt) => Math.min(1000 * Math.pow(2, attempt), 10000),
+      // Refetch when reconnecting to network
+      refetchOnReconnect: 'always',
+      // Don't refetch on window focus in poor network conditions
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, primaryRole } = useAuth();

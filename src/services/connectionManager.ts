@@ -1,4 +1,4 @@
-    /**
+/**
  * Smart Connection Manager
  * Automatically detects and switches between local network and cloud backends
  */
@@ -21,7 +21,7 @@ class ConnectionManager {
   private backends: BackendConfig[] = [];
   private currentBackend: string | null = null;
   private statusListeners: Array<(status: ConnectionStatus) => void> = [];
-  private checkInterval: NodeJS.Timeout | null = null;
+  private checkInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.loadConfiguration();
@@ -49,9 +49,8 @@ class ConnectionManager {
             timeout: config.cloudTimeout || 5000,
             name: 'Cloud Server',
           },
-        ].filter(backend => backend.url); // Remove empty URLs
+        ].filter(backend => backend.url);
       } else {
-        // Use defaults from environment
         this.backends = [
           {
             url: import.meta.env.VITE_LOCAL_API_URL || 'http://192.168.1.100:3000',
@@ -75,7 +74,6 @@ class ConnectionManager {
       }
     } catch (error) {
       console.error('Failed to load connection config:', error);
-      // Fallback to environment variables
       this.backends = [
         {
           url: import.meta.env.VITE_LOCAL_API_URL || 'http://192.168.1.100:3000',
@@ -116,9 +114,7 @@ class ConnectionManager {
       if (response.ok) {
         const data = await response.json();
         if (data && data.value) {
-          // Save to localStorage
           localStorage.setItem('connection_config', JSON.stringify(data.value));
-          // Reload configuration
           this.loadConfiguration();
           console.log('✅ Configuration synced from server');
           return true;
@@ -135,40 +131,23 @@ class ConnectionManager {
    * Get the best available backend URL
    */
   async getBestBackend(): Promise<string> {
-    // Try each backend in priority order
     for (const backend of this.backends) {
       const isAvailable = await this.checkBackend(backend.url, backend.timeout);
       if (isAvailable) {
+        const latency = await this.measureLatency(backend.url);
         this.currentBackend = backend.url;
         this.notifyListeners({
-  /**
-   * Start monitoring connection status
-   */
-  private startMonitoring() {
-    // Get monitoring interval from config or use default
-    const getMonitoringInterval = () => {
-      try {
-        const saved = localStorage.getItem('connection_config');
-        if (saved) {
-          const config = JSON.parse(saved);
-          return config.monitoringInterval || 30000;
-        }
-      } catch (error) {
-        console.error('Failed to get monitoring interval:', error);
+          backend: backend.name.toLowerCase().includes('local') ? 'local' : 'cloud',
+          url: backend.url,
+          latency,
+          online: true,
+        });
+        return backend.url;
       }
-      return 30000; // Default 30 seconds
-    };
+    }
 
-    const interval = getMonitoringInterval();
-    
-    // Check at configured interval
-    this.checkInterval = setInterval(async () => {
-      await this.getBestBackend();
-    }, interval);
-
-    // Initial check
-    this.getBestBackend();
-  } this.notifyListeners({
+    // No backend available
+    this.notifyListeners({
       backend: 'offline',
       url: '',
       latency: 0,
@@ -188,28 +167,18 @@ class ConnectionManager {
 
       const response = await fetch(`${url}/health`, {
         signal: controller.signal,
-  /**
-   * Force switch to specific backend
-   */
-  async switchToBackend(url: string): Promise<boolean> {
-    const isAvailable = await this.checkBackend(url, 5000);
-    if (isAvailable) {
-      this.currentBackend = url;
-      return true;
+        method: 'HEAD',
+      });
+
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch {
+      return false;
     }
-    return false;
   }
 
   /**
-   * Get current backend configuration
-   */
-  getBackendConfiguration() {
-    return this.backends.map(backend => ({
-      ...backend,
-      isCurrent: backend.url === this.currentBackend,
-    }));
-  }
-}  * Measure connection latency
+   * Measure connection latency
    */
   async measureLatency(url: string): Promise<number> {
     const start = Date.now();
@@ -225,13 +194,31 @@ class ConnectionManager {
    * Start monitoring connection status
    */
   private startMonitoring() {
-    // Check every 30 seconds
+    const getMonitoringInterval = () => {
+      try {
+        const saved = localStorage.getItem('connection_config');
+        if (saved) {
+          const config = JSON.parse(saved);
+          return config.monitoringInterval || 30000;
+        }
+      } catch (error) {
+        console.error('Failed to get monitoring interval:', error);
+      }
+      return 30000; // Default 30 seconds
+    };
+
+    const interval = getMonitoringInterval();
+
     this.checkInterval = setInterval(async () => {
-      await this.getBestBackend();
-    }, 30000);
+      await this.getBestBackend().catch(() => {
+        // Offline - already handled in getBestBackend
+      });
+    }, interval);
 
     // Initial check
-    this.getBestBackend();
+    this.getBestBackend().catch(() => {
+      // Offline on startup
+    });
   }
 
   /**
@@ -278,6 +265,16 @@ class ConnectionManager {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Get current backend configuration
+   */
+  getBackendConfiguration() {
+    return this.backends.map(backend => ({
+      ...backend,
+      isCurrent: backend.url === this.currentBackend,
+    }));
   }
 }
 

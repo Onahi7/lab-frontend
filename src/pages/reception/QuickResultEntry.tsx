@@ -256,7 +256,7 @@ export default function QuickResultEntry() {
     try {
       const filled = Object.values(entries).filter(e => e.value.trim());
       const orderId = (matchedOrder as any)._id || matchedOrder.id;
-      
+
       // Validate orderId is a valid MongoDB ObjectId
       if (!orderId || !MONGO_OBJECT_ID_REGEX.test(orderId)) {
         toast.error('Invalid order ID format');
@@ -429,8 +429,8 @@ export default function QuickResultEntry() {
                   </div>
                   <Badge variant="outline" className={cn(
                     matchedOrder.priority === 'stat' ? 'bg-status-critical/10 text-status-critical' :
-                    matchedOrder.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
-                    'bg-muted'
+                      matchedOrder.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
+                        'bg-muted'
                   )}>
                     {matchedOrder.priority?.toUpperCase() || 'ROUTINE'}
                   </Badge>

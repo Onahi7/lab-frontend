@@ -1,4 +1,4 @@
-﻿import { RoleLayout } from '@/components/layout/RoleLayout';
+import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useSearchPatients } from '@/hooks/usePatients';
 import { useOrders, usePaymentStats } from '@/hooks/useOrders';
@@ -6,6 +6,7 @@ import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useRealtimePatients } from '@/hooks/useRealtimePatients';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { getPatientFullName } from '@/utils/orderHelpers';
 import { useMemo } from 'react';
 import {
@@ -14,21 +15,20 @@ import {
   Users, 
   CreditCard,
   TrendingUp,
-  Clock,
-  DollarSign
+  DollarSign,
+  ArrowRight,
+  FlaskConical,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function ReceptionDashboard() {
   const { profile } = useAuth();
   
-  // Enable real-time updates
   useRealtimeOrders();
   useRealtimePatients();
   
   const { data: patients = [] } = useSearchPatients('');
   const { data: orders = [] } = useOrders('all');
-  const { data: paymentStats } = usePaymentStats();
   const navigate = useNavigate();
 
   const recentRegistrations = useMemo(() => {
@@ -84,46 +84,47 @@ export default function ReceptionDashboard() {
       userName={profile?.full_name}
     >
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Button 
-          size="lg" 
-          className="h-24 text-lg"
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <button 
           onClick={() => navigate('/reception/register')}
+          className="group flex flex-col items-center justify-center gap-2.5 p-5 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary hover:border-primary transition-all duration-200"
         >
-          <UserPlus className="w-6 h-6 mr-3" />
-          Register New Patient
-        </Button>
-        <Button 
-          size="lg" 
-          variant="secondary"
-          className="h-24 text-lg"
+          <div className="w-12 h-12 rounded-xl bg-primary/10 group-hover:bg-white/20 flex items-center justify-center transition-colors">
+            <UserPlus className="w-6 h-6 text-primary group-hover:text-white transition-colors" />
+          </div>
+          <span className="text-sm font-semibold text-primary group-hover:text-white transition-colors">Register Patient</span>
+        </button>
+        <button 
           onClick={() => navigate('/reception/new-order')}
+          className="group flex flex-col items-center justify-center gap-2.5 p-5 rounded-xl border bg-card hover:bg-secondary hover:shadow-md transition-all duration-200"
         >
-          <ClipboardList className="w-6 h-6 mr-3" />
-          Create Test Order
-        </Button>
-        <Button 
-          size="lg" 
-          variant="outline"
-          className="h-24 text-lg"
+          <div className="w-12 h-12 rounded-xl bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+            <ClipboardList className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <span className="text-sm font-semibold text-foreground">Create Order</span>
+        </button>
+        <button 
           onClick={() => navigate('/reception/patients')}
+          className="group flex flex-col items-center justify-center gap-2.5 p-5 rounded-xl border bg-card hover:bg-secondary hover:shadow-md transition-all duration-200"
         >
-          <Users className="w-6 h-6 mr-3" />
-          Search Patients
-        </Button>
-        <Button 
-          size="lg" 
-          variant="outline"
-          className="h-24 text-lg"
+          <div className="w-12 h-12 rounded-xl bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+            <Users className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <span className="text-sm font-semibold text-foreground">Search Patients</span>
+        </button>
+        <button 
           onClick={() => navigate('/reception/enter-results')}
+          className="group flex flex-col items-center justify-center gap-2.5 p-5 rounded-xl border bg-card hover:bg-secondary hover:shadow-md transition-all duration-200"
         >
-          <ClipboardList className="w-6 h-6 mr-3" />
-          Enter Results
-        </Button>
+          <div className="w-12 h-12 rounded-xl bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+            <FlaskConical className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <span className="text-sm font-semibold text-foreground">Enter Results</span>
+        </button>
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <MetricCard
           title="Patients Today"
           value={todayPatients}
@@ -153,25 +154,25 @@ export default function ReceptionDashboard() {
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Patients */}
-        <div className="bg-card border rounded-lg">
-          <div className="px-4 py-3 border-b flex items-center justify-between">
-            <h3 className="font-semibold">Recent Registrations</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/reception/patients')}>
-              View All
+        <div className="bg-card border rounded-xl shadow-sm">
+          <div className="px-5 py-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Recent Registrations</h3>
+            <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate('/reception/patients')}>
+              View All <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </div>
           <div className="divide-y">
             {recentRegistrations.map((patient: any) => {
               const patientId = patient._id || patient.id;
               return (
-              <div key={patient.id || patient._id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{getPatientFullName(patient)}</p>
-                    <p className="text-sm text-muted-foreground">{patient.patientId || patient.patient_id || 'N/A'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{formatRegistrationTimestamp(patient)}</p>
+              <div key={patient.id || patient._id} className="px-5 py-3.5 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{getPatientFullName(patient)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{patient.patientId || patient.patient_id || 'N/A'}</p>
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">{formatRegistrationTimestamp(patient)}</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/reception/new-order?patient=${patientId}`)}>
+                  <Button variant="outline" size="sm" className="text-xs flex-shrink-0" onClick={() => navigate(`/reception/new-order?patient=${patientId}`)}>
                     New Order
                   </Button>
                 </div>
@@ -179,7 +180,7 @@ export default function ReceptionDashboard() {
               );
             })}
             {(!Array.isArray(patients) || patients.length === 0) && (
-              <div className="px-4 py-8 text-center text-muted-foreground">
+              <div className="px-5 py-10 text-center text-muted-foreground text-sm">
                 No patients registered yet
               </div>
             )}
@@ -187,30 +188,30 @@ export default function ReceptionDashboard() {
         </div>
 
         {/* Pending Payments */}
-        <div className="bg-card border rounded-lg">
-          <div className="px-4 py-3 border-b flex items-center justify-between">
-            <h3 className="font-semibold">Pending Payments</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/reception/payments')}>
-              View All
+        <div className="bg-card border rounded-xl shadow-sm">
+          <div className="px-5 py-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Pending Payments</h3>
+            <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => navigate('/reception/payments')}>
+              View All <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </div>
           <div className="divide-y">
             {Array.isArray(orders) && orders.filter(o => 
               o.paymentStatus === 'pending' || o.payment_status === 'pending'
             ).slice(0, 5).map(order => (
-              <div key={order.id || order._id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">
+              <div key={order.id || order._id} className="px-5 py-3.5 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">
                       {order.patientId?.firstName || order.patient?.firstName}{' '}
                       {order.patientId?.lastName || order.patient?.lastName}
                     </p>
-                    <p className="text-sm text-muted-foreground">{order.orderNumber || order.order_number}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{order.orderNumber || order.order_number}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold">Le {(order.total || order.totalAmount || 0).toLocaleString()}</p>
-                    <Button variant="default" size="sm" className="mt-1">
-                      <CreditCard className="w-3 h-3 mr-1" />
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-semibold text-sm">Le {(order.total || order.totalAmount || 0).toLocaleString()}</p>
+                    <Button variant="default" size="sm" className="mt-1.5 h-7 text-xs gap-1">
+                      <CreditCard className="w-3 h-3" />
                       Pay
                     </Button>
                   </div>
@@ -220,7 +221,7 @@ export default function ReceptionDashboard() {
             {Array.isArray(orders) && orders.filter(o => 
               o.paymentStatus === 'pending' || o.payment_status === 'pending'
             ).length === 0 && (
-              <div className="px-4 py-8 text-center text-muted-foreground">
+              <div className="px-5 py-10 text-center text-muted-foreground text-sm">
                 No pending payments
               </div>
             )}

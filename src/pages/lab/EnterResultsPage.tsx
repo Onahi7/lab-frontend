@@ -26,40 +26,40 @@ const MONGO_OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 // Standard options for qualitative/semi-quantitative tests
 const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   // ── Urinalysis physical ─────────────────────────────────────────────────
-  'URINE-COLOR':    ['Yellow', 'Pale Yellow', 'Straw', 'Amber', 'Dark Yellow', 'Orange', 'Brown', 'Red', 'Colorless'],
-  'URINE-CLARITY':  ['Clear', 'Slightly Turbid', 'Turbid', 'Very Turbid', 'Hazy'],
+  'URINE-COLOR': ['Yellow', 'Pale Yellow', 'Straw', 'Amber', 'Dark Yellow', 'Orange', 'Brown', 'Red', 'Colorless'],
+  'URINE-CLARITY': ['Clear', 'Slightly Turbid', 'Turbid', 'Very Turbid', 'Hazy'],
   // ── Urinalysis chemical ─────────────────────────────────────────────────
-  'URINE-PROTEIN':  ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
-  'URINE-GLUCOSE':  ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
-  'URINE-KETONES':  ['Negative', 'Trace', '+1', '+2', '+3'],
-  'URINE-BLOOD':    ['Negative', 'Trace', '+1', '+2', '+3'],
-  'URINE-BILI':     ['Negative', '+1', '+2', '+3'],
-  'URINE-URO':      ['Normal (0.1–1.0 mg/dL)', '2 mg/dL', '4 mg/dL', '8 mg/dL'],
-  'URINE-NITRITE':  ['Negative', 'Positive'],
-  'URINE-LE':       ['Negative', 'Trace', '+1', '+2', '+3'],
+  'URINE-PROTEIN': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
+  'URINE-GLUCOSE': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
+  'URINE-KETONES': ['Negative', 'Trace', '+1', '+2', '+3'],
+  'URINE-BLOOD': ['Negative', 'Trace', '+1', '+2', '+3'],
+  'URINE-BILI': ['Negative', '+1', '+2', '+3'],
+  'URINE-URO': ['Normal (0.1–1.0 mg/dL)', '2 mg/dL', '4 mg/dL', '8 mg/dL'],
+  'URINE-NITRITE': ['Negative', 'Positive'],
+  'URINE-LE': ['Negative', 'Trace', '+1', '+2', '+3'],
   // ── Urinalysis microscopy ───────────────────────────────────────────────
   'URINE-BACTERIA': ['None', '+1 (Rare)', '+2 (Few)', '+3 (Moderate)', '+4 (Many)'],
-  'URINE-EPI':      ['None', 'Rare', 'Few', 'Moderate', 'Many'],
-  'URINE-CASTS':    ['None Seen', 'Rare', '0–1/LPF', '1–2/LPF', '2–5/LPF', '>5/LPF'],
+  'URINE-EPI': ['None', 'Rare', 'Few', 'Moderate', 'Many'],
+  'URINE-CASTS': ['None Seen', 'Rare', '0–1/LPF', '1–2/LPF', '2–5/LPF', '>5/LPF'],
   'URINE-CRYSTALS': ['None', 'Rare', 'Few', 'Moderate', 'Many'],
   // ── Rapid tests (Positive / Negative) ──────────────────────────────────
-  'MALARIA':    ['Negative', 'Positive (P. falciparum)', 'Positive (P. vivax)', 'Positive (Mixed)'],
-  'HIV':        ['Non-Reactive', 'Reactive'],
-  'HBSAG':      ['Non-Reactive', 'Reactive'],
-  'HCV':        ['Non-Reactive', 'Reactive'],
-  'HIVP24':     ['Non-Reactive', 'Reactive'],
-  'HPYLORI':    ['Negative', 'Positive'],
+  'MALARIA': ['Negative', 'Positive (P. falciparum)', 'Positive (P. vivax)', 'Positive (Mixed)'],
+  'HIV': ['Non-Reactive', 'Reactive'],
+  'HBSAG': ['Non-Reactive', 'Reactive'],
+  'HCV': ['Non-Reactive', 'Reactive'],
+  'HIVP24': ['Non-Reactive', 'Reactive'],
+  'HPYLORI': ['Negative', 'Positive'],
   'HPYLORI_IA': ['Negative', 'Positive'],
-  'IFOB':       ['Negative', 'Positive'],
-  'GONORRHEA':  ['Negative', 'Positive'],
-  'CHLAMYDIA':  ['Negative', 'Positive'],
-  'HSV':        ['Non-Reactive', 'Reactive (HSV-1)', 'Reactive (HSV-2)', 'Reactive (HSV-1 & 2)'],
-  'PREGNANCY':  ['Negative', 'Positive'],
+  'IFOB': ['Negative', 'Positive'],
+  'GONORRHEA': ['Negative', 'Positive'],
+  'CHLAMYDIA': ['Negative', 'Positive'],
+  'HSV': ['Non-Reactive', 'Reactive (HSV-1)', 'Reactive (HSV-2)', 'Reactive (HSV-1 & 2)'],
+  'PREGNANCY': ['Negative', 'Positive'],
   // ── Serology (titered) ──────────────────────────────────────────────────
-  'VDRL':  ['Non-Reactive', 'Weakly Reactive', 'Reactive (1:1)', 'Reactive (1:2)', 'Reactive (1:4)', 'Reactive (1:8)', 'Reactive (1:16)', 'Reactive (1:32)'],
+  'VDRL': ['Non-Reactive', 'Weakly Reactive', 'Reactive (1:1)', 'Reactive (1:2)', 'Reactive (1:4)', 'Reactive (1:8)', 'Reactive (1:16)', 'Reactive (1:32)'],
   // ── Hematology special ──────────────────────────────────────────────────
   'BLOODGROUP': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
-  'SICKLE':     ['AA – Normal', 'AS – Sickle Cell Trait', 'SS – Sickle Cell Disease', 'SC – Sickle-Haemoglobin C'],
+  'SICKLE': ['AA – Normal', 'AS – Sickle Cell Trait', 'SS – Sickle Cell Disease', 'SC – Sickle-Haemoglobin C'],
 };
 
 // Tests that need a free-text area (complex/descriptive results)
@@ -341,17 +341,17 @@ export default function EnterResultsPage() {
 
     try {
       const entries = Object.values(resultEntries);
-      
+
       // Get valid MongoDB ObjectId for orderId
       const orderId = (selectedOrder as any)._id || selectedOrder.id;
-      
+
       // Validate orderId is a valid MongoDB ObjectId
       if (!orderId || !MONGO_OBJECT_ID_REGEX.test(orderId)) {
         toast.error('Invalid order ID format');
         setIsSubmitting(false);
         return;
       }
-      
+
       // Prepare all results for bulk insert
       const resultsToCreate = entries.map(entry => {
         const payload: any = {
@@ -421,8 +421,8 @@ export default function EnterResultsPage() {
   });
 
   return (
-    <RoleLayout 
-      title="Enter Results" 
+    <RoleLayout
+      title="Enter Results"
       subtitle="Input test results — changes are synced to all users in real time"
       role={primaryRole === 'receptionist' ? 'receptionist' : primaryRole === 'admin' ? 'admin' : 'lab_tech'}
       userName={profile?.full_name}
@@ -452,7 +452,7 @@ export default function EnterResultsPage() {
                 />
               </div>
             </div>
-            
+
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -477,8 +477,8 @@ export default function EnterResultsPage() {
                       <Badge variant="outline" className={cn(
                         'text-xs',
                         order.priority === 'stat' ? 'bg-status-critical/10 text-status-critical' :
-                        order.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
-                        'bg-muted'
+                          order.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
+                            'bg-muted'
                       )}>
                         {order.priority?.toUpperCase() || 'ROUTINE'}
                       </Badge>
@@ -535,8 +535,8 @@ export default function EnterResultsPage() {
                       </Button>
                       <Badge variant="outline" className={cn(
                         selectedOrder.priority === 'stat' ? 'bg-status-critical/10 text-status-critical' :
-                        selectedOrder.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
-                        'bg-muted text-muted-foreground'
+                          selectedOrder.priority === 'urgent' ? 'bg-status-warning/10 text-status-warning' :
+                            'bg-muted text-muted-foreground'
                       )}>
                         {selectedOrder.priority.toUpperCase()}
                       </Badge>
@@ -625,55 +625,55 @@ export default function EnterResultsPage() {
                           </div>
                         ) : (
                           <>
-                        <div className="col-span-4">
-                          <p className="font-medium text-sm">{testCode}</p>
-                          <p className="text-xs text-muted-foreground">{testName}</p>
-                        </div>
-                        <div className="col-span-3">
-                          {qualitativeOptions && qualitativeOptions.length > 0 ? (
-                            <Select
-                              value={entry?.value || ''}
-                              onValueChange={val => handleValueChange(test, val)}
-                            >
-                              <SelectTrigger className="h-8 text-sm">
-                                <SelectValue placeholder="Select..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {qualitativeOptions.map(opt => (
-                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input
-                              id={`value-${testKey}`}
-                              placeholder="Value"
-                              value={entry?.value || ''}
-                              onChange={e => handleValueChange(test, e.target.value)}
-                              onKeyDown={e => handleKeyDown(e, testKey)}
-                              className="h-8 text-sm"
-                            />
-                          )}
-                        </div>
-                        <div className="col-span-2 text-xs text-muted-foreground">{testInfo.unit || '-'}</div>
-                        <div className="col-span-2">
-                          <p className="text-xs text-muted-foreground">{testInfo.referenceRange || '-'}</p>
-                          {testInfo.ageGroup && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{testInfo.ageGroup}</p>}
-                        </div>
-                        <div className="col-span-1 flex flex-col items-end gap-1">
-                          {entry?.value && (
-                            <Badge variant="outline" className={cn('text-xs', flagStyles[entry.flag])}>
-                              {entry.flag === 'normal' ? '✓' : entry.flag === 'critical_high' || entry.flag === 'critical_low' ? '!!' : entry.flag === 'high' ? '↑' : '↓'}
-                            </Badge>
-                          )}
-                          {liveUpdates[testKey] && (
-                            <span className="text-[9px] text-primary/70 flex items-center gap-0.5" title={`Synced at ${liveUpdates[testKey]}`}>
-                              <Radio className="w-2.5 h-2.5" />
-                              live
-                            </span>
-                          )}
-                        </div>
-                      </>
+                            <div className="col-span-4">
+                              <p className="font-medium text-sm">{testCode}</p>
+                              <p className="text-xs text-muted-foreground">{testName}</p>
+                            </div>
+                            <div className="col-span-3">
+                              {qualitativeOptions && qualitativeOptions.length > 0 ? (
+                                <Select
+                                  value={entry?.value || ''}
+                                  onValueChange={val => handleValueChange(test, val)}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue placeholder="Select..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {qualitativeOptions.map(opt => (
+                                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  id={`value-${testKey}`}
+                                  placeholder="Value"
+                                  value={entry?.value || ''}
+                                  onChange={e => handleValueChange(test, e.target.value)}
+                                  onKeyDown={e => handleKeyDown(e, testKey)}
+                                  className="h-8 text-sm"
+                                />
+                              )}
+                            </div>
+                            <div className="col-span-2 text-xs text-muted-foreground">{testInfo.unit || '-'}</div>
+                            <div className="col-span-2">
+                              <p className="text-xs text-muted-foreground">{testInfo.referenceRange || '-'}</p>
+                              {testInfo.ageGroup && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{testInfo.ageGroup}</p>}
+                            </div>
+                            <div className="col-span-1 flex flex-col items-end gap-1">
+                              {entry?.value && (
+                                <Badge variant="outline" className={cn('text-xs', flagStyles[entry.flag])}>
+                                  {entry.flag === 'normal' ? '✓' : entry.flag === 'critical_high' || entry.flag === 'critical_low' ? '!!' : entry.flag === 'high' ? '↑' : '↓'}
+                                </Badge>
+                              )}
+                              {liveUpdates[testKey] && (
+                                <span className="text-[9px] text-primary/70 flex items-center gap-0.5" title={`Synced at ${liveUpdates[testKey]}`}>
+                                  <Radio className="w-2.5 h-2.5" />
+                                  live
+                                </span>
+                              )}
+                            </div>
+                          </>
                         )}
                       </div>
                     );
@@ -763,7 +763,7 @@ export default function EnterResultsPage() {
               Review critical results and confirm submission.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <p className="mb-4">The following results are outside critical limits:</p>
             <div className="space-y-2">

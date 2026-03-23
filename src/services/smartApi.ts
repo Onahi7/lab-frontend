@@ -1,28 +1,25 @@
 /**
  * Smart API Service
- * Automatically switches between local network and cloud backends
- * Provides offline fallback with queue
+ * 
+ * Provides an Axios instance that automatically:
+ * - Switches between local network and cloud backends via ConnectionManager
+ * - Queues write operations when offline (IndexedDB via offlineDb)
+ * - Processes the queue when reconnected
+ * 
+ * For offline-first CRUD with caching, prefer the hooks in
+ * useOfflineData.ts (reads) and useOfflineFirst.ts (mutations).
+ * This service is the low-level transport layer used by those hooks.
  */
 
 import axios, { AxiosInstance } from 'axios';
 import { connectionManager } from './connectionManager';
-
-// Offline queue for operations when both backends are down
-interface QueuedOperation {
-  id: string;
-  method: string;
-  url: string;
-  data?: any;
-  timestamp: number;
-}
+import { db, queueMutation, getPendingCount } from './offlineDb';
 
 class SmartApiService {
   private api: AxiosInstance;
-  private offlineQueue: QueuedOperation[] = [];
   private isOnline: boolean = true;
 
   constructor() {
-    // Create axios instance with dynamic baseURL
     this.api = axios.create({
       timeout: 15000,
       headers: {
@@ -30,123 +27,135 @@ class SmartApiService {
       },
     });
 
-    // Setup interceptors
     this.setupInterceptors();
 
     // Monitor connection status
     connectionManager.onStatusChange((status) => {
+      const wasOffline = !this.isOnline;
       this.isOnline = status.online;
       console.log(`📡 Connection: ${status.backend} (${status.url})`);
 
-      // Process offline queue when back online
-      if (this.isOnline && this.offlineQueue.length > 0) {
+      // Process offline queue when transitioning to online
+      if (wasOffline && this.isOnline) {
         this.processOfflineQueue();
       }
     });
   }
 
   private setupInterceptors() {
-    // Request interceptor - Set dynamic baseURL
+    // Request interceptor - set dynamic baseURL + auth
     this.api.interceptors.request.use(
       async (config) => {
         try {
-          // Get best available backend
           const backend = await connectionManager.getBestBackend();
           config.baseURL = backend;
-
-          // Add auth token
-          const token = localStorage.getItem('access_token');
-          if (token && config.headers) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-
-          return config;
-        } catch (error) {
-          // All backends down - queue operation if it's a write
+        } catch {
+          // All backends down - queue write operations
           if (config.method !== 'get') {
-            this.queueOperation(config);
+            await this.queueOperation(config);
+            return Promise.reject(new Error('Offline – operation queued for later sync'));
           }
-          throw new Error('Offline - operation queued');
+          // For reads, let the error propagate so callers can fall back to cache
+          return Promise.reject(new Error('Offline – no backend available'));
         }
+
+        // Attach auth token
+        const token = localStorage.getItem('access_token');
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        return config;
       },
-      (error) => Promise.reject(error)
+      (error) => Promise.reject(error),
     );
 
-    // Response interceptor - Handle errors
+    // Response interceptor
     this.api.interceptors.response.use(
       (response) => response,
       async (error) => {
-        // If request failed, try alternative backend
         if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
-          console.warn('⚠️ Backend failed, trying alternative...');
-          // Connection manager will automatically try next backend
+          console.warn('⚠️ Backend failed, connection manager will try alternative on next request');
         }
         return Promise.reject(error);
-      }
+      },
     );
   }
 
-  private queueOperation(config: any) {
-    const operation: QueuedOperation = {
-      id: `${Date.now()}-${Math.random()}`,
-      method: config.method || 'post',
-      url: config.url || '',
-      data: config.data,
-      timestamp: Date.now(),
-    };
+  /**
+   * Queue a failed mutation in IndexedDB for later sync
+   */
+  private async queueOperation(config: any): Promise<void> {
+    const url = config.url || '';
+    const method = (config.method || 'POST').toUpperCase() as 'POST' | 'PATCH' | 'DELETE';
+    const body = config.data;
 
-    this.offlineQueue.push(operation);
-    console.log(`📥 Queued operation: ${operation.method.toUpperCase()} ${operation.url}`);
-
-    // Save to localStorage
-    localStorage.setItem('offline_queue', JSON.stringify(this.offlineQueue));
+    await queueMutation(url, method, body);
+    console.log(`📥 Queued operation: ${method} ${url}`);
   }
 
-  private async processOfflineQueue() {
-    console.log(`📤 Processing ${this.offlineQueue.length} queued operations...`);
+  /**
+   * Flush all pending mutations from IndexedDB
+   */
+  private async processOfflineQueue(): Promise<void> {
+    const pending = await db.pendingMutations
+      .where('status')
+      .equals('pending')
+      .sortBy('createdAt');
 
-    const queue = [...this.offlineQueue];
-    this.offlineQueue = [];
+    if (pending.length === 0) return;
 
-    for (const operation of queue) {
+    console.log(`📤 Processing ${pending.length} queued operations…`);
+
+    for (const mutation of pending) {
       try {
+        await db.pendingMutations.update(mutation.id!, { status: 'syncing' });
+
         await this.api.request({
-          method: operation.method,
-          url: operation.url,
-          data: operation.data,
+          method: mutation.method,
+          url: mutation.url,
+          data: mutation.body,
         });
-        console.log(`✅ Processed: ${operation.method.toUpperCase()} ${operation.url}`);
+
+        await db.pendingMutations.delete(mutation.id!);
+        console.log(`✅ Synced: ${mutation.method} ${mutation.url}`);
       } catch (error) {
-        console.error(`❌ Failed to process: ${operation.url}`, error);
-        // Re-queue if still failing
-        this.offlineQueue.push(operation);
+        const retries = (mutation.retries || 0) + 1;
+        if (retries >= 5) {
+          await db.pendingMutations.update(mutation.id!, {
+            status: 'failed',
+            retries,
+            error: (error as Error)?.message || 'Max retries exceeded',
+          });
+          console.error(`❌ Failed after 5 retries: ${mutation.url}`);
+        } else {
+          await db.pendingMutations.update(mutation.id!, {
+            status: 'pending',
+            retries,
+          });
+          console.log(`⏳ Will retry (${retries}/5): ${mutation.url}`);
+        }
       }
     }
-
-    // Update localStorage
-    localStorage.setItem('offline_queue', JSON.stringify(this.offlineQueue));
   }
 
-  // Expose axios instance for use
+  /** Expose the underlying Axios instance */
   getInstance(): AxiosInstance {
     return this.api;
   }
 
-  // Get offline queue status
-  getQueueStatus() {
-    return {
-      count: this.offlineQueue.length,
-      operations: this.offlineQueue,
-    };
+  /** Get offline queue status */
+  async getQueueStatus() {
+    const count = await getPendingCount();
+    return { count };
   }
 
-  // Clear offline queue
-  clearQueue() {
-    this.offlineQueue = [];
-    localStorage.removeItem('offline_queue');
+  /** Clear entire offline queue */
+  async clearQueue() {
+    await db.pendingMutations.clear();
   }
 }
 
-// Singleton instance
+// Singleton
 export const smartApi = new SmartApiService();
 export default smartApi.getInstance();

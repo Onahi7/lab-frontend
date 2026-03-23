@@ -25,11 +25,9 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         {/* Header */}
         <div className="header">
           <div className="logo">🏥</div>
-          <div className="company-name">HARBOUR</div>
-          <div className="company-info">114 Fourah Bay Road</div>
-          <div className="company-info">Freetown, Sierra Leone</div>
-          <div className="company-info">Tel: 075 766461, 031-551811</div>
-          <div className="company-info">ogbenecarefarmsig@gmail.com</div>
+          <div className="company-name">HARBOUR DIAGNOSTICS</div>
+          <div className="company-info">114 Fourah Bay Road, Freetown</div>
+          <div className="company-info">Tel: 075-766461 | 031-551811</div>
         </div>
 
         {/* Copy Type Badge */}

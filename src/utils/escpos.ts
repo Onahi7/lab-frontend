@@ -143,14 +143,10 @@ export function buildReceiptESCPOS(
   b.init();
   b.align('center');
   b.bold(true).fontSize(0x11);
-  b.line('HARBOUR');
-  b.fontSize(0x00);
-  b.line('LABORATORY');
-  b.bold(false);
-  b.line('114 Fourah Bay Road');
-  b.line('Freetown, Sierra Leone');
-  b.line('Tel: 075 766461 / 031-551811');
-  b.line('ogbenecarefarmsig@gmail.com');
+  b.line('HARBOUR DIAGNOSTICS');
+  b.fontSize(0x00).bold(false);
+  b.line('114 Fourah Bay Road, Freetown');
+  b.line('Tel: 075-766461 | 031-551811');
   b.separator('=');
 
   // ── Copy type ────────────────────────────────────────────────────────────

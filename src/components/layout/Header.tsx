@@ -1,6 +1,7 @@
-import { Bell, Search, User } from 'lucide-react';
+import { Bell, Search, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { OfflineIndicator } from '@/components/offline/OfflineIndicator';
 
 interface HeaderProps {
   title: string;
@@ -9,33 +10,32 @@ interface HeaderProps {
 
 export function Header({ title, subtitle }: HeaderProps) {
   return (
-    <header className="bg-card border-b px-6 py-4 flex items-center justify-between">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-        {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+    <header className="bg-card/80 backdrop-blur-sm border-b px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+      <div className="min-w-0">
+        <h1 className="text-xl font-bold text-foreground truncate">{title}</h1>
+        {subtitle && (
+          <p className="text-sm text-muted-foreground mt-0.5 truncate">{subtitle}</p>
+        )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Connection status */}
+        <div className="hidden md:block">
+          <OfflineIndicator />
+        </div>
+
         {/* Search */}
-        <div className="relative">
+        <div className="relative hidden lg:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             placeholder="Search patients, orders..." 
-            className="pl-10 w-72"
+            className="pl-10 w-64 h-9 bg-muted/50 border-transparent focus:border-border focus:bg-card transition-colors"
           />
         </div>
 
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-status-critical text-status-critical-foreground text-xs rounded-full flex items-center justify-center">
-            3
-          </span>
-        </Button>
-
-        {/* User */}
-        <Button variant="ghost" size="icon">
-          <User className="w-5 h-5" />
+        {/* Mobile search trigger */}
+        <Button variant="ghost" size="icon" className="lg:hidden h-9 w-9">
+          <Search className="w-4 h-4" />
         </Button>
       </div>
     </header>

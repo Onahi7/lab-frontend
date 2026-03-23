@@ -1,4 +1,4 @@
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MetricCardProps {
@@ -10,40 +10,50 @@ interface MetricCardProps {
     isPositive: boolean;
   };
   variant?: 'default' | 'primary' | 'warning' | 'critical';
+  className?: string;
 }
 
 const variantStyles = {
-  default: 'bg-card',
-  primary: 'bg-primary/5 border-primary/20',
-  warning: 'bg-status-warning/10 border-status-warning/30',
-  critical: 'bg-status-critical/10 border-status-critical/30',
+  default: 'bg-card hover:shadow-md',
+  primary: 'bg-primary/5 border-primary/20 hover:shadow-md hover:shadow-primary/5',
+  warning: 'bg-status-warning/5 border-status-warning/25 hover:shadow-md hover:shadow-status-warning/5',
+  critical: 'bg-status-critical/5 border-status-critical/25 hover:shadow-md hover:shadow-status-critical/5',
 };
 
 const iconStyles = {
   default: 'bg-muted text-muted-foreground',
   primary: 'bg-primary/10 text-primary',
-  warning: 'bg-status-warning/20 text-status-warning',
-  critical: 'bg-status-critical/20 text-status-critical',
+  warning: 'bg-status-warning/15 text-status-warning',
+  critical: 'bg-status-critical/15 text-status-critical',
 };
 
-export function MetricCard({ title, value, icon: Icon, trend, variant = 'default' }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, trend, variant = 'default', className }: MetricCardProps) {
   return (
-    <div className={cn('metric-card border', variantStyles[variant])}>
+    <div className={cn(
+      'rounded-xl border p-5 shadow-sm transition-all duration-200',
+      variantStyles[variant],
+      className,
+    )}>
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="metric-value mt-2">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+          <p className="text-2xl font-bold text-foreground mt-2 truncate">{value}</p>
           {trend && (
-            <p className={cn(
-              'text-sm mt-2',
+            <div className={cn(
+              'flex items-center gap-1 text-xs font-medium mt-2',
               trend.isPositive ? 'text-status-normal' : 'text-status-critical'
             )}>
-              {trend.isPositive ? '+' : ''}{trend.value}% from yesterday
-            </p>
+              {trend.isPositive
+                ? <TrendingUp className="w-3.5 h-3.5" />
+                : <TrendingDown className="w-3.5 h-3.5" />
+              }
+              <span>{trend.isPositive ? '+' : ''}{trend.value}%</span>
+              <span className="text-muted-foreground font-normal">vs yesterday</span>
+            </div>
           )}
         </div>
-        <div className={cn('p-3 rounded-lg', iconStyles[variant])}>
-          <Icon className="w-6 h-6" />
+        <div className={cn('p-2.5 rounded-xl flex-shrink-0', iconStyles[variant])}>
+          <Icon className="w-5 h-5" />
         </div>
       </div>
     </div>
