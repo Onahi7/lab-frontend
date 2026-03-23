@@ -31,6 +31,7 @@ export default function NewOrder() {
   const [patientSearch, setPatientSearch] = useState('');
   const [selectedTests, setSelectedTests] = useState<TestCatalogItem[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [testSearch, setTestSearch] = useState('');
   const [priority, setPriority] = useState<'routine' | 'urgent' | 'stat'>('routine');
   const [referredByDoctor, setReferredByDoctor] = useState('');
   const [discountValue, setDiscountValue] = useState('');
@@ -133,16 +134,51 @@ export default function NewOrder() {
   };
 
   const filteredTests = useMemo(() => {
-    const visibleTests = categoryFilter === 'all'
-      ? [...testCatalog]
-      : testCatalog.filter(t => t.category === categoryFilter);
+    // Filter out tests with price = 0 (panel components that shouldn't be ordered individually)
+    // Also filter out U-PROTEIN test
+    let visibleTests = testCatalog.filter(t => 
+      t.price > 0 && 
+      t.code !== 'U-PROTEIN' && 
+      t.code !== 'URINE-PROTEIN'
+    );
 
+    // Apply category filter
+    if (categoryFilter !== 'all') {
+      visibleTests = visibleTests.filter(t => t.category === categoryFilter);
+    }
+
+    // Apply search filter
+    if (testSearch.trim()) {
+      const search = testSearch.toLowerCase();
+      visibleTests = visibleTests.filter(t => 
+        t.code.toLowerCase().includes(search) ||
+        t.name.toLowerCase().includes(search)
+      );
+    }
+
+    // Sort: Panels first, then Serology, then the rest
     return visibleTests.sort((a, b) => {
-      const categoryCompare = String(a.category).localeCompare(String(b.category));
-      if (categoryCompare !== 0) return categoryCompare;
+      const aIsPanel = (a as any).isPanel === true;
+      const bIsPanel = (b as any).isPanel === true;
+      
+      // Panels come first
+      if (aIsPanel && !bIsPanel) return -1;
+      if (!aIsPanel && bIsPanel) return 1;
+      
+      // Within same type (both panels or both tests), sort by category
+      const aIsSerology = a.category === 'serology' || a.category === 'immunoassay';
+      const bIsSerology = b.category === 'serology' || b.category === 'immunoassay';
+      
+      // Serology comes after panels but before other tests
+      if (!aIsPanel && !bIsPanel) {
+        if (aIsSerology && !bIsSerology) return -1;
+        if (!aIsSerology && bIsSerology) return 1;
+      }
+      
+      // Within same category, sort by name
       return String(a.name).localeCompare(String(b.name));
     });
-  }, [categoryFilter, testCatalog]);
+  }, [categoryFilter, testCatalog, testSearch]);
 
   const subtotal = selectedTests.reduce((sum, t) => sum + t.price, 0);
   const discount = discountType === 'percentage' 
@@ -558,6 +594,17 @@ export default function NewOrder() {
               </Select>
             </div>
 
+            {/* Test Search */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tests by code or name..."
+                className="pl-10"
+                value={testSearch}
+                onChange={e => setTestSearch(e.target.value)}
+              />
+            </div>
+
             {testsLoading ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>Loading tests...</p>
@@ -638,18 +685,28 @@ export default function NewOrder() {
                 <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
                   {selectedTests.map(test => {
                     const testId = test._id || test.id;
+                    const isPanel = test.isPanel && test.tests && Array.isArray(test.tests);
+                    
                     return (
-                      <div key={testId} className="flex items-center justify-between text-sm">
-                        <span>{test.code}</span>
-                        <div className="flex items-center gap-2">
-                          <span>Le {test.price.toLocaleString()}</span>
-                          <button 
-                            onClick={() => handleTestToggle(test)}
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                      <div key={testId} className="text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{test.code}</span>
+                          <div className="flex items-center gap-2">
+                            <span>Le {test.price.toLocaleString()}</span>
+                            <button 
+                              onClick={() => handleTestToggle(test)}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
+                        {isPanel && (
+                          <div className="ml-3 mt-1 text-xs text-muted-foreground">
+                            {test.tests.length} tests: {test.tests.slice(0, 3).map((t: any) => t.testCode).join(', ')}
+                            {test.tests.length > 3 && '...'}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
