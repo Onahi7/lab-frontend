@@ -35,13 +35,13 @@ export function ReportFooter({ laboratoryInfo, reportMetadata, template }: Repor
   const footerText = footer?.footerText || 'OPEN 24/7 | ONSITE & ONLINE ACCESS | TRUSTED BY CLINICS & HOSPITALS';
 
   return (
-    <div className="report-footer mt-6 pt-2">
+    <div className="report-footer mt-4 pt-1">
       {/* Decorative wave */}
       {showWave && (
-        <div className="decorative-wave mb-2">
+        <div className="decorative-wave mb-1">
           <svg
             viewBox="0 0 1200 100"
-            className="w-full h-10"
+            className="w-full h-8"
             preserveAspectRatio="none"
           >
             <path
@@ -58,9 +58,9 @@ export function ReportFooter({ laboratoryInfo, reportMetadata, template }: Repor
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-8 items-end">
+      <div className="grid grid-cols-2 gap-6 items-end">
         {footerSettings?.showDisclaimer !== false && footer?.showDisclaimer !== false ? (
-          <div className="text-[11px] text-gray-700 leading-relaxed">
+          <div className="text-[10px] text-gray-700 leading-snug">
             <p className="font-semibold">Disclaimer:</p>
             <p>{disclaimerText}</p>
           </div>
@@ -69,14 +69,14 @@ export function ReportFooter({ laboratoryInfo, reportMetadata, template }: Repor
         )}
 
         <div
-          className="text-right text-[11px] font-semibold tracking-wide text-white px-3 py-1 rounded-sm"
+          className="text-right text-[10px] font-semibold tracking-wide text-white px-2 py-0.5 rounded-sm"
           style={{ backgroundColor: primaryColor }}
         >
           {footerText}
         </div>
       </div>
 
-      <p className="generation-info text-[10px] text-gray-500 mt-2 text-right">
+      <p className="generation-info text-[9px] text-gray-500 mt-1 text-right">
         Generated: {formatDateTime(reportMetadata.generatedAt)}
       </p>
     </div>

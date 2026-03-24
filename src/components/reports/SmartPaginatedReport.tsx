@@ -156,8 +156,8 @@ export function usePaginatedReport(
 
     // Track actual space used on current page
     let testsOnCurrentPage = 0;
-    const maxTestsFirstPage = 23; // Conservative estimate for first page
-    const maxTestsPerPage = 30; // Conservative estimate for subsequent pages
+    const maxTestsFirstPage = 26; // Increased due to compact layout - FBC (24) + overhead fits
+    const maxTestsPerPage = 35; // More tests fit with compact layout
     
     const categoryOccurrences = new Map<string, number>();
     const panelOccurrences = new Map<string, number>();

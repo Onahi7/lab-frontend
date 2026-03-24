@@ -62,17 +62,17 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
   const pageSize = `${printerSettings.a4.paperSize} ${printerSettings.a4.orientation}`;
 
   // Use smart pagination to split results across pages intelligently
-  // Heights calibrated to print layout (mm)
+  // Heights calibrated to print layout (mm) - COMPACT VERSION
   const paginatedPages = usePaginatedReport(
     reportData?.resultsByCategory || [],
     {
-      headerHeight: 26,        // header with logo + lab name
-      patientInfoHeight: 22,   // patient info grid
-      footerHeight: 16,        // footer with wave + disclaimer
-      categoryTitleHeight: 8,  // category heading
-      panelHeaderHeight: 6,    // panel header row
-      tableHeaderHeight: 6,    // table column headers
-      testRowHeight: 5.8,      // row height for 13px font
+      headerHeight: 22,        // header with logo + lab name (reduced)
+      patientInfoHeight: 18,   // patient info grid (reduced)
+      footerHeight: 18,        // footer with wave + disclaimer (reduced)
+      categoryTitleHeight: 7,  // category heading (reduced)
+      panelHeaderHeight: 5,    // panel header row (reduced)
+      tableHeaderHeight: 5,    // table column headers (reduced)
+      testRowHeight: 4.8,      // row height for 12px font (reduced from 5.8)
       totalPageHeight: 297,
       margins: marginTop + marginBottom,
       maxTestsBeforeSplit: 50, // Never split FBC (24 tests) or similar panels
@@ -369,10 +369,11 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
             box-shadow: none !important;
             border: none !important;
             overflow: visible !important;
-            /* Flex column fills the page so footer sticks to bottom */
+            /* Flex column to allow footer positioning */
             display: flex !important;
             flex-direction: column !important;
-            min-height: 100vh !important;
+            /* Remove min-height to prevent overflow */
+            height: auto !important;
             box-sizing: border-box !important;
           }
 
@@ -428,101 +429,101 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
 
           /* Header */
           .report-header {
-            padding-bottom: 2mm !important;
-            margin-bottom: 3mm !important;
+            padding-bottom: 1mm !important;
+            margin-bottom: 2mm !important;
           }
           .report-header h1 {
-            font-size: 22px !important;
-            line-height: 1.2 !important;
+            font-size: 20px !important;
+            line-height: 1.1 !important;
           }
           .report-header img {
-            height: 48px !important;
+            height: 42px !important;
           }
           .report-header .flex {
-            gap: 8px !important;
+            gap: 6px !important;
           }
           .report-header .text-right {
-            font-size: 12px !important;
+            font-size: 11px !important;
           }
 
           /* Patient info section */
           .patient-info-section {
-            margin-bottom: 3mm !important;
+            margin-bottom: 2mm !important;
           }
           .patient-info-section .grid {
-            gap: 12px !important;
+            gap: 10px !important;
           }
           .patient-info-section p {
-            font-size: 12.5px !important;
-            line-height: 1.4 !important;
+            font-size: 11.5px !important;
+            line-height: 1.3 !important;
             margin: 0 !important;
           }
           .patient-info-section h3 {
-            font-size: 12px !important;
+            font-size: 11px !important;
             margin: 0 !important;
-            padding-bottom: 2px !important;
+            padding-bottom: 1px !important;
           }
           .patient-info-section .space-y-1 > * + * {
-            margin-top: 2px !important;
+            margin-top: 1px !important;
           }
 
           /* Category headings */
           .category-section {
-            margin-bottom: 2mm !important;
+            margin-bottom: 1mm !important;
           }
           .category-section > h3 {
-            font-size: 16px !important;
+            font-size: 15px !important;
             font-weight: 800 !important;
-            margin-bottom: 2mm !important;
-            line-height: 1.2 !important;
-          }
-            line-height: 1.2 !important;
+            margin-bottom: 1.5mm !important;
+            line-height: 1.1 !important;
           }
 
           /* Results table */
           .results-table {
-            margin-bottom: 2mm !important;
-            font-size: 13px !important;
+            margin-bottom: 1mm !important;
+            font-size: 12px !important;
           }
           .results-table th {
-            padding: 3px 8px !important;
-            font-size: 11px !important;
+            padding: 2px 6px !important;
+            font-size: 10px !important;
+            line-height: 1.2 !important;
           }
           .results-table td {
-            padding: 2px 8px !important;
-            font-size: 13px !important;
-            line-height: 1.35 !important;
+            padding: 1px 6px !important;
+            font-size: 12px !important;
+            line-height: 1.25 !important;
           }
 
           /* Verification section */
           .verification-section {
-            margin-top: 5mm !important;
-            margin-bottom: 2mm !important;
+            margin-top: 3mm !important;
+            margin-bottom: 1mm !important;
           }
           .verification-section .grid {
-            gap: 20px !important;
+            gap: 16px !important;
           }
           .verification-section p,
           .verification-section .text-sm {
-            font-size: 13px !important;
+            font-size: 12px !important;
+            line-height: 1.3 !important;
           }
 
           /* Footer */
           .report-footer {
-            margin-top: 2mm !important;
+            margin-top: 1mm !important;
             padding-top: 1mm !important;
           }
           .report-footer .decorative-wave svg {
-            height: 28px !important;
+            height: 24px !important;
           }
           .report-footer .decorative-wave {
-            margin-bottom: 1mm !important;
+            margin-bottom: 0.5mm !important;
           }
           .report-footer .grid {
-            gap: 12px !important;
+            gap: 8px !important;
           }
           .report-footer-container {
-            margin-top: 3mm !important;
+            margin-top: 2mm !important;
           }
         }
 
