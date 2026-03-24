@@ -75,7 +75,7 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
       testRowHeight: 5.8,      // row height for 13px font
       totalPageHeight: 297,
       margins: marginTop + marginBottom,
-      maxTestsBeforeSplit: 20, // allow FBC-sized panels to split across pages
+      maxTestsBeforeSplit: 50, // Never split FBC (24 tests) or similar panels
     }
   );
 

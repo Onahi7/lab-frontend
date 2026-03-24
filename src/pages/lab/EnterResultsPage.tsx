@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useProcessingOrders, useUpdateOrder } from '@/hooks/useOrders';
-import { useCreateResult, useCreateBulkResults } from '@/hooks/useResults';
+import { useCreateResult, useCreateBulkResults, useResults } from '@/hooks/useResults';
 import { useAllTests } from '@/hooks/useTestCatalog';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { Button } from '@/components/ui/button';
@@ -107,6 +107,9 @@ export default function EnterResultsPage() {
     return selectedOrder.id || (selectedOrder as any)._id;
   }, [selectedOrder?.id, (selectedOrder as any)?._id]);
 
+  // Fetch saved results from database for the selected order
+  const { data: savedResults } = useResults(selectedOrderId || undefined);
+
   // Memoize the order tests to prevent infinite loops
   const selectedOrderTests = useMemo(() => {
     if (!selectedOrder) return [];
@@ -132,18 +135,58 @@ export default function EnterResultsPage() {
       return;
     }
 
+    // Build a map of saved results from database
+    const savedResultsMap: Record<string, ResultEntry> = {};
+    
+    if (savedResults && Array.isArray(savedResults) && savedResults.length > 0) {
+      for (const result of savedResults) {
+        const testCode = result.testCode || result.test_code;
+        
+        // Find the matching order test to get the testKey
+        const matchingTest = selectedOrderTests.find(
+          (t: any) => (t.testCode || t.test_code) === testCode
+        );
+        
+        if (matchingTest) {
+          const testKey = matchingTest.id || matchingTest._id || testCode;
+          const patient = typeof selectedOrder?.patient === 'object' ? selectedOrder.patient : null;
+          const patientAge = patient?.age;
+          const patientGender = patient?.gender;
+          const testInfo = getTestInfo(testCode, patientAge, patientGender);
+          
+          savedResultsMap[testKey] = {
+            testId: testKey,
+            orderTestId: testKey,
+            testCode: testCode,
+            testName: result.testName || result.test_name || testCode,
+            value: result.value,
+            unit: result.unit || testInfo.unit || '',
+            referenceRange: result.referenceRange || result.reference_range || testInfo.referenceRange || '',
+            flag: result.flag || 'normal',
+            panelCode: matchingTest.panelCode || matchingTest.panel_code,
+            panelName: matchingTest.panelName || matchingTest.panel_name,
+            category: matchingTest.category,
+          };
+        }
+      }
+    }
+
+    // Try to load draft from localStorage
     try {
       const savedDraft = localStorage.getItem(getDraftStorageKey(orderId));
       if (savedDraft) {
         const parsedDraft = JSON.parse(savedDraft);
-        setResultEntries(parsedDraft || {});
+        // Merge: database results first, then override with draft (draft takes precedence)
+        setResultEntries({ ...savedResultsMap, ...parsedDraft });
       } else {
-        setResultEntries({});
+        // No draft, just use database results
+        setResultEntries(savedResultsMap);
       }
     } catch {
-      setResultEntries({});
+      // If draft parsing fails, just use database results
+      setResultEntries(savedResultsMap);
     }
-  }, [selectedOrder]);
+  }, [selectedOrder, savedResults, selectedOrderTests]);
 
   useEffect(() => {
     if (!selectedOrder) return;
@@ -566,7 +609,13 @@ export default function EnterResultsPage() {
                   <div className="mt-4">
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                       <span>Progress</span>
-                      <span>{completedTests}/{totalTests} entered ({progressPercent}%) • Autosaved</span>
+                      <span>
+                        {completedTests}/{totalTests} entered ({progressPercent}%)
+                        {savedResults && Array.isArray(savedResults) && savedResults.length > 0 && (
+                          <span className="ml-2 text-primary">• {savedResults.length} saved</span>
+                        )}
+                        <span className="ml-2">• Autosaved</span>
+                      </span>
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div

@@ -23,7 +23,7 @@ interface PageConfig {
   totalPageHeight: number;
   /** Margins (top + bottom) in mm */
   margins: number;
-  /** Maximum tests in a panel before allowing split (default: 35) */
+  /** Maximum tests in a panel before allowing split (default: 50 - never split FBC) */
   maxTestsBeforeSplit: number;
 }
 
@@ -40,7 +40,7 @@ const DEFAULT_PAGE_CONFIG: PageConfig = {
   testRowHeight: 6.5,
   totalPageHeight: 297,
   margins: 20, // 10mm top + 10mm bottom
-  maxTestsBeforeSplit: 35, // Only split panels with more than 35 tests
+  maxTestsBeforeSplit: 50, // Never split FBC (24 tests) - keep panels together
 };
 
 /**

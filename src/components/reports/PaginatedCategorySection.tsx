@@ -36,9 +36,6 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
         style={{ color: categoryHeadingColor, fontWeight: 800 }}
       >
         {pageCategory.categoryDisplayName}
-        {pageCategory.isContinuation && (
-          <span className="text-base font-normal ml-2">(continued)</span>
-        )}
       </h3>
 
       {/* Render each panel */}
@@ -78,9 +75,6 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                       }}
                     >
                       {panelTitle}
-                      {panel.isContinuation && (
-                        <span className="text-xs font-normal ml-2">(continued)</span>
-                      )}
                     </th>
                   </tr>
                 )}

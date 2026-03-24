@@ -47,11 +47,12 @@ export function useResults(orderId?: string) {
   return useQuery({
     queryKey: ['results', orderId],
     queryFn: async () => {
-      const params: any = {};
+      const params: any = { limit: 1000 }; // Get all results for the order (no pagination)
       if (orderId) params.orderId = orderId;
       return await resultsAPI.getAll(params);
     },
     staleTime: 30 * 1000, // 30 seconds
+    enabled: !!orderId, // Only fetch when orderId is provided
   });
 }
 
