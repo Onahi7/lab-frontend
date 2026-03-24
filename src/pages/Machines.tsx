@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { MainLayout } from '@/components/layout/MainLayout';
+import { RoleLayout } from '@/components/layout/RoleLayout';
+import { useAuth } from '@/context/AuthContext';
 import { useMachines, useTestMachineConnection, useUpdateMachine, useCreateMachine, useRestartListener, useListenerStatus, type Machine, type MachineCreate } from '@/hooks/useMachines';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw, Settings, Wifi, WifiOff, Activity, Send, CheckCircle, XCircle, Loader2, RotateCw, Radio } from 'lucide-react';
@@ -17,6 +18,7 @@ type MachineStatus = Machine['status'];
 type MachineProtocol = Machine['protocol'];
 
 export default function Machines() {
+  const { profile, primaryRole } = useAuth();
   const { data: machines, isLoading, refetch } = useMachines();
   const testConnection = useTestMachineConnection();
   const updateMachine = useUpdateMachine();
@@ -123,16 +125,26 @@ export default function Machines() {
 
   if (isLoading) {
     return (
-      <MainLayout title="Machines" subtitle="Configure and monitor laboratory analyzers">
+      <RoleLayout 
+        title="Machines" 
+        subtitle="Configure and monitor laboratory analyzers"
+        role={primaryRole === 'admin' ? 'admin' : 'lab_tech'}
+        userName={profile?.full_name}
+      >
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
-      </MainLayout>
+      </RoleLayout>
     );
   }
 
   return (
-    <MainLayout title="Machines" subtitle="Configure and monitor laboratory analyzers">
+    <RoleLayout 
+      title="Machines" 
+      subtitle="Configure and monitor laboratory analyzers"
+      role={primaryRole === 'admin' ? 'admin' : 'lab_tech'}
+      userName={profile?.full_name}
+    >
       {/* Actions Bar */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -371,7 +383,7 @@ export default function Machines() {
           </div>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </RoleLayout>
   );
 }
 
