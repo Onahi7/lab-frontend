@@ -105,13 +105,9 @@ export function RoleSidebar({ role, userName, onClose }: RoleSidebarProps) {
           <div className="flex items-center gap-3">
             <img 
               src="/logo_resized.png" 
-              alt="HARBOUR Logo" 
-              className="w-10 h-10 object-contain"
+              alt="Lab Logo" 
+              className="h-16 w-auto object-contain"
             />
-            <div>
-              <h1 className="font-bold text-base tracking-tight">HARBOUR</h1>
-              <p className="text-[11px] text-sidebar-foreground/50 font-medium">{roleLabels[role]} Portal</p>
-            </div>
           </div>
           {/* Close button for mobile */}
           {onClose && (
