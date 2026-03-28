@@ -98,6 +98,8 @@ export default function EnterResultsPage() {
   const [orderSearch, setOrderSearch] = useState('');
   // Track which entries were synced live from another user (testKey → time string)
   const [liveUpdates, setLiveUpdates] = useState<Record<string, string>>({});
+  // FBC panel interpretation message (single line combining WBC, RBC, PLT messages)
+  const [fbcMessage, setFbcMessage] = useState('');
 
   const getDraftStorageKey = (orderId?: string) => `result-draft:${orderId || 'unknown'}`;
 
@@ -214,6 +216,7 @@ export default function EnterResultsPage() {
   // Clear live-update indicators when the selected order changes
   useEffect(() => {
     setLiveUpdates({});
+    setFbcMessage('');
   }, [selectedOrderId]);
 
   // Real-time collaboration: listen for results saved by other users
@@ -431,6 +434,11 @@ export default function EnterResultsPage() {
           payload.orderTestId = entry.orderTestId;
         }
 
+        // Add FBC interpretation message to WBC test (it will appear at bottom of FBC panel in report)
+        if (entry.testCode === 'WBC' && entry.panelCode === 'FBC' && fbcMessage.trim()) {
+          payload.comments = fbcMessage.trim();
+        }
+
         return payload;
       });
 
@@ -455,6 +463,7 @@ export default function EnterResultsPage() {
       localStorage.removeItem(getDraftStorageKey(orderId));
       setShowConfirmModal(false);
       setResultEntries({});
+      setFbcMessage('');
       setSelectedOrder(null);
     } catch (error: any) {
       console.error('Failed to submit results:', error);
@@ -761,21 +770,61 @@ export default function EnterResultsPage() {
 
                       <Accordion type="multiple" className="w-full space-y-3">
                         {/* Panel groups */}
-                        {Array.from(panelMap.entries()).map(([pc, group]) => (
-                          <AccordionItem key={pc} value={`panel-${pc}`} className="rounded-lg border overflow-hidden">
-                            <AccordionTrigger className="px-3 py-2 hover:no-underline">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-semibold uppercase tracking-wide text-primary text-left">{group.panelName}</p>
-                                <Badge variant="outline" className="text-[10px]">{group.tests.length}</Badge>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="pb-0">
-                              <div className="border-t">
-                                {group.tests.map(renderTestRow)}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
+                        {Array.from(panelMap.entries()).map(([pc, group]) => {
+                          // Check if tests have subcategories (e.g., urinalysis)
+                          const hasSubcategories = group.tests.some(t => {
+                            const testCode = t.testCode || t.test_code || '';
+                            const test = testCatalog?.find((cat: any) => cat.code === testCode);
+                            return test?.subcategory;
+                          });
+
+                          // Group tests by subcategory if they exist
+                          const subcategoryMap = new Map<string, any[]>();
+                          if (hasSubcategories) {
+                            for (const test of group.tests) {
+                              const testCode = test.testCode || test.test_code || '';
+                              const catalogTest = testCatalog?.find((cat: any) => cat.code === testCode);
+                              const subcategory = catalogTest?.subcategory || 'Other';
+                              if (!subcategoryMap.has(subcategory)) {
+                                subcategoryMap.set(subcategory, []);
+                              }
+                              subcategoryMap.get(subcategory)!.push(test);
+                            }
+                          }
+
+                          return (
+                            <AccordionItem key={pc} value={`panel-${pc}`} className="rounded-lg border overflow-hidden">
+                              <AccordionTrigger className="px-3 py-2 hover:no-underline">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-semibold uppercase tracking-wide text-primary text-left">{group.panelName}</p>
+                                  <Badge variant="outline" className="text-[10px]">{group.tests.length}</Badge>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="pb-0">
+                                <div className="border-t">
+                                  {hasSubcategories ? (
+                                    // Render tests grouped by subcategory
+                                    <>
+                                      {Array.from(subcategoryMap.entries()).map(([subcategory, tests]) => (
+                                        <div key={subcategory}>
+                                          <div className="px-3 py-1.5 bg-muted/50 border-b">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                              {subcategory}
+                                            </p>
+                                          </div>
+                                          {tests.map(renderTestRow)}
+                                        </div>
+                                      ))}
+                                    </>
+                                  ) : (
+                                    // Render tests without subcategory grouping
+                                    group.tests.map(renderTestRow)
+                                  )}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          );
+                        })}
 
                         {/* Standalone tests */}
                         {standaloneTests.length > 0 && (
@@ -794,6 +843,25 @@ export default function EnterResultsPage() {
                           </AccordionItem>
                         )}
                       </Accordion>
+
+                      {/* FBC Panel Interpretation Message - shown only if FBC panel exists */}
+                      {panelMap.has('FBC') && (
+                        <div className="mt-4 border rounded-lg p-3 bg-muted/30">
+                          <Label htmlFor="fbc-message" className="text-xs font-medium mb-2 block">
+                            FBC Interpretation Message
+                          </Label>
+                          <Input
+                            id="fbc-message"
+                            placeholder="e.g., WBC MESSAGE: Lymphocytosis. PLT: Thrombocytosis"
+                            value={fbcMessage}
+                            onChange={(e) => setFbcMessage(e.target.value)}
+                            className="h-9 text-sm"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1.5">
+                            Enter combined interpretation (e.g., "WBC MESSAGE: [condition]. RBC: [condition]. PLT: [condition]")
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}

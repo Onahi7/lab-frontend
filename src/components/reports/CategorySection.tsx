@@ -64,6 +64,21 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
           group.panelCode ||
           (hasPanelGrouping ? category.categoryDisplayName : category.categoryDisplayName);
 
+        // Check if tests have subcategories (e.g., urinalysis)
+        const hasSubcategories = group.results.some(r => r.subcategory);
+        
+        // Group results by subcategory if they exist
+        const subcategoryMap = new Map<string, typeof group.results>();
+        if (hasSubcategories) {
+          for (const result of group.results) {
+            const subcategory = result.subcategory || 'Other';
+            if (!subcategoryMap.has(subcategory)) {
+              subcategoryMap.set(subcategory, []);
+            }
+            subcategoryMap.get(subcategory)!.push(result);
+          }
+        }
+
         return (
           <Fragment key={`${category.category}-${group.key}-${groupIndex}`}>
             <table className="results-table w-full border-collapse text-sm mb-3">
@@ -141,43 +156,107 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                 </tr>
               </thead>
               <tbody>
-                {group.results.map((result) => {
-                  const firstColumnValue = result.testName || result.testCode;
-                  const thirdColumnValue = useThreeColumns
-                    ? (result.comments || result.referenceRange || '-')
-                    : (result.referenceRange || '-');
+                {hasSubcategories ? (
+                  // Render results grouped by subcategory
+                  <>
+                    {Array.from(subcategoryMap.entries()).map(([subcategory, results], subIndex) => (
+                      <Fragment key={`subcategory-${subIndex}`}>
+                        {/* Subcategory header row */}
+                        <tr>
+                          <td
+                            colSpan={useThreeColumns ? 3 : 4}
+                            className="py-1 px-3 font-semibold uppercase text-xs bg-gray-50 border-y border-gray-300"
+                            style={{ color: primaryColor }}
+                          >
+                            {subcategory}
+                          </td>
+                        </tr>
+                        {/* Results for this subcategory */}
+                        {results.map((result) => {
+                          const firstColumnValue = result.testName || result.testCode;
+                          const thirdColumnValue = useThreeColumns
+                            ? (result.comments || result.referenceRange || '-')
+                            : (result.referenceRange || '-');
 
-                  return (
-                    <tr key={`${result.testCode}-${result.resultedAt}`} className="border-b border-gray-200">
-                      <td className="py-0.5 px-3 font-medium text-sm">{firstColumnValue}</td>
-                      <td
-                        className="py-0.5 px-3 font-semibold whitespace-nowrap"
-                        style={{
-                          color:
-                            result.flag === 'critical_high' || result.flag === 'critical_low'
-                              ? (resultsSection?.criticalColor || colors?.critical || '#dc2626')
-                              : result.flag === 'high' || result.flag === 'low'
-                                ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
-                                : undefined,
-                        }}
-                      >
-                        {result.value}
-                        {(result.flag === 'high' || result.flag === 'critical_high') && (
-                          <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                          return (
+                            <tr key={`${result.testCode}-${result.resultedAt}`} className="border-b border-gray-200">
+                              <td className="py-0.5 px-3 font-medium text-sm">{firstColumnValue}</td>
+                              <td
+                                className="py-0.5 px-3 font-semibold whitespace-nowrap"
+                                style={{
+                                  color:
+                                    result.flag === 'critical_high' || result.flag === 'critical_low'
+                                      ? (resultsSection?.criticalColor || colors?.critical || '#dc2626')
+                                      : result.flag === 'high' || result.flag === 'low'
+                                        ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
+                                        : undefined,
+                                }}
+                              >
+                                {result.value}
+                                {(result.flag === 'high' || result.flag === 'critical_high') && (
+                                  <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                                )}
+                                {(result.flag === 'low' || result.flag === 'critical_low') && (
+                                  <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                                )}
+                              </td>
+                              <td className="py-0.5 px-3 text-sm">{typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}</td>
+                              {!useThreeColumns && (
+                                <td className="py-0.5 px-3 text-sm">{result.unit || '-'}</td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    ))}
+                  </>
+                ) : (
+                  // Render results without subcategory grouping
+                  group.results.map((result) => {
+                    const firstColumnValue = result.testName || result.testCode;
+                    const thirdColumnValue = useThreeColumns
+                      ? (result.comments || result.referenceRange || '-')
+                      : (result.referenceRange || '-');
+
+                    return (
+                      <tr key={`${result.testCode}-${result.resultedAt}`} className="border-b border-gray-200">
+                        <td className="py-0.5 px-3 font-medium text-sm">{firstColumnValue}</td>
+                        <td
+                          className="py-0.5 px-3 font-semibold whitespace-nowrap"
+                          style={{
+                            color:
+                              result.flag === 'critical_high' || result.flag === 'critical_low'
+                                ? (resultsSection?.criticalColor || colors?.critical || '#dc2626')
+                                : result.flag === 'high' || result.flag === 'low'
+                                  ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
+                                  : undefined,
+                          }}
+                        >
+                          {result.value}
+                          {(result.flag === 'high' || result.flag === 'critical_high') && (
+                            <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                          )}
+                          {(result.flag === 'low' || result.flag === 'critical_low') && (
+                            <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                          )}
+                        </td>
+                        <td className="py-0.5 px-3 text-sm">{typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}</td>
+                        {!useThreeColumns && (
+                          <td className="py-0.5 px-3 text-sm">{result.unit || '-'}</td>
                         )}
-                        {(result.flag === 'low' || result.flag === 'critical_low') && (
-                          <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
-                        )}
-                      </td>
-                      <td className="py-0.5 px-3 text-sm">{typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}</td>
-                      {!useThreeColumns && (
-                        <td className="py-0.5 px-3 text-sm">{result.unit || '-'}</td>
-                      )}
-                    </tr>
-                  );
-                })}
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
+
+            {/* FBC Panel Interpretation Message - display after FBC panel */}
+            {group.panelCode === 'FBC' && group.results.some(r => r.testCode === 'WBC' && r.comments) && (
+              <div className="mt-1 px-3 py-1 text-xs font-medium text-gray-700 border-t border-gray-200">
+                {group.results.find(r => r.testCode === 'WBC')?.comments}
+              </div>
+            )}
           </Fragment>
         );
       })}
