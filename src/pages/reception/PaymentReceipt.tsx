@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Printer, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { useOrder } from '@/hooks/useOrders';
 import { getPatientName } from '@/utils/orderHelpers';
@@ -28,14 +28,14 @@ export default function PaymentReceipt() {
 
   // Transform order data to receipt format
   const receiptData: ReceiptData | null = order ? {
-    receiptNumber: `RCP-${format(new Date(), 'yyyyMMdd')}-${order.order_number.split('-').pop()}`,
-    orderNumber: order.order_number,
+    receiptNumber: `RCP-${format(new Date(), 'yyyyMMdd')}-${(order.order_number || order.orderNumber || 'XXX').split('-').pop()}`,
+    orderNumber: order.order_number || order.orderNumber || 'N/A',
     patientName: getPatientName(order),
     patientId: (order.patient || order.patients)?.patientId || (order.patient || order.patients)?.patient_id || 'Unknown',
     patientPhone: (order.patient || order.patients)?.phone || undefined,
-    tests: (order.order_tests || []).map((ot: any) => ({
-      code: ot.test_catalog?.code || 'N/A',
-      name: ot.test_catalog?.name || 'Unknown Test',
+    tests: (order.order_tests || order.tests || []).map((ot: any) => ({
+      code: ot.testCode || ot.test_code || ot.test_catalog?.code || 'N/A',
+      name: ot.testName || ot.test_name || ot.test_catalog?.name || 'Unknown Test',
       price: ot.price || 0,
     })),
     subtotal: order.subtotal || 0,
@@ -43,34 +43,11 @@ export default function PaymentReceipt() {
     discountType: order.discount_type || 'fixed',
     total: order.total || 0,
     amountPaid: order.total || 0,
-    paymentMethod: order.payment_method || 'cash',
-    paymentDate: order.created_at,
+    paymentMethod: (order.payment_method === 'orange_money' || order.payment_method === 'afrimoney') ? 'mobile-money' : (order.payment_method || 'cash') as 'cash' | 'card' | 'mobile-money',
+    paymentDate: (() => { const d = new Date(order.created_at || order.createdAt || ''); return isValid(d) ? d.toISOString() : new Date().toISOString(); })(),
     cashier: profile?.full_name || 'Cashier',
-    collectionDate: order.collected_at ? format(new Date(order.collected_at), 'yyyy-MM-dd HH:mm') : undefined,
+    collectionDate: (() => { const raw = order.collected_at || order.collectedAt; if (!raw) return undefined; const d = new Date(raw); return isValid(d) ? format(d, 'yyyy-MM-dd HH:mm') : undefined; })(),
   } : null;
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!order || !receiptData) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="p-8 text-center">
-          <h2 className="text-xl font-semibold mb-2">Order Not Found</h2>
-          <p className="text-muted-foreground mb-4">The order you're looking for doesn't exist.</p>
-          <Button onClick={() => navigate('/reception/orders')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Orders
-          </Button>
-        </Card>
-      </div>
-    );
-  }
 
   const formatCurrency = (amount: number) => {
     return `Le ${amount.toLocaleString()}`;
@@ -115,6 +92,31 @@ export default function PaymentReceipt() {
     return () => clearTimeout(timer);
   }, [receiptData, settings.thermal.autoPrintOnPayment]);
 
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (!order || !receiptData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <h2 className="text-xl font-semibold mb-2">Order Not Found</h2>
+          <p className="text-muted-foreground mb-4">The order you're looking for doesn't exist.</p>
+          <Button onClick={() => navigate('/reception/orders')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Orders
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   const ReceiptContent = ({ copyType }: { copyType: 'patient' | 'lab' }) => (
     <div className="receipt">
       {/* Header */}
@@ -144,7 +146,7 @@ export default function PaymentReceipt() {
         </div>
         <div className="info-row">
           <span className="info-label">Date:</span>
-          <span className="info-value">{format(new Date(receiptData.paymentDate), 'dd/MM/yyyy HH:mm')}</span>
+          <span className="info-value">{isValid(new Date(receiptData.paymentDate)) ? format(new Date(receiptData.paymentDate), 'dd/MM/yyyy HH:mm') : 'N/A'}</span>
         </div>
       </div>
 

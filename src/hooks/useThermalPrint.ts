@@ -2,7 +2,9 @@ import { useCallback } from 'react';
 import { thermalPrintStyles } from '@/components/receipts/ThermalReceipt';
 import { usePrinterContext } from '@/context/PrinterContext';
 import { usbPrinterService } from '@/services/usbPrinterService';
+import { qzTrayService } from '@/services/qzTrayService';
 import { buildReceiptESCPOS, type ReceiptData } from '@/utils/escpos';
+import { printBothReceiptCopies } from '@/services/browserThermalPrint';
 
 interface PrintOptions {
   title: string;
@@ -11,7 +13,7 @@ interface PrintOptions {
 }
 
 export const useThermalPrint = () => {
-  const { settings, thermalConnected } = usePrinterContext();
+  const { settings, thermalConnected, qzTrayConnected } = usePrinterContext();
 
   // ── ESC/POS path (WebUSB) ──────────────────────────────────────────────
 
@@ -27,12 +29,13 @@ export const useThermalPrint = () => {
     []
   );
 
-  // ── Print fallback (Electron native or browser popup) ────────────────
+  // ── Print fallback (Browser with installed driver) ────────────────────
 
   /**
-   * Renders the DOM element and prints it.
-   * - Electron: uses native silent print in a hidden window (no dialog)
-   * - Browser: falls back to popup window + window.print()
+   * Renders the DOM element and prints it using browser print dialog.
+   * Works with installed printer drivers (e.g., XPrinter).
+   * 
+   * This is the RECOMMENDED approach when you have printer drivers installed.
    */
   const printReceipt = useCallback(
     (element: HTMLElement | null, options: PrintOptions): Promise<void> => {
@@ -107,16 +110,22 @@ export const useThermalPrint = () => {
   // ── Smart combined entrypoint ──────────────────────────────────────────
 
   /**
-   * Prints all required receipt copies.
+   * Prints both receipt copies (patient and lab).
    *
-   * - If the USB thermal printer is connected and ESC/POS is enabled, sends raw
-   *   bytes directly — no print dialog.
-   * - Otherwise falls through to the browser popup print path.
+   * Priority order:
+   * 1. If QZ Tray connected → Use QZ Tray (fully automatic, no dialog)
+   * 2. If USB thermal printer connected → Use ESC/POS (no dialog)
+   * 3. Otherwise → Use browser print with installed driver (shows dialog)
    *
-   * @param patientCopyElement  DOM ref for the patient-copy receipt (browser path)
-   * @param labCopyElement      DOM ref for the lab-copy receipt (browser path)
-   * @param receiptNumber       Used for the browser popup window title
-   * @param receiptData         Required for the ESC/POS path
+   * For installed printer drivers (XPrinter, etc.):
+   * - Set printer as default in Windows
+   * - Browser will remember printer selection
+   * - Both copies print sequentially with minimal interaction
+   *
+   * @param patientCopyElement  DOM ref for the patient-copy receipt
+   * @param labCopyElement      DOM ref for the lab-copy receipt
+   * @param receiptNumber       Used for window title
+   * @param receiptData         Required for ESC/POS and QZ Tray paths
    */
   const printBothCopies = useCallback(
     async (
@@ -125,60 +134,81 @@ export const useThermalPrint = () => {
       receiptNumber: string,
       receiptData?: ReceiptData
     ): Promise<{ success: boolean; printedCount: number }> => {
-      // Check the singleton directly — React state can be stale in closures
-      const usbReady =
-        settings.thermal.enabled &&
-        usbPrinterService.isConnected &&
-        receiptData != null;
-
-      // Debug logging
       console.log('🖨️ Print Debug:', {
-        thermalEnabled: settings.thermal.enabled,
-        usbConnected: usbPrinterService.isConnected,
         hasReceiptData: receiptData != null,
-        usbReady,
-        willUse: usbReady ? 'ESC/POS (Direct USB)' : 'Browser Popup (Fallback)'
+        qzTrayConnected,
+        usbServiceConnected: usbPrinterService.isConnected,
       });
 
-      let printedCount = 0;
-
       try {
-        if (usbReady && receiptData) {
-          // ── ESC/POS path ────────────────────────────────────────────
-          console.log('✅ Using ESC/POS direct USB printing');
-          await printReceiptESCPOS(receiptData, 'patient');
-          console.log('✅ Patient copy sent to USB printer');
-          printedCount++;
+        // Try direct USB printing first (like test print does)
+        if (receiptData) {
+          console.log('🖨️ Attempting direct USB print (like test print)...');
+          
+          try {
+            // Auto-connect if not connected (like test print does)
+            if (!usbPrinterService.isConnected) {
+              console.log('🔌 USB not connected, attempting auto-connect...');
+              const connected = await usbPrinterService.autoConnect();
+              if (!connected) {
+                console.log('⚠️ Auto-connect failed, will try QZ Tray or browser fallback');
+                throw new Error('USB auto-connect failed');
+              }
+              console.log('✅ USB auto-connected successfully');
+            }
 
-          if (settings.thermal.copies === 2) {
-            await new Promise(r => setTimeout(r, 800));
-            await printReceiptESCPOS(receiptData, 'lab');
-            console.log('✅ Lab copy sent to USB printer');
-            printedCount++;
+            // Print patient copy
+            console.log('🖨️ Printing patient copy via USB...');
+            const patientBytes = buildReceiptESCPOS(receiptData, 'patient');
+            await usbPrinterService.print(patientBytes);
+            console.log('✅ Patient copy sent to USB printer');
+            
+            let printedCount = 1;
+
+            // Print lab copy if configured
+            if (settings.thermal.copies === 2) {
+              await new Promise(r => setTimeout(r, 800));
+              console.log('🖨️ Printing lab copy via USB...');
+              const labBytes = buildReceiptESCPOS(receiptData, 'lab');
+              await usbPrinterService.print(labBytes);
+              console.log('✅ Lab copy sent to USB printer');
+              printedCount = 2;
+            }
+
+            return { success: true, printedCount };
+          } catch (usbError) {
+            console.log('⚠️ USB printing failed:', usbError);
+            console.log('🔄 Trying QZ Tray fallback...');
+            
+            // Try QZ Tray as fallback
+            if (qzTrayConnected) {
+              console.log('✅ Using QZ Tray for automatic printing');
+              return await qzTrayService.printBothCopies(receiptData);
+            }
+            
+            // If both USB and QZ Tray failed, throw to trigger browser fallback
+            throw usbError;
           }
-        } else {
-          // ── Browser popup path ──────────────────────────────────────
-          console.log('⚠️ Using browser popup fallback (USB not ready)');
-          await printReceipt(patientCopyElement, {
-            title: `Patient Copy - ${receiptNumber}`,
-          });
-          printedCount++;
-
-          await new Promise(r => setTimeout(r, 1000));
-
-          await printReceipt(labCopyElement, {
-            title: `Lab Copy - ${receiptNumber}`,
-          });
-          printedCount++;
         }
 
-        return { success: true, printedCount };
+        // Final fallback: Browser print dialog
+        console.log('✅ Using browser print with installed driver (XPrinter)');
+        console.log('💡 Tip: Set XPrinter as default printer to skip selection');
+        return await printBothReceiptCopies(patientCopyElement, labCopyElement);
+        
       } catch (error) {
-        console.error('Print error:', error);
-        return { success: false, printedCount };
+        console.error('❌ Print error:', error);
+        // Still try browser fallback even if everything else failed
+        try {
+          console.log('🔄 Final fallback: Browser print dialog');
+          return await printBothReceiptCopies(patientCopyElement, labCopyElement);
+        } catch (fallbackError) {
+          console.error('❌ All print methods failed:', fallbackError);
+          return { success: false, printedCount: 0 };
+        }
       }
     },
-    [printReceipt, printReceiptESCPOS, settings.thermal]
+    [settings.thermal.copies, qzTrayConnected]
   );
 
   return {

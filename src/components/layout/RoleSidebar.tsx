@@ -74,12 +74,6 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   ],
 };
 
-const roleLabels: Record<UserRole, string> = {
-  admin: 'Administrator',
-  receptionist: 'Reception',
-  lab_tech: 'Laboratory',
-};
-
 interface RoleSidebarProps {
   role: UserRole;
   userName?: string;

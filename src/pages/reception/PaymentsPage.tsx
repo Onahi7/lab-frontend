@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders, useAddPayment, usePaymentHistory, usePaymentStats, useDailyIncome } from '@/hooks/useOrders';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 
 export default function PaymentsPage() {
+  const navigate = useNavigate();
   const { profile, primaryRole } = useAuth();
   const currentRole = primaryRole === 'admin' ? 'admin' : 'receptionist';
   const [paymentFilter, setPaymentFilter] = useState<string>('pending');
@@ -120,10 +122,21 @@ export default function PaymentsPage() {
           data: { amount: parseFloat(row.amount), paymentMethod: row.method },
         });
       }
+      
+      const newTotalPaid = alreadyPaid + splitTotal;
+      const isFullyPaid = newTotalPaid >= orderTotal - 0.001;
+      
       toast.success(`Payment of Le ${splitTotal.toLocaleString()} recorded`);
       setShowPaymentDialog(false);
       setSelectedOrder(null);
       setSplitRows([{ method: 'cash', amount: '' }]);
+      
+      // Navigate to receipt page if fully paid
+      if (isFullyPaid) {
+        setTimeout(() => {
+          navigate(`/reception/receipt/${orderId}`);
+        }, 500);
+      }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to process payment');
     } finally {

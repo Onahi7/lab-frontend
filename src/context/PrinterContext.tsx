@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { usbPrinterService, type SavedDeviceInfo } from '@/services/usbPrinterService';
+import { qzTrayService } from '@/services/qzTrayService';
 import { settingsAPI } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 
@@ -84,10 +85,19 @@ export interface PrinterContextValue {
   /** Whether the browser supports WebUSB */
   webUsbSupported: boolean;
 
+  /** QZ Tray connection status */
+  qzTrayConnected: boolean;
+  /** QZ Tray printer name */
+  qzTrayPrinter: string | null;
+
   /** Triggers the browser USB picker and pairs the chosen device */
   connectThermalPrinter: () => Promise<void>;
   /** Releases claim, closes device, removes pairing */
   disconnectThermalPrinter: () => Promise<void>;
+  /** Connect to QZ Tray */
+  connectQZTray: () => Promise<void>;
+  /** Disconnect from QZ Tray */
+  disconnectQZTray: () => Promise<void>;
 }
 
 const PrinterContext = createContext<PrinterContextValue | null>(null);
@@ -103,12 +113,31 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
   );
   const [thermalConnected, setThermalConnected] = useState(false);
   const [webUsbSupported] = useState(() => usbPrinterService.isSupported);
+  const [qzTrayConnected, setQzTrayConnected] = useState(false);
+  const [qzTrayPrinter, setQzTrayPrinter] = useState<string | null>(null);
 
   // Attempt silent reconnect on mount
   useEffect(() => {
     usbPrinterService.autoConnect().then(connected => {
       setThermalConnected(connected);
       if (connected) setThermalDevice(usbPrinterService.getSavedDevice());
+    });
+
+    // Try to connect to QZ Tray on mount
+    qzTrayService.isAvailable().then(available => {
+      if (available) {
+        qzTrayService.connect().then(connected => {
+          setQzTrayConnected(connected);
+          if (connected) {
+            qzTrayService.findXPrinter().then(printer => {
+              if (printer) {
+                qzTrayService.setPrinter(printer);
+                setQzTrayPrinter(printer);
+              }
+            });
+          }
+        });
+      }
     });
   }, []);
 
@@ -178,6 +207,24 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     setThermalConnected(false);
   }, []);
 
+  const connectQZTray = useCallback(async () => {
+    const connected = await qzTrayService.connect();
+    setQzTrayConnected(connected);
+    if (connected) {
+      const printer = await qzTrayService.findXPrinter();
+      if (printer) {
+        qzTrayService.setPrinter(printer);
+        setQzTrayPrinter(printer);
+      }
+    }
+  }, []);
+
+  const disconnectQZTray = useCallback(async () => {
+    await qzTrayService.disconnect();
+    setQzTrayConnected(false);
+    setQzTrayPrinter(null);
+  }, []);
+
   return (
     <PrinterContext.Provider
       value={{
@@ -187,8 +234,12 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         thermalDevice,
         thermalConnected,
         webUsbSupported,
+        qzTrayConnected,
+        qzTrayPrinter,
         connectThermalPrinter,
         disconnectThermalPrinter,
+        connectQZTray,
+        disconnectQZTray,
       }}
     >
       {children}

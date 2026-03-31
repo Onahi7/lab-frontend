@@ -6,15 +6,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { printService, PrintMethod } from '@/services/printService';
-import { Printer, Usb, Globe, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { usePrinterContext } from '@/context/PrinterContext';
+import { qzTrayService } from '@/services/qzTrayService';
+import { Printer, Usb, Globe, CheckCircle, XCircle, Loader2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function PrinterSettings() {
+  const { qzTrayConnected, qzTrayPrinter, connectQZTray, disconnectQZTray } = usePrinterContext();
   const [printMethod, setPrintMethod] = useState<PrintMethod>('auto');
   const [isConnected, setIsConnected] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSerialSupported, setIsSerialSupported] = useState(false);
+  const [isQzTesting, setIsQzTesting] = useState(false);
 
   useEffect(() => {
     // Load saved preference
@@ -94,16 +98,134 @@ export function PrinterSettings() {
     }
   };
 
+  const handleQzConnect = async () => {
+    setIsConnecting(true);
+    try {
+      await connectQZTray();
+      if (qzTrayConnected) {
+        toast.success('Connected to QZ Tray');
+      } else {
+        toast.error('Failed to connect to QZ Tray. Make sure QZ Tray is running.');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to connect to QZ Tray');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleQzDisconnect = async () => {
+    try {
+      await disconnectQZTray();
+      toast.success('Disconnected from QZ Tray');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to disconnect');
+    }
+  };
+
+  const handleQzTest = async () => {
+    setIsQzTesting(true);
+    try {
+      const success = await qzTrayService.testPrint();
+      if (success) {
+        toast.success('QZ Tray test print sent successfully');
+      } else {
+        toast.error('QZ Tray test print failed');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'QZ Tray test print failed');
+    } finally {
+      setIsQzTesting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* QZ Tray Card - Recommended Method */}
+      <Card className="border-primary">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-primary" />
+            QZ Tray (Recommended)
+          </CardTitle>
+          <CardDescription>
+            Fully automatic receipt printing without browser dialogs. Best for production use.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Connection Status */}
+          <div className="flex items-center justify-between">
+            <Label>QZ Tray Status</Label>
+            <Badge variant={qzTrayConnected ? 'default' : 'secondary'} className="flex items-center gap-1">
+              {qzTrayConnected ? (
+                <>
+                  <CheckCircle className="w-3 h-3" />
+                  Connected
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-3 h-3" />
+                  Not Connected
+                </>
+              )}
+            </Badge>
+          </div>
+
+          {qzTrayConnected && qzTrayPrinter && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Printer:</span>
+              <span className="font-medium">{qzTrayPrinter}</span>
+            </div>
+          )}
+
+          {/* Connection Controls */}
+          <div className="flex gap-2">
+            {!qzTrayConnected ? (
+              <Button onClick={handleQzConnect} disabled={isConnecting} className="flex-1">
+                {isConnecting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                <Zap className="w-4 h-4 mr-2" />
+                Connect to QZ Tray
+              </Button>
+            ) : (
+              <>
+                <Button onClick={handleQzDisconnect} variant="outline" className="flex-1">
+                  Disconnect
+                </Button>
+                <Button onClick={handleQzTest} disabled={isQzTesting} variant="outline">
+                  {isQzTesting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Printer className="w-4 h-4 mr-2" />
+                  Test Print
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Setup Instructions */}
+          {!qzTrayConnected && (
+            <Alert>
+              <AlertDescription>
+                <strong>Setup QZ Tray:</strong>
+                <ol className="list-decimal list-inside space-y-1 mt-2 ml-2 text-sm">
+                  <li>Download QZ Tray from <a href="https://qz.io/download/" target="_blank" rel="noopener noreferrer" className="text-primary underline">qz.io/download</a></li>
+                  <li>Install and run QZ Tray (check system tray)</li>
+                  <li>Install your XPrinter driver in Windows</li>
+                  <li>Click "Connect to QZ Tray" button above</li>
+                  <li>Receipts will print automatically without dialogs!</li>
+                </ol>
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Printer className="w-5 h-5" />
-            Receipt Printer Settings
+            Alternative Print Methods
           </CardTitle>
           <CardDescription>
-            Configure your XPrinter 80mm thermal printer for receipt printing
+            Fallback options if QZ Tray is not available
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

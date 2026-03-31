@@ -372,7 +372,8 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
             /* Flex column to allow footer positioning */
             display: flex !important;
             flex-direction: column !important;
-            /* Remove min-height to prevent overflow */
+            /* Ensure page fills the full height to push footer to bottom */
+            min-height: 277mm !important; /* A4 height (297mm) minus top/bottom margins (10mm each) */
             height: auto !important;
             box-sizing: border-box !important;
           }

@@ -312,6 +312,11 @@ export default function NewOrder() {
       setShowPaymentModal(false);
       setOrderComplete(true);
       toast.success(`Order created successfully`);
+      
+      // Navigate to receipt page for automatic printing
+      setTimeout(() => {
+        navigate(`/reception/receipt/${newOrder.id || newOrder._id}`);
+      }, 500);
     } catch (error) {
       console.error('Failed to create order:', error);
       toast.error('Failed to create order. Please try again.');

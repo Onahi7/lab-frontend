@@ -62,11 +62,19 @@ export interface MaintenanceCreate {
   notes?: string;
 }
 
+function normalizeMachine(m: any): Machine {
+  return {
+    ...m,
+    id: m.id || m._id,
+  };
+}
+
 export function useMachines() {
   return useQuery({
     queryKey: ['machines'],
     queryFn: async () => {
-      return await machinesAPI.getAll();
+      const data = await machinesAPI.getAll();
+      return (Array.isArray(data) ? data : []).map(normalizeMachine);
     },
     staleTime: 5 * 60 * 1000, // 5 minutes — machine list changes infrequently
   });
@@ -76,7 +84,8 @@ export function useMachine(id: string) {
   return useQuery({
     queryKey: ['machines', id],
     queryFn: async () => {
-      return await machinesAPI.getById(id);
+      const data = await machinesAPI.getById(id);
+      return normalizeMachine(data);
     },
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
@@ -88,7 +97,8 @@ export function useCreateMachine() {
   
   return useMutation({
     mutationFn: async (machine: MachineCreate) => {
-      return await machinesAPI.create(machine);
+      const data = await machinesAPI.create(machine);
+      return normalizeMachine(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machines'] });
@@ -101,7 +111,8 @@ export function useUpdateMachine() {
   
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: MachineUpdate }) => {
-      return await machinesAPI.update(id, updates);
+      const data = await machinesAPI.update(id, updates);
+      return normalizeMachine(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['machines'] });

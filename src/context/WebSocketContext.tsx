@@ -75,7 +75,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       console.log('🚨 Critical result received:', result);
       
       // Play urgent sound (3 repetitions)
-      soundService.playCriticalAlert();
+      soundService.play('urgent-order');
       
       // Show browser notification
       notificationService.showCriticalResult({
@@ -102,7 +102,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       console.log('📋 New order created:', order.orderNumber);
       
       // Play new order sound
-      soundService.playNewOrder();
+      soundService.play('new-order');
       
       // Show notification for reception staff
       if (user?.roles?.includes('receptionist')) {
@@ -119,7 +119,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       console.log('🧪 Sample collected:', sample);
       
       // Play sample ready sound
-      soundService.playSampleReady();
+      soundService.play('sample-collected');
       
       // Show notification for lab staff
       if (user?.roles?.includes('lab_tech') || user?.roles?.includes('admin')) {
@@ -139,7 +139,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       console.log('⚠️ Unmatched result:', result);
       
       // Play warning sound
-      soundService.playWarning();
+      soundService.play('urgent-order');
       
       // Show notification for lab staff
       if (user?.roles?.includes('lab_tech') || user?.roles?.includes('admin')) {
@@ -162,7 +162,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       
       // Play error sound if machine has error
       if (machine.status === 'error' || machine.status === 'maintenance') {
-        soundService.playError();
+        soundService.play('urgent-order');
         
         notificationService.showMachineAlert({
           machineName: machine.name,
@@ -181,7 +181,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       console.log('✅ Result verified:', result);
       
       // Play success sound
-      soundService.playSuccess();
+      soundService.play('results-ready');
       
       toast.success('Result verified', {
         description: `${result.testCode} for order ${result.orderId?.orderNumber}`,
