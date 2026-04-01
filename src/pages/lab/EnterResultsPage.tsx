@@ -30,6 +30,7 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'URINE-CLARITY': ['Clear', 'Slightly cloudy', 'Cloudy', 'Turbid', 'Very Turbid', 'Hazy'],
   // ── Urinalysis chemical ─────────────────────────────────────────────────
   'URINE-PROTEIN': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
+  'UPROTEIN': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
   'URINE-GLUCOSE': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
   'URINE-KETONES': ['Negative', 'Trace', '+1', '+2', '+3'],
   'URINE-BLOOD': ['Negative', 'Trace', '+1', '+2', '+3'],
