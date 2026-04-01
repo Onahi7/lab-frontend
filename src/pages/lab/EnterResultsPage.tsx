@@ -68,6 +68,7 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   // ── Hematology special ──────────────────────────────────────────────────
   'BLOODGROUP': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
   'SICKLE': ['AA – Normal', 'AS – Sickle Cell Trait', 'SS – Sickle Cell Disease', 'SC – Sickle-Haemoglobin C'],
+  'HBGENO': ['AA', 'AS', 'SS', 'SC'],
 };
 
 // Tests that need a free-text area (complex/descriptive results)
