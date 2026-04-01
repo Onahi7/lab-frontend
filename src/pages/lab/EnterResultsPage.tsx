@@ -79,6 +79,38 @@ interface ResultEntry {
   category?: string;
 }
 
+function includeLinkedInputTests(orderTests: any[]): any[] {
+  const tests = Array.isArray(orderTests) ? [...orderTests] : [];
+  const normalizeCode = (value?: string) => (value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const existingCodes = new Set(
+    tests.map((test) => normalizeCode(test.testCode || test.test_code)).filter(Boolean),
+  );
+
+  // UI fallback: always expose HSCRP entry when CRP is present.
+  const hasCrp = existingCodes.has('CRP');
+  const hasHsCrp = existingCodes.has('HSCRP') || existingCodes.has('HSCR');
+
+  if (hasCrp && !hasHsCrp) {
+    const crpTest = tests.find(
+      (test) => normalizeCode(test.testCode || test.test_code) === 'CRP',
+    );
+    const linkedId = `linked-hscrp-${crpTest?.id || crpTest?._id || 'crp'}`;
+
+    tests.push({
+      id: linkedId,
+      _id: linkedId,
+      testId: linkedId,
+      testCode: 'HSCRP',
+      testName: 'hs CRP',
+      category: crpTest?.category,
+      panelCode: crpTest?.panelCode || crpTest?.panel_code,
+      panelName: crpTest?.panelName || crpTest?.panel_name,
+    });
+  }
+
+  return tests;
+}
+
 export default function EnterResultsPage() {
   const { profile, user, primaryRole } = useAuth();
   const { data: processingOrders, isLoading } = useProcessingOrders();
@@ -115,8 +147,9 @@ export default function EnterResultsPage() {
   // Memoize the order tests to prevent infinite loops
   const selectedOrderTests = useMemo(() => {
     if (!selectedOrder) return [];
-    return (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
-  }, [selectedOrder?.id, (selectedOrder as any)?._id]);
+    const rawTests = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
+    return includeLinkedInputTests(rawTests);
+  }, [selectedOrder]);
 
   const totalTests = selectedOrderTests.length;
   const completedTests = selectedOrderTests.filter((test: any) => {
@@ -267,7 +300,21 @@ export default function EnterResultsPage() {
 
   // Get reference info from test catalog
   const getTestInfo = (testCode: string, patientAge?: number, patientGender?: string) => {
-    const test = testCatalog?.find((t: any) => t.code === testCode);
+    const normalizeCode = (value?: string) => (value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const normalizedInputCode = normalizeCode(testCode);
+    const aliasMap: Record<string, string[]> = {
+      HSCRP: ['HSCR'],
+      HSCR: ['HSCRP'],
+    };
+
+    const test = testCatalog?.find((t: any) => {
+      const normalizedCatalogCode = normalizeCode(t.code);
+      if (!normalizedCatalogCode) return false;
+      if (normalizedCatalogCode === normalizedInputCode) return true;
+      const aliases = aliasMap[normalizedInputCode] || [];
+      return aliases.includes(normalizedCatalogCode);
+    });
+
     if (!test) {
       return { unit: '', referenceRange: '', criticalLow: '', criticalHigh: '' };
     }
@@ -446,7 +493,7 @@ export default function EnterResultsPage() {
       await createBulkResults.mutateAsync(resultsToCreate);
 
       // Update order status if all tests have results
-      const orderTests = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
+      const orderTests = selectedOrderTests;
       if (entriesWithValues.length >= orderTests.length) {
         await updateOrder.mutateAsync({
           id: orderId,
@@ -499,10 +546,10 @@ export default function EnterResultsPage() {
       role={primaryRole === 'receptionist' ? 'receptionist' : primaryRole === 'admin' ? 'admin' : 'lab_tech'}
       userName={profile?.full_name}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
         {/* Orders List */}
-        <div className="lg:col-span-1">
-          <div className="bg-card border rounded-lg">
+        <div className="lg:col-span-1 lg:sticky lg:top-6 lg:self-start">
+          <div className="bg-card border rounded-lg lg:max-h-[calc(100vh-10rem)] lg:flex lg:flex-col">
             <div className="px-4 py-3 border-b space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Active Orders</h3>
@@ -530,7 +577,7 @@ export default function EnterResultsPage() {
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="divide-y max-h-[600px] overflow-y-auto">
+              <div className="divide-y max-h-[600px] overflow-y-auto lg:max-h-none lg:flex-1">
                 {filteredOrders.map(order => (
                   <button
                     key={order.id}
@@ -641,11 +688,11 @@ export default function EnterResultsPage() {
                   onOpenChange={setShowSendToAnalyzer}
                   orderId={selectedOrder.id || (selectedOrder as any)._id}
                   orderNumber={getOrderNumber(selectedOrder)}
-                  testCodes={((selectedOrder as any).tests || (selectedOrder as any).order_tests || []).map((t: any) => t.testCode || t.test_code || '').filter(Boolean)}
+                  testCodes={selectedOrderTests.map((t: any) => t.testCode || t.test_code || '').filter(Boolean)}
                 />
 
                 {(() => {
-                  const allTests: any[] = (selectedOrder as any).tests || (selectedOrder as any).order_tests || [];
+                  const allTests: any[] = selectedOrderTests;
                   const patient = typeof selectedOrder.patient === 'object' ? selectedOrder.patient : null;
                   const patientAge = patient?.age;
                   const patientGender = patient?.gender;

@@ -47,6 +47,11 @@ export default function NewOrder() {
     return String(value);
   };
 
+  const normalizeCode = (value: unknown): string => {
+    if (!value) return '';
+    return String(value).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  };
+
   const getTestId = (test: any): string => normalizeId(test?._id || test?.id);
 
   const getPanelComponentTestIds = (panel: any): Set<string> => {
@@ -75,6 +80,41 @@ export default function NewOrder() {
 
   // Use database tests or empty array while loading
   const testCatalog = testsFromDB || [];
+
+  const autoIncludedLinkedCodes = useMemo(() => {
+    const linkedCodes = new Set<string>();
+    const availableCodes = new Set<string>();
+
+    for (const test of testCatalog as any[]) {
+      const code = normalizeCode(test?.code);
+      if (code) {
+        availableCodes.add(code);
+      }
+
+      const linkedTests = Array.isArray((test as any)?.linkedTests)
+        ? (test as any).linkedTests
+        : [];
+
+      for (const linkedCode of linkedTests) {
+        const normalizedLinkedCode = normalizeCode(linkedCode);
+        if (normalizedLinkedCode) {
+          linkedCodes.add(normalizedLinkedCode);
+        }
+      }
+    }
+
+    // Backward-compatible fallback for setups where linkedTests is not configured yet.
+    if (
+      availableCodes.has('CRP') &&
+      !linkedCodes.has('HSCRP') &&
+      !linkedCodes.has('HSCR')
+    ) {
+      linkedCodes.add('HSCRP');
+      linkedCodes.add('HSCR');
+    }
+
+    return linkedCodes;
+  }, [testCatalog]);
   
   // Extract unique categories from database tests
   const testCategories = useMemo(() => {
@@ -135,11 +175,12 @@ export default function NewOrder() {
 
   const filteredTests = useMemo(() => {
     // Filter out tests with price = 0 (panel components that shouldn't be ordered individually)
-    // Also filter out U-PROTEIN test
+    // Also filter out U-PROTEIN and tests that are auto-included via linked tests.
     let visibleTests = testCatalog.filter(t => 
       t.price > 0 && 
       t.code !== 'U-PROTEIN' && 
-      t.code !== 'URINE-PROTEIN'
+      t.code !== 'URINE-PROTEIN' &&
+      !autoIncludedLinkedCodes.has(normalizeCode(t.code))
     );
 
     // Apply category filter
@@ -178,7 +219,7 @@ export default function NewOrder() {
       // Within same category, sort by name
       return String(a.name).localeCompare(String(b.name));
     });
-  }, [categoryFilter, testCatalog, testSearch]);
+  }, [autoIncludedLinkedCodes, categoryFilter, testCatalog, testSearch]);
 
   const subtotal = selectedTests.reduce((sum, t) => sum + t.price, 0);
   const discount = discountType === 'percentage' 

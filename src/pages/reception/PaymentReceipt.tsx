@@ -33,11 +33,33 @@ export default function PaymentReceipt() {
     patientName: getPatientName(order),
     patientId: (order.patient || order.patients)?.patientId || (order.patient || order.patients)?.patient_id || 'Unknown',
     patientPhone: (order.patient || order.patients)?.phone || undefined,
-    tests: (order.order_tests || order.tests || []).map((ot: any) => ({
-      code: ot.testCode || ot.test_code || ot.test_catalog?.code || 'N/A',
-      name: ot.testName || ot.test_name || ot.test_catalog?.name || 'Unknown Test',
-      price: ot.price || 0,
-    })),
+    tests: (() => {
+      const rawTests = (order.order_tests || order.tests || []) as any[];
+      // Group panel tests back into a single line per panel
+      const grouped: Array<{ code: string; name: string; price: number }> = [];
+      const seenPanels = new Set<string>();
+      for (const ot of rawTests) {
+        const panelCode = ot.panelCode || ot.panel_code;
+        const panelName = ot.panelName || ot.panel_name;
+        if (panelCode && panelName) {
+          if (!seenPanels.has(panelCode)) {
+            seenPanels.add(panelCode);
+            // Sum all prices for this panel
+            const panelPrice = rawTests
+              .filter((t: any) => (t.panelCode || t.panel_code) === panelCode)
+              .reduce((sum: number, t: any) => sum + (t.price || 0), 0);
+            grouped.push({ code: panelCode, name: panelName, price: panelPrice });
+          }
+        } else {
+          grouped.push({
+            code: ot.testCode || ot.test_code || ot.test_catalog?.code || 'N/A',
+            name: ot.testName || ot.test_name || ot.test_catalog?.name || 'Unknown Test',
+            price: ot.price || 0,
+          });
+        }
+      }
+      return grouped;
+    })(),
     subtotal: order.subtotal || 0,
     discount: order.discount || 0,
     discountType: order.discount_type || 'fixed',
