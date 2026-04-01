@@ -215,8 +215,8 @@ export default function CompletedOrdersPage() {
                         variant="outline" 
                         className={cn(
                           order.status === 'completed' 
-                            ? "bg-green-50 text-green-700 border-green-200" 
-                            : "bg-blue-50 text-blue-700 border-blue-200"
+                            ? "bg-status-normal/10 text-status-normal border-status-normal/20" 
+                            : "bg-primary/10 text-primary border-primary/20"
                         )}
                       >
                         <FileText className="w-3 h-3 mr-1" />

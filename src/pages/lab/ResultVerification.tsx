@@ -49,7 +49,7 @@ export default function ResultVerification() {
       case 'high':
         return 'bg-status-warning/10 text-status-warning border-status-warning/20';
       case 'low':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-primary/10 text-primary border-primary/20';
       default:
         return 'bg-status-normal/10 text-status-normal border-status-normal/20';
     }

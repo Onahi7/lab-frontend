@@ -13,7 +13,7 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
   const resultsSection = template?.resultsSection;
 
   const primaryColor = colors?.primary || template?.styling?.primaryColor || '#1e3a8a';
-  const categoryHeadingColor = resultsSection?.categoryHeaderColor || '#9f1239';
+  const categoryHeadingColor = resultsSection?.categoryHeaderColor || primaryColor;
 
   const groupedResults = category.results.reduce((groups, result, index) => {
     const panelKey = result.panelCode || result.panelName || '__UNGROUPED__';
@@ -52,7 +52,7 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
   return (
     <div className={`category-section mb-4`}>
       <h3
-        className="text-2xl font-bold uppercase tracking-wide text-center mb-3"
+        className="text-xl font-extrabold uppercase tracking-wide text-center mb-1"
         style={{ color: categoryHeadingColor }}
       >
         {category.categoryDisplayName}

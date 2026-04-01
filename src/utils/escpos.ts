@@ -143,10 +143,11 @@ export function buildReceiptESCPOS(
   b.init();
   b.align('center');
   b.bold(true).fontSize(0x11);
-  b.line('HARBOUR DIAGNOSTICS');
+  b.line('HARBOUR Medical Diagnostic');
   b.fontSize(0x00).bold(false);
-  b.line('114 Fourah Bay Road, Freetown');
-  b.line('Tel: 075-766461 | 031-551811');
+  b.line('114, Fourah Bay Road, Freetown, Sierra Leone');
+  b.line('Tel: +232744414434');
+  b.line('habourlab@gmail.com');
   b.separator('=');
 
   // ── Copy type ────────────────────────────────────────────────────────────

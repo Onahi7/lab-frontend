@@ -5,6 +5,7 @@ import { useCriticalResults } from '@/hooks/useResults';
 import { useMachines } from '@/hooks/useMachines';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useRealtimeResults } from '@/hooks/useRealtimeResults';
+import { useRealtimePatients } from '@/hooks/useRealtimePatients';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { MachineStatusCard } from '@/components/dashboard/MachineStatusCard';
 import { LiveConnectionMonitor } from '@/components/machines/LiveConnectionMonitor';
@@ -30,6 +31,7 @@ export default function LabDashboardPage() {
 
   useRealtimeOrders();
   useRealtimeResults();
+  useRealtimePatients();
 
   const { data: pendingOrders, isLoading: pendingLoading } = usePendingCollectionOrders();
   const { data: processingOrders, isLoading: processingLoading } = useProcessingOrders();
@@ -139,7 +141,7 @@ export default function LabDashboardPage() {
           </div>
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <div className="divide-y max-h-80 overflow-y-auto">
@@ -189,7 +191,7 @@ export default function LabDashboardPage() {
           </div>
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <div className="divide-y max-h-80 overflow-y-auto">

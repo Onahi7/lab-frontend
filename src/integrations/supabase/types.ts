@@ -9,7 +9,7 @@ export type Database = {
     Enums: {
       result_flag: 'normal' | 'high' | 'low' | 'critical_high' | 'critical_low';
       app_role: 'admin' | 'receptionist' | 'lab_tech';
-      test_category: 'hematology' | 'chemistry' | 'microbiology' | 'immunology' | 'other';
+      test_category: 'hematology' | 'chemistry' | 'immunoassay' | 'serology' | 'urinalysis' | 'microbiology' | 'other';
     };
   };
 };

@@ -21,6 +21,7 @@ const categoryColors: Record<TestCategory, string> = {
   hematology: 'bg-red-100 text-red-800 border-red-200',
   chemistry: 'bg-blue-100 text-blue-800 border-blue-200',
   immunoassay: 'bg-purple-100 text-purple-800 border-purple-200',
+  serology: 'bg-pink-100 text-pink-800 border-pink-200',
   urinalysis: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   microbiology: 'bg-green-100 text-green-800 border-green-200',
   other: 'bg-gray-100 text-gray-800 border-gray-200',
@@ -162,6 +163,7 @@ export default function TestCatalog() {
               <SelectItem value="hematology">Hematology</SelectItem>
               <SelectItem value="chemistry">Chemistry</SelectItem>
               <SelectItem value="immunoassay">Immunoassay</SelectItem>
+              <SelectItem value="serology">Serology</SelectItem>
               <SelectItem value="urinalysis">Urinalysis</SelectItem>
               <SelectItem value="microbiology">Microbiology</SelectItem>
               <SelectItem value="other">Other</SelectItem>
@@ -179,8 +181,8 @@ export default function TestCatalog() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-6 gap-4 mb-6">
-        {(['hematology', 'chemistry', 'immunoassay', 'urinalysis', 'microbiology', 'other'] as TestCategory[]).map(cat => (
+      <div className="grid grid-cols-7 gap-4 mb-6">
+        {(['hematology', 'chemistry', 'immunoassay', 'serology', 'urinalysis', 'microbiology', 'other'] as TestCategory[]).map(cat => (
           <div key={cat} className="bg-card border rounded-lg p-3">
             <p className="text-xs text-muted-foreground capitalize">{cat}</p>
             <p className="text-xl font-bold">
@@ -291,6 +293,7 @@ export default function TestCatalog() {
                   <SelectItem value="hematology">Hematology</SelectItem>
                   <SelectItem value="chemistry">Chemistry</SelectItem>
                   <SelectItem value="immunoassay">Immunoassay</SelectItem>
+                  <SelectItem value="serology">Serology</SelectItem>
                   <SelectItem value="urinalysis">Urinalysis</SelectItem>
                   <SelectItem value="microbiology">Microbiology</SelectItem>
                   <SelectItem value="other">Other</SelectItem>

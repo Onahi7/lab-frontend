@@ -57,6 +57,14 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'PREGNANCY': ['Negative', 'Positive'],
   // ── Serology (titered) ──────────────────────────────────────────────────
   'VDRL': ['Non-Reactive', 'Weakly Reactive', 'Reactive (1:1)', 'Reactive (1:2)', 'Reactive (1:4)', 'Reactive (1:8)', 'Reactive (1:16)', 'Reactive (1:32)'],
+  // ── Typhoid strip — IgM / IgG ───────────────────────────────────────────
+  'WIDAL': [
+    'IgM: Non-Reactive  |  IgG: Non-Reactive',
+    'IgM: Reactive      |  IgG: Non-Reactive',
+    'IgM: Non-Reactive  |  IgG: Reactive',
+    'IgM: Reactive      |  IgG: Reactive',
+  ],
+  'HPAG': ['Negative', 'Positive'],
   // ── Hematology special ──────────────────────────────────────────────────
   'BLOODGROUP': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
   'SICKLE': ['AA – Normal', 'AS – Sickle Cell Trait', 'SS – Sickle Cell Disease', 'SC – Sickle-Haemoglobin C'],

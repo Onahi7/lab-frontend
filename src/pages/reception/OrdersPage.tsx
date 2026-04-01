@@ -41,8 +41,8 @@ export default function OrdersPage() {
   const statusStyles: Record<string, string> = {
     pending_payment: 'bg-status-warning/10 text-status-warning border-status-warning/20',
     pending_collection: 'bg-primary/10 text-primary border-primary/20',
-    collected: 'bg-blue-100 text-blue-800 border-blue-200',
-    processing: 'bg-purple-100 text-purple-800 border-purple-200',
+    collected: 'bg-primary/10 text-primary border-primary/20',
+    processing: 'bg-status-warning/10 text-status-warning border-status-warning/20',
     completed: 'bg-status-normal/10 text-status-normal border-status-normal/20',
     cancelled: 'bg-muted text-muted-foreground border-muted',
   };

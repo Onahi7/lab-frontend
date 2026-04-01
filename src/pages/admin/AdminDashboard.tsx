@@ -24,6 +24,7 @@ import {
   Shield,
   Settings,
   ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -36,7 +37,7 @@ export default function AdminDashboard() {
   useRealtimePatients();
   
   const { data: patients = [] } = useSearchPatients('');
-  const { data: orders = [] } = useOrders('all');
+  const { data: orders = [], isLoading } = useOrders('all');
   const { data: results = [] } = useResults();
   const { data: machines } = useMachines();
   const navigate = useNavigate();
@@ -132,16 +133,36 @@ export default function AdminDashboard() {
 
       {/* Quick Links Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        {quickLinks.map(({ icon: Icon, label, to }) => (
+        {quickLinks.map(({ icon: Icon, label, to }, index) => (
           <button
             key={to}
             onClick={() => navigate(to)}
-            className="group flex flex-col items-center justify-center gap-2 p-4 rounded-xl border bg-card hover:bg-secondary hover:shadow-md transition-all duration-200"
+            className={cn(
+              "group flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-all duration-200",
+              index === 0
+                ? "border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary hover:border-primary"
+                : "border bg-card hover:bg-secondary hover:shadow-md"
+            )}
           >
-            <div className="w-10 h-10 rounded-lg bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-              <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
+              index === 0
+                ? "bg-primary/10 group-hover:bg-white/20"
+                : "bg-muted group-hover:bg-primary/10"
+            )}>
+              <Icon className={cn(
+                "w-5 h-5 transition-colors",
+                index === 0
+                  ? "text-primary group-hover:text-white"
+                  : "text-muted-foreground group-hover:text-primary"
+              )} />
             </div>
-            <span className="text-xs font-semibold text-foreground text-center leading-tight">{label}</span>
+            <span className={cn(
+              "text-xs font-semibold text-center leading-tight",
+              index === 0
+                ? "text-primary group-hover:text-white"
+                : "text-foreground"
+            )}>{label}</span>
           </button>
         ))}
       </div>
@@ -156,6 +177,11 @@ export default function AdminDashboard() {
             </Button>
           </div>
           <div className="overflow-x-auto">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
             <table className="data-table">
               <thead>
                 <tr>
@@ -194,6 +220,7 @@ export default function AdminDashboard() {
                 )}
               </tbody>
             </table>
+            )}
           </div>
         </div>
 

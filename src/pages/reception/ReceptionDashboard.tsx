@@ -4,6 +4,7 @@ import { useSearchPatients } from '@/hooks/usePatients';
 import { useOrders, usePaymentStats } from '@/hooks/useOrders';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useRealtimePatients } from '@/hooks/useRealtimePatients';
+import { useRealtimeResults } from '@/hooks/useRealtimeResults';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ import {
   DollarSign,
   ArrowRight,
   FlaskConical,
+  Loader2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,9 +28,10 @@ export default function ReceptionDashboard() {
   
   useRealtimeOrders();
   useRealtimePatients();
+  useRealtimeResults();
   
-  const { data: patients = [] } = useSearchPatients('');
-  const { data: orders = [] } = useOrders('all');
+  const { data: patients = [], isLoading: patientsLoading } = useSearchPatients('');
+  const { data: orders = [], isLoading: ordersLoading } = useOrders('all');
   const navigate = useNavigate();
 
   const recentRegistrations = useMemo(() => {
@@ -162,6 +165,12 @@ export default function ReceptionDashboard() {
             </Button>
           </div>
           <div className="divide-y">
+            {patientsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+            <>
             {recentRegistrations.map((patient: any) => {
               const patientId = patient._id || patient.id;
               return (
@@ -184,6 +193,9 @@ export default function ReceptionDashboard() {
                 No patients registered yet
               </div>
             )}
+            </>
+            )}
+          </div>
           </div>
         </div>
 
@@ -196,6 +208,12 @@ export default function ReceptionDashboard() {
             </Button>
           </div>
           <div className="divide-y">
+            {ordersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+            <>
             {Array.isArray(orders) && orders.filter(o => 
               o.paymentStatus === 'pending' || o.payment_status === 'pending'
             ).slice(0, 5).map(order => (
@@ -224,6 +242,8 @@ export default function ReceptionDashboard() {
               <div className="px-5 py-10 text-center text-muted-foreground text-sm">
                 No pending payments
               </div>
+            )}
+            </>
             )}
           </div>
         </div>
