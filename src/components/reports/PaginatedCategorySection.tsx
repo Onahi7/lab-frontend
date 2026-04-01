@@ -16,7 +16,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
   const resultsSection = template?.resultsSection;
 
   const primaryColor = colors?.primary || template?.styling?.primaryColor || '#1e3a8a';
-  const categoryHeadingColor = resultsSection?.categoryHeaderColor || primaryColor;
+  const categoryHeadingColor = resultsSection?.categoryHeaderColor || '#dc2626';
   const tableHeaderBg = resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6';
 
   // Determine if this category uses special layouts

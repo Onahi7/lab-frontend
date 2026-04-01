@@ -13,7 +13,7 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
   const resultsSection = template?.resultsSection;
 
   const primaryColor = colors?.primary || template?.styling?.primaryColor || '#1e3a8a';
-  const categoryHeadingColor = resultsSection?.categoryHeaderColor || primaryColor;
+  const categoryHeadingColor = resultsSection?.categoryHeaderColor || '#dc2626';
 
   const groupedResults = category.results.reduce((groups, result, index) => {
     const panelKey = result.panelCode || result.panelName || '__UNGROUPED__';
