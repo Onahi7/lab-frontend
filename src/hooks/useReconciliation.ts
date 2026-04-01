@@ -72,3 +72,13 @@ export function usePendingReconciliationCount() {
     },
   });
 }
+
+export function useDailyReport(date: string) {
+  return useQuery({
+    queryKey: ['daily-report', date],
+    queryFn: async () => {
+      return await reconciliationAPI.getDailyReport(date);
+    },
+    enabled: !!date,
+  });
+}

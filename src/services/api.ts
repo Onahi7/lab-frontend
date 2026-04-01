@@ -688,6 +688,11 @@ export const reconciliationAPI = {
     const response = await api.get('/reconciliation/pending/count');
     return response.data;
   },
+
+  getDailyReport: async (date: string) => {
+    const response = await api.get(`/reconciliation/daily-report/${date}`);
+    return response.data;
+  },
 };
 
 export const expendituresAPI = {

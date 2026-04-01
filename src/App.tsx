@@ -48,6 +48,7 @@ import UserManagementPage from "./pages/admin/UserManagementPage";
 import Reports from "./pages/admin/Reports";
 import TestCatalogManagement from "./pages/admin/TestCatalogManagement";
 import ReconciliationReview from "./pages/admin/ReconciliationReview";
+import DailyReport from "./pages/admin/DailyReport";
 import AuditLogViewer from "./pages/admin/AuditLogViewer";
 import ReportTemplateEditor from "./pages/admin/ReportTemplateEditor";
 import PrinterSettings from "./pages/admin/PrinterSettings";
@@ -150,6 +151,9 @@ function AppRoutes() {
       <Route path="/reception/completed-orders" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><CompletedOrdersPage /></RoleGuard>
       } />
+      <Route path="/reception/daily-report" element={
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><DailyReport /></RoleGuard>
+      } />
       <Route path="/reception/reports/:orderId" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><LabReportPage /></RoleGuard>
       } />
@@ -220,6 +224,9 @@ function AppRoutes() {
       } />
       <Route path="/admin/reconciliation" element={
         <RoleGuard allowedRoles={['admin']}><ReconciliationReview /></RoleGuard>
+      } />
+      <Route path="/admin/daily-report" element={
+        <RoleGuard allowedRoles={['admin']}><DailyReport /></RoleGuard>
       } />
       <Route path="/admin/report-template" element={
         <RoleGuard allowedRoles={['admin']}><ReportTemplateEditor /></RoleGuard>
