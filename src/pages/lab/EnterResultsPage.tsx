@@ -27,7 +27,7 @@ const MONGO_OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   // ── Urinalysis physical ─────────────────────────────────────────────────
   'URINE-COLOR': ['Yellow', 'Pale Yellow', 'Straw', 'Amber', 'Dark Yellow', 'Orange', 'Brown', 'Red', 'Colorless'],
-  'URINE-CLARITY': ['Clear', 'Slightly Turbid', 'Turbid', 'Very Turbid', 'Hazy'],
+  'URINE-CLARITY': ['Clear', 'Slightly cloudy', 'Cloudy', 'Turbid', 'Very Turbid', 'Hazy'],
   // ── Urinalysis chemical ─────────────────────────────────────────────────
   'URINE-PROTEIN': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
   'URINE-GLUCOSE': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
@@ -37,6 +37,8 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'URINE-URO': ['Normal (0.1–1.0 mg/dL)', '2 mg/dL', '4 mg/dL', '8 mg/dL'],
   'URINE-NITRITE': ['Negative', 'Positive'],
   'URINE-LE': ['Negative', 'Trace', '+1', '+2', '+3'],
+  // ── Hematology ──────────────────────────────────────────────────────────
+  'HBGENO': ['Positive', 'Negative', 'Non reactive', 'U'],
   // ── Urinalysis microscopy ───────────────────────────────────────────────
   'URINE-BACTERIA': ['None', '+1 (Rare)', '+2 (Few)', '+3 (Moderate)', '+4 (Many)'],
   'URINE-EPI': ['None', 'Rare', 'Few', 'Moderate', 'Many'],
