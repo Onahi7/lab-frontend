@@ -51,8 +51,8 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'HBSAG': ['Non-Reactive', 'Reactive'],
   'HCV': ['Non-Reactive', 'Reactive'],
   'HIVP24': ['Non-Reactive', 'Reactive'],
-  'HPYLORI': ['Negative', 'Positive'],
-  'HPYLORI_IA': ['Negative', 'Positive'],
+  'HPYLORI': ['Non-Reactive', 'Reactive'],
+  'HPYLORI_IA': ['Non-Reactive', 'Reactive'],
   'IFOB': ['Negative', 'Positive'],
   'GONORRHEA': ['Negative', 'Positive'],
   'CHLAMYDIA': ['Negative', 'Positive'],
@@ -422,6 +422,11 @@ export default function EnterResultsPage() {
       interpretation = interpretations[value] || '';
     }
 
+    // Generate automatic interpretation for H. Pylori tests
+    if ((testCode === 'HPYLORI' || testCode === 'HPYLORI_IA') && value) {
+      interpretation = value === 'Reactive' ? 'Positive' : value === 'Non-Reactive' ? 'Negative' : '';
+    }
+
     setResultEntries(prev => ({
       ...prev,
       [entryKey]: {
@@ -514,6 +519,11 @@ export default function EnterResultsPage() {
 
         // Add automatic interpretation for HB Genotype
         if (entry.testCode === 'HBGENO' && entry.interpretation) {
+          payload.comments = entry.interpretation;
+        }
+
+        // Add automatic interpretation for H. Pylori tests
+        if ((entry.testCode === 'HPYLORI' || entry.testCode === 'HPYLORI_IA') && entry.interpretation) {
           payload.comments = entry.interpretation;
         }
 
