@@ -70,6 +70,25 @@ export default function ReconciliationReview() {
   const totalVarianceSum = allRecs.reduce((s: number, r: any) => s + (r.totalVariance || 0), 0);
   const varianceCount = allRecs.filter((r: any) => Math.abs(r.totalVariance || 0) > 0.01).length;
 
+  // Helper: check if the per-method breakdown sums match the reported totals
+  const getCalcErrors = (rec: any): string[] => {
+    const errors: string[] = [];
+    const expBreakdown = (rec.expectedCash || 0) + (rec.expectedOrangeMoney || 0) + (rec.expectedAfrimoney || 0);
+    const actBreakdown = (rec.actualCash || 0) + (rec.actualOrangeMoney || 0) + (rec.actualAfrimoney || 0);
+    if (Math.abs(expBreakdown - (rec.expectedTotal || 0)) > 0.01) {
+      errors.push(`Expected breakdown (Le ${expBreakdown.toLocaleString()}) ≠ Expected total (Le ${(rec.expectedTotal || 0).toLocaleString()})`);
+    }
+    if (Math.abs(actBreakdown - (rec.actualTotal || 0)) > 0.01) {
+      errors.push(`Actual breakdown (Le ${actBreakdown.toLocaleString()}) ≠ Actual total (Le ${(rec.actualTotal || 0).toLocaleString()})`);
+    }
+    const computedVariance = (rec.actualTotal || 0) - (rec.expectedTotal || 0);
+    if (Math.abs(computedVariance - (rec.totalVariance || 0)) > 0.01) {
+      errors.push(`Stored variance (Le ${(rec.totalVariance || 0).toLocaleString()}) ≠ Computed variance (Le ${computedVariance.toLocaleString()})`);
+    }
+    return errors;
+  };
+  const calcErrorCount = allRecs.filter((r: any) => getCalcErrors(r).length > 0).length;
+
   const handleReview = async () => {
     if (!selectedRec || !reviewAction) return;
 
@@ -234,7 +253,7 @@ export default function ReconciliationReview() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-card border rounded-lg p-4">
           <p className="text-xs font-medium text-muted-foreground">Pending Review</p>
           <p className="text-xl font-bold text-status-warning mt-1">{pendingCount}</p>
@@ -257,6 +276,18 @@ export default function ReconciliationReview() {
             totalVarianceSum > 0 ? 'text-status-normal' : totalVarianceSum < 0 ? 'text-status-critical' : ''
           )}>
             {totalVarianceSum > 0 ? '+' : ''}Le {totalVarianceSum.toLocaleString()}
+          </p>
+        </div>
+        <div className={cn(
+          'border rounded-lg p-4',
+          calcErrorCount > 0 ? 'bg-status-critical/10 border-status-critical/30' : 'bg-card'
+        )}>
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Calculator className="w-3 h-3" />
+            Calc Errors
+          </p>
+          <p className={cn('text-xl font-bold mt-1', calcErrorCount > 0 ? 'text-status-critical' : '')}>
+            {calcErrorCount}
           </p>
         </div>
       </div>
@@ -297,8 +328,9 @@ export default function ReconciliationReview() {
             <tbody>
               {allRecs.map((rec: any) => {
                 const hasVariance = Math.abs(rec.totalVariance) > 0.01;
+                const calcErrors = getCalcErrors(rec);
                 return (
-                  <tr key={rec._id || rec.id}>
+                  <tr key={rec._id || rec.id} className={calcErrors.length > 0 ? 'bg-status-critical/5' : ''}>
                     <td className="font-medium">
                       {format(new Date(rec.reconciliationDate), 'MMM dd, yyyy')}
                     </td>
@@ -349,23 +381,30 @@ export default function ReconciliationReview() {
                       </div>
                     </td>
                     <td>
-                      <div className="flex items-center gap-2">
-                        {hasVariance && (
-                          <AlertTriangle className="w-4 h-4 text-status-warning" />
-                        )}
-                        <span
-                          className={cn(
-                            'font-medium',
-                            rec.totalVariance > 0
-                              ? 'text-status-normal'
-                              : rec.totalVariance < 0
-                              ? 'text-status-critical'
-                              : ''
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          {hasVariance && (
+                            <AlertTriangle className="w-4 h-4 text-status-warning" />
                           )}
-                        >
-                          {rec.totalVariance > 0 ? '+' : ''}Le{' '}
-                          {rec.totalVariance.toLocaleString()}
-                        </span>
+                          <span
+                            className={cn(
+                              'font-medium',
+                              rec.totalVariance > 0
+                                ? 'text-status-normal'
+                                : rec.totalVariance < 0
+                                ? 'text-status-critical'
+                                : ''
+                            )}
+                          >
+                            {rec.totalVariance > 0 ? '+' : ''}Le{' '}
+                            {rec.totalVariance.toLocaleString()}
+                          </span>
+                        </div>
+                        {calcErrors.length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-xs text-status-critical font-medium">
+                            <Calculator className="w-3 h-3" /> Calc Error
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -498,11 +537,21 @@ export default function ReconciliationReview() {
                 </div>
               </div>
 
+              {getCalcErrors(selectedRec).length > 0 && (
+                <div className="bg-status-critical/10 border border-status-critical/30 rounded-lg p-3 text-sm">
+                  <p className="font-semibold text-status-critical flex items-center gap-2 mb-1">
+                    <Calculator className="w-4 h-4" /> Calculation Error Detected
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-status-critical text-xs">
+                    {getCalcErrors(selectedRec).map((err, i) => <li key={i}>{err}</li>)}
+                  </ul>
+                </div>
+              )}
+
               <ExpendituresSection />
 
               <div className="mt-6 border-t pt-4">
-                <div className="flex justify-end gap-2 mb-4 mt-2">
-                  <Button
+                <div className="flex justify-end gap-2 mb-4 mt-2">                  <Button
                     onClick={() => setReviewAction('reject')}
                     variant={reviewAction === 'reject' ? 'destructive' : 'outline'}
                     size="sm"
@@ -575,6 +624,17 @@ export default function ReconciliationReview() {
                   {selectedRec.status}
                 </Badge>
               </div>
+
+              {getCalcErrors(selectedRec).length > 0 && (
+                <div className="bg-status-critical/10 border border-status-critical/30 rounded-lg p-3 text-sm">
+                  <p className="font-semibold text-status-critical flex items-center gap-2 mb-1">
+                    <Calculator className="w-4 h-4" /> Calculation Error Detected
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-status-critical text-xs">
+                    {getCalcErrors(selectedRec).map((err, i) => <li key={i}>{err}</li>)}
+                  </ul>
+                </div>
+              )}
 
               <div className="bg-muted rounded-lg p-4">
                 <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground mb-2">

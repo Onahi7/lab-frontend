@@ -285,6 +285,10 @@ export const ordersAPI = {
     const response = await api.get(`/orders/${id}/payments`);
     return response.data;
   },
+
+  delete: async (id: string) => {
+    await api.delete(`/orders/${id}`);
+  },
 };
 
 export const samplesAPI = {
@@ -348,6 +352,10 @@ export const resultsAPI = {
   amend: async (id: string, newValue: string, reason: string) => {
     const response = await api.post(`/results/${id}/amend`, { newValue, reason });
     return response.data;
+  },
+
+  delete: async (id: string) => {
+    await api.delete(`/results/${id}`);
   },
 
   getPendingVerification: async () => {

@@ -133,3 +133,29 @@ export function useUpdateResult() {
     },
   });
 }
+
+export function useDeleteResult() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return await resultsAPI.delete(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['results'] });
+    },
+  });
+}
+
+export function useAmendResult() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, newValue, reason }: { id: string; newValue: string; reason: string }) => {
+      return await resultsAPI.amend(id, newValue, reason);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['results'] });
+    },
+  });
+}

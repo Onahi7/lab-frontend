@@ -1,27 +1,44 @@
 ﻿import { useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useOrders } from '@/hooks/useOrders';
+import { useOrders, useDeleteOrder } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, CreditCard, Loader2, Eye } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Search, CreditCard, Loader2, Eye, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName } from '@/utils/orderHelpers';
 import { PaymentDialog } from '@/components/orders/PaymentDialog';
+import { toast } from 'sonner';
 
 export default function OrdersPage() {
   const { profile, primaryRole } = useAuth();
   const currentRole = primaryRole === 'admin' ? 'admin' : 'receptionist';
+  const isAdmin = primaryRole === 'admin';
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmNum, setDeleteConfirmNum] = useState('');
   
   const { data: orders, isLoading } = useOrders(statusFilter as any);
+  const deleteOrder = useDeleteOrder();
+
+  const handleDeleteOrder = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await deleteOrder.mutateAsync(deleteConfirmId);
+      toast.success('Order deleted');
+      setDeleteConfirmId(null);
+    } catch {
+      toast.error('Failed to delete order');
+    }
+  };
 
   const filteredOrders = Array.isArray(orders) ? orders.filter(order => {    if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
@@ -175,6 +192,19 @@ export default function OrdersPage() {
                           Pay
                         </Button>
                       )}
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-status-critical hover:text-status-critical hover:bg-status-critical/10"
+                          onClick={() => {
+                            setDeleteConfirmId(order.id || (order as any)._id);
+                            setDeleteConfirmNum(order.orderNumber || '');
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -218,6 +248,28 @@ export default function OrdersPage() {
           cashierName={profile?.full_name || 'Receptionist'}
         />
       )}
+      {/* Delete Order Confirmation */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Order</DialogTitle>
+            <DialogDescription>
+              Permanently delete order <strong>{deleteConfirmNum}</strong>? This will also remove all associated tests and payments.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteOrder}
+              disabled={deleteOrder.isPending}
+            >
+              {deleteOrder.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </RoleLayout>
   );
 }

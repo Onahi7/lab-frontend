@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useSearchPatients, useCreatePatient } from '@/hooks/usePatients';
+import { useSearchPatients, useCreatePatient, useDeletePatient } from '@/hooks/usePatients';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import {Search, Plus, Eye, ClipboardList, Loader2 } from 'lucide-react';
+import {Search, Plus, Eye, ClipboardList, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getPatientFullName } from '@/utils/orderHelpers';
 
@@ -41,12 +41,16 @@ export default function PatientsPage() {
   const { profile, primaryRole } = useAuth();
   const currentRole = primaryRole === 'admin' ? 'admin' : primaryRole === 'lab_tech' ? 'lab_tech' : 'receptionist';
   const navigate = useNavigate();
+  const isAdmin = primaryRole === 'admin';
   
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
   
   const { data: patients, isLoading } = useSearchPatients(searchTerm);
   const createPatient = useCreatePatient();
+  const deletePatient = useDeletePatient();
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -104,6 +108,17 @@ export default function PatientsPage() {
       });
     } catch (error) {
       toast.error('Failed to register patient');
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await deletePatient.mutateAsync(deleteConfirmId);
+      toast.success('Patient deleted');
+      setDeleteConfirmId(null);
+    } catch {
+      toast.error('Failed to delete patient');
     }
   };
 
@@ -181,6 +196,19 @@ export default function PatientsPage() {
                         <ClipboardList className="w-4 h-4 mr-1" />
                         Order
                       </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-status-critical hover:text-status-critical hover:bg-status-critical/10"
+                          onClick={() => {
+                            setDeleteConfirmId(patient.id);
+                            setDeleteConfirmName(getPatientFullName(patient));
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -290,6 +318,29 @@ export default function PatientsPage() {
             <Button onClick={handleCreatePatient} disabled={createPatient.isPending}>
               {createPatient.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Register Patient
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Patient</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete <strong>{deleteConfirmName}</strong>? This action cannot be undone and will remove all associated records.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeletePatient}
+              disabled={deletePatient.isPending}
+            >
+              {deletePatient.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete Patient
             </Button>
           </DialogFooter>
         </DialogContent>
