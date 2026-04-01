@@ -38,8 +38,6 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'URINE-URO': ['Normal (0.1–1.0 mg/dL)', '2 mg/dL', '4 mg/dL', '8 mg/dL'],
   'URINE-NITRITE': ['Negative', 'Positive'],
   'URINE-LE': ['Negative', 'Trace', '+1', '+2', '+3'],
-  // ── Hematology ──────────────────────────────────────────────────────────
-  'HBGENO': ['Positive', 'Negative', 'Non reactive', 'U'],
   // ── Urinalysis microscopy ───────────────────────────────────────────────
   'URINE-BACTERIA': ['None', '+1 (Rare)', '+2 (Few)', '+3 (Moderate)', '+4 (Many)'],
   'URINE-EPI': ['None', 'Rare', 'Few', 'Moderate', 'Many'],
@@ -434,6 +432,27 @@ export default function EnterResultsPage() {
       }
     }
 
+    // Malaria
+    if (testCode === 'MALARIA' && value) {
+      interpretation = value === 'Negative' ? 'No malaria antigen detected' : value.replace('Positive ', '') + ' detected';
+    }
+
+    // Gonorrhea / Chlamydia / H.Pylori antigen (Positive/Negative → Detected/Not Detected)
+    if (['GONORRHEA', 'CHLAMYDIA', 'HPAG'].includes(testCode) && value) {
+      interpretation = value === 'Positive' ? 'Detected' : 'Not Detected';
+    }
+
+    // Widal
+    if (testCode === 'WIDAL' && value) {
+      const widalMap: Record<string, string> = {
+        'IgM: Non-Reactive  |  IgG: Non-Reactive': 'Negative',
+        'IgM: Reactive      |  IgG: Non-Reactive': 'Acute Infection',
+        'IgM: Non-Reactive  |  IgG: Reactive':     'Past Infection / Immunity',
+        'IgM: Reactive      |  IgG: Reactive':     'Positive (Active/Recent)',
+      };
+      interpretation = widalMap[value] || '';
+    }
+
     setResultEntries(prev => ({
       ...prev,
       [entryKey]: {
@@ -532,6 +551,11 @@ export default function EnterResultsPage() {
         // Add automatic interpretation for all serology Reactive/Non-Reactive tests
         const SEROLOGY_REACTIVE_TESTS = new Set(['HIV', 'HBSAG', 'HCV', 'HIVP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
         if (SEROLOGY_REACTIVE_TESTS.has(entry.testCode) && entry.interpretation) {
+          payload.comments = entry.interpretation;
+        }
+
+        // Add interpretation for Malaria, Gonorrhea, Chlamydia, HPAG, Widal
+        if (['MALARIA', 'GONORRHEA', 'CHLAMYDIA', 'HPAG', 'WIDAL'].includes(entry.testCode) && entry.interpretation) {
           payload.comments = entry.interpretation;
         }
 
@@ -829,12 +853,26 @@ export default function EnterResultsPage() {
                                 />
                               )}
                             </div>
-                            <div className="col-span-2 text-xs text-muted-foreground">{testInfo.unit || '-'}</div>
-                            <div className="col-span-2">
-                              <p className="text-xs text-muted-foreground">{testInfo.referenceRange || '-'}</p>
-                              {testInfo.ageGroup && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{testInfo.ageGroup}</p>}
+                            <div className="col-span-2 flex items-center">
+                              {entry?.interpretation ? (
+                                <span className={cn(
+                                  'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold',
+                                  entry.interpretation === 'Negative' || entry.interpretation === 'Not Detected' || entry.interpretation === 'No malaria antigen detected'
+                                    ? 'bg-green-100 text-green-700'
+                                    : entry.interpretation.toLowerCase().includes('weakly')
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-red-100 text-red-700'
+                                )}>
+                                  {entry.interpretation}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
                             </div>
-                            <div className="col-span-1 flex flex-col items-end gap-1">
+                            <div className="col-span-2">
+                              <p className="text-xs text-muted-foreground">{testInfo.unit || '-'}</p>
+                            </div>
+                            <div className="col-span-1">
                               {entry?.value && (
                                 <Badge variant="outline" className={cn('text-xs', flagStyles[entry.flag])}>
                                   {entry.flag === 'normal' ? '✓' : entry.flag === 'critical_high' || entry.flag === 'critical_low' ? '!!' : entry.flag === 'high' ? '↑' : entry.flag === 'low' ? '↓' : '—'}
@@ -859,8 +897,8 @@ export default function EnterResultsPage() {
                       <div className="grid grid-cols-12 gap-3 px-3 pb-1 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         <div className="col-span-4">Test</div>
                         <div className="col-span-3">Result</div>
+                        <div className="col-span-2">Interpretation</div>
                         <div className="col-span-2">Unit</div>
-                        <div className="col-span-2">Reference</div>
                         <div className="col-span-1"></div>
                       </div>
 
