@@ -196,7 +196,6 @@ export default function ReceptionDashboard() {
             </>
             )}
           </div>
-          </div>
         </div>
 
         {/* Pending Payments */}

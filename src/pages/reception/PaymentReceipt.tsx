@@ -28,10 +28,10 @@ export default function PaymentReceipt() {
 
   // Transform order data to receipt format
   const receiptData: ReceiptData | null = order ? {
-    receiptNumber: `RCP-${format(new Date(), 'yyyyMMdd')}-${(order.order_number || order.orderNumber || 'XXX').split('-').pop()}`,
+    receiptNumber: `RCP-${format(new Date(), 'yyyyMMdd')}-${(order.order_number || order.orderNumber || 'XXX').toString().split('-').pop()}`,
     orderNumber: order.order_number || order.orderNumber || 'N/A',
     patientName: getPatientName(order),
-    patientId: (order.patient || order.patients)?.patientId || (order.patient || order.patients)?.patient_id || 'Unknown',
+    patientId: (order.patient || order.patients)?.patientId || 'Unknown',
     patientPhone: (order.patient || order.patients)?.phone || undefined,
     tests: (() => {
       const rawTests = (order.order_tests || order.tests || []) as any[];
@@ -62,13 +62,13 @@ export default function PaymentReceipt() {
     })(),
     subtotal: order.subtotal || 0,
     discount: order.discount || 0,
-    discountType: order.discount_type || 'fixed',
+    discountType: order.discountType || 'fixed',
     total: order.total || 0,
     amountPaid: order.total || 0,
     paymentMethod: (order.payment_method === 'orange_money' || order.payment_method === 'afrimoney') ? 'mobile-money' : (order.payment_method || 'cash') as 'cash' | 'card' | 'mobile-money',
     paymentDate: (() => { const d = new Date(order.created_at || order.createdAt || ''); return isValid(d) ? d.toISOString() : new Date().toISOString(); })(),
     cashier: profile?.full_name || 'Cashier',
-    collectionDate: (() => { const raw = order.collected_at || order.collectedAt; if (!raw) return undefined; const d = new Date(raw); return isValid(d) ? format(d, 'yyyy-MM-dd HH:mm') : undefined; })(),
+    collectionDate: (() => { const raw = order.collection_date || order.collectionDate; if (!raw) return undefined; const d = new Date(raw); return isValid(d) ? format(d, 'yyyy-MM-dd HH:mm') : undefined; })(),
   } : null;
 
   const formatCurrency = (amount: number) => {

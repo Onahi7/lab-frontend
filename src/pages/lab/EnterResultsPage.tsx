@@ -86,6 +86,7 @@ interface ResultEntry {
   panelCode?: string;
   panelName?: string;
   category?: string;
+  interpretation?: string; // Add interpretation field
 }
 
 function includeLinkedInputTests(orderTests: any[]): any[] {
@@ -406,6 +407,18 @@ export default function EnterResultsPage() {
     const flag = calculateFlag(value, testInfo.referenceRange, testInfo.criticalLow, testInfo.criticalHigh);
     const entryKey = orderTest.id || orderTest._id || testCode;
 
+    // Generate automatic interpretation for HB Genotype
+    let interpretation = '';
+    if (testCode === 'HBGENO' && value) {
+      const interpretations: Record<string, string> = {
+        'AA': 'Normal - No sickle cell trait or disease',
+        'AS': 'Trait - Sickle cell trait (carrier), usually asymptomatic',
+        'SS': 'Sickle Cell Disease - Sickle cell anemia, requires medical management',
+        'SC': 'Sickling - Hemoglobin SC disease, mild to moderate symptoms'
+      };
+      interpretation = interpretations[value] || '';
+    }
+
     setResultEntries(prev => ({
       ...prev,
       [entryKey]: {
@@ -420,6 +433,7 @@ export default function EnterResultsPage() {
         unit: testInfo.unit,
         referenceRange: testInfo.referenceRange,
         flag,
+        interpretation, // Add interpretation to the result entry
       }
     }));
   };
@@ -493,6 +507,11 @@ export default function EnterResultsPage() {
         // Add FBC interpretation message to WBC test (it will appear at bottom of FBC panel in report)
         if (entry.testCode === 'WBC' && entry.panelCode === 'FBC' && fbcMessage.trim()) {
           payload.comments = fbcMessage.trim();
+        }
+
+        // Add automatic interpretation for HB Genotype
+        if (entry.testCode === 'HBGENO' && entry.interpretation) {
+          payload.comments = entry.interpretation;
         }
 
         return payload;
