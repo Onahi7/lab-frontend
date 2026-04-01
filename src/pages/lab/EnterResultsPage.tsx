@@ -422,9 +422,16 @@ export default function EnterResultsPage() {
       interpretation = interpretations[value] || '';
     }
 
-    // Generate automatic interpretation for H. Pylori tests
-    if ((testCode === 'HPYLORI' || testCode === 'HPYLORI_IA') && value) {
-      interpretation = value === 'Reactive' ? 'Positive' : value === 'Non-Reactive' ? 'Negative' : '';
+    // Generate automatic interpretation for all serology Reactive/Non-Reactive tests
+    const SEROLOGY_REACTIVE_TESTS = new Set(['HIV', 'HBSAG', 'HCV', 'HIVP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
+    if (SEROLOGY_REACTIVE_TESTS.has(testCode) && value) {
+      if (value === 'Non-Reactive') {
+        interpretation = 'Negative';
+      } else if (value === 'Weakly Reactive') {
+        interpretation = 'Weakly Positive';
+      } else if (value.startsWith('Reactive')) {
+        interpretation = 'Positive';
+      }
     }
 
     setResultEntries(prev => ({
@@ -522,8 +529,9 @@ export default function EnterResultsPage() {
           payload.comments = entry.interpretation;
         }
 
-        // Add automatic interpretation for H. Pylori tests
-        if ((entry.testCode === 'HPYLORI' || entry.testCode === 'HPYLORI_IA') && entry.interpretation) {
+        // Add automatic interpretation for all serology Reactive/Non-Reactive tests
+        const SEROLOGY_REACTIVE_TESTS = new Set(['HIV', 'HBSAG', 'HCV', 'HIVP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
+        if (SEROLOGY_REACTIVE_TESTS.has(entry.testCode) && entry.interpretation) {
           payload.comments = entry.interpretation;
         }
 
