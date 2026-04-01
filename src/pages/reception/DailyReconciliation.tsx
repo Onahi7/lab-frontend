@@ -124,7 +124,7 @@ export default function DailyReconciliation() {
   const actualAfriNum = parseFloat(actualAfrimoney) || 0;
   const actualTotal = actualCashNum + actualOrangeNum + actualAfriNum;
 
-  // Deduct expenditures mapping from Expected totals
+  // Expenditures per method — for display purposes only
   const cashExpendituresTotal = Array.isArray(expenditures) 
     ? expenditures.filter(e => e.paymentMethod === 'cash').reduce((sum, e) => sum + (e.amount || 0), 0)
     : 0;
@@ -137,15 +137,18 @@ export default function DailyReconciliation() {
     ? expenditures.filter(e => e.paymentMethod === 'afrimoney').reduce((sum, e) => sum + (e.amount || 0), 0)
     : 0;
 
-  const netExpectedCash = (expected?.expectedCash || 0) - cashExpendituresTotal;
-  const netExpectedOrange = (expected?.expectedOrangeMoney || 0) - orangeExpendituresTotal;
-  const netExpectedAfri = (expected?.expectedAfrimoney || 0) - afriExpendituresTotal;
+  // Net expected cash at hand = backend already deducts per-method expenditures from income
+  // Do NOT re-deduct here — that caused double-counting
+  const netExpectedCash = expected?.expectedCash || 0;
+  const netExpectedOrange = expected?.expectedOrangeMoney || 0;
+  const netExpectedAfri = expected?.expectedAfrimoney || 0;
   const netExpectedTotal = netExpectedCash + netExpectedOrange + netExpectedAfri;
 
-  const cashVariance = actualCashNum - netExpectedCash;
-  const orangeVariance = actualOrangeNum - netExpectedOrange;
-  const afriVariance = actualAfriNum - netExpectedAfri;
-  const totalVariance = actualTotal - netExpectedTotal;
+  // Variance = expected − actual: positive = shortage, negative = surplus
+  const cashVariance = netExpectedCash - actualCashNum;
+  const orangeVariance = netExpectedOrange - actualOrangeNum;
+  const afriVariance = netExpectedAfri - actualAfriNum;
+  const totalVariance = netExpectedTotal - actualTotal;
 
   const hasVariance = Math.abs(totalVariance) > 0.01;
 
@@ -274,7 +277,9 @@ export default function DailyReconciliation() {
               Le {netExpectedTotal.toLocaleString()}
             </p>
             <p className="text-xs text-muted-foreground mt-1 text-amber-600">
-              Le {(expected?.expectedTotal || 0).toLocaleString()} (Collected) - Le {(cashExpendituresTotal + orangeExpendituresTotal + afriExpendituresTotal).toLocaleString()} (Expenses)
+              Le {(expected?.incomeCash || 0) + (expected?.incomeOrangeMoney || 0) + (expected?.incomeAfrimoney || 0) > 0
+                ? `Le ${((expected?.incomeCash || 0) + (expected?.incomeOrangeMoney || 0) + (expected?.incomeAfrimoney || 0)).toLocaleString()} (Collected) − Le ${(expected?.totalExpenditures || cashExpendituresTotal + orangeExpendituresTotal + afriExpendituresTotal).toLocaleString()} (Expenses)`
+                : 'Gross collected minus expenditures'}
             </p>
           </div>
         </div>
@@ -510,10 +515,11 @@ export default function DailyReconciliation() {
                         <span
                           className={cn(
                             'font-medium',
-                            cashVariance > 0 ? 'text-status-normal' : cashVariance < 0 ? 'text-status-critical' : ''
+                            cashVariance > 0 ? 'text-status-critical' : cashVariance < 0 ? 'text-status-normal' : ''
                           )}
                         >
                           {cashVariance > 0 ? '+' : ''}Le {cashVariance.toLocaleString()}
+                          {cashVariance > 0 ? ' (Shortage)' : cashVariance < 0 ? ' (Surplus)' : ''}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -523,10 +529,11 @@ export default function DailyReconciliation() {
                         <span
                           className={cn(
                             'font-medium',
-                            orangeVariance > 0 ? 'text-status-normal' : orangeVariance < 0 ? 'text-status-critical' : ''
+                            orangeVariance > 0 ? 'text-status-critical' : orangeVariance < 0 ? 'text-status-normal' : ''
                           )}
                         >
                           {orangeVariance > 0 ? '+' : ''}Le {orangeVariance.toLocaleString()}
+                          {orangeVariance > 0 ? ' (Shortage)' : orangeVariance < 0 ? ' (Surplus)' : ''}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -536,20 +543,22 @@ export default function DailyReconciliation() {
                         <span
                           className={cn(
                             'font-medium',
-                            afriVariance > 0 ? 'text-status-normal' : afriVariance < 0 ? 'text-status-critical' : ''
+                            afriVariance > 0 ? 'text-status-critical' : afriVariance < 0 ? 'text-status-normal' : ''
                           )}
                         >
                           {afriVariance > 0 ? '+' : ''}Le {afriVariance.toLocaleString()}
+                          {afriVariance > 0 ? ' (Shortage)' : afriVariance < 0 ? ' (Surplus)' : ''}
                         </span>
                       </div>
                       <div className="flex justify-between pt-2 border-t font-bold mt-2">
                         <span>Total Net Variance:</span>
                         <span
                           className={cn(
-                            totalVariance > 0 ? 'text-status-normal' : totalVariance < 0 ? 'text-status-critical' : ''
+                            totalVariance > 0 ? 'text-status-critical' : totalVariance < 0 ? 'text-status-normal' : ''
                           )}
                         >
                           {totalVariance > 0 ? '+' : ''}Le {totalVariance.toLocaleString()}
+                          {totalVariance > 0 ? ' — Shortage' : totalVariance < 0 ? ' — Surplus' : ' — Balanced'}
                         </span>
                       </div>
                     </div>

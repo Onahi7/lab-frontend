@@ -81,7 +81,8 @@ export default function ReconciliationReview() {
     if (Math.abs(actBreakdown - (rec.actualTotal || 0)) > 0.01) {
       errors.push(`Actual breakdown (Le ${actBreakdown.toLocaleString()}) ≠ Actual total (Le ${(rec.actualTotal || 0).toLocaleString()})`);
     }
-    const computedVariance = (rec.actualTotal || 0) - (rec.expectedTotal || 0);
+    // Variance is stored as expected − actual: positive = shortage, negative = surplus
+    const computedVariance = (rec.expectedTotal || 0) - (rec.actualTotal || 0);
     if (Math.abs(computedVariance - (rec.totalVariance || 0)) > 0.01) {
       errors.push(`Stored variance (Le ${(rec.totalVariance || 0).toLocaleString()}) ≠ Computed variance (Le ${computedVariance.toLocaleString()})`);
     }
@@ -273,9 +274,9 @@ export default function ReconciliationReview() {
           </p>
           <p className={cn(
             'text-xl font-bold mt-1',
-            totalVarianceSum > 0 ? 'text-status-normal' : totalVarianceSum < 0 ? 'text-status-critical' : ''
+            totalVarianceSum > 0 ? 'text-status-critical' : totalVarianceSum < 0 ? 'text-status-normal' : ''
           )}>
-            {totalVarianceSum > 0 ? '+' : ''}Le {totalVarianceSum.toLocaleString()}
+            {totalVarianceSum > 0 ? 'Shortage: ' : totalVarianceSum < 0 ? 'Surplus: ' : ''}Le {Math.abs(totalVarianceSum).toLocaleString()}
           </p>
         </div>
         <div className={cn(
@@ -390,14 +391,14 @@ export default function ReconciliationReview() {
                             className={cn(
                               'font-medium',
                               rec.totalVariance > 0
-                                ? 'text-status-normal'
-                                : rec.totalVariance < 0
                                 ? 'text-status-critical'
+                                : rec.totalVariance < 0
+                                ? 'text-status-normal'
                                 : ''
                             )}
                           >
-                            {rec.totalVariance > 0 ? '+' : ''}Le{' '}
-                            {rec.totalVariance.toLocaleString()}
+                            {rec.totalVariance > 0 ? 'Shortage: ' : rec.totalVariance < 0 ? 'Surplus: ' : ''}Le{' '}
+                            {Math.abs(rec.totalVariance).toLocaleString()}
                           </span>
                         </div>
                         {calcErrors.length > 0 && (
@@ -524,14 +525,14 @@ export default function ReconciliationReview() {
                     <span
                       className={cn(
                         selectedRec.totalVariance > 0
-                          ? 'text-status-normal'
-                          : selectedRec.totalVariance < 0
                           ? 'text-status-critical'
+                          : selectedRec.totalVariance < 0
+                          ? 'text-status-normal'
                           : ''
                       )}
                     >
-                      {selectedRec.totalVariance > 0 ? '+' : ''}Le{' '}
-                      {selectedRec.totalVariance.toLocaleString()}
+                      {selectedRec.totalVariance > 0 ? 'Shortage: ' : selectedRec.totalVariance < 0 ? 'Surplus: ' : ''}Le{' '}
+                      {Math.abs(selectedRec.totalVariance).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -649,11 +650,11 @@ export default function ReconciliationReview() {
                     <span className="text-right">Le {(selectedRec.expectedCash || 0).toLocaleString()}</span>
                     <span className="text-right">Le {(selectedRec.actualCash || 0).toLocaleString()}</span>
                     <span className={cn('text-right font-medium',
-                      (selectedRec.actualCash - selectedRec.expectedCash) > 0 ? 'text-status-normal' :
-                      (selectedRec.actualCash - selectedRec.expectedCash) < 0 ? 'text-status-critical' : ''
+                      (selectedRec.expectedCash - selectedRec.actualCash) > 0 ? 'text-status-critical' :
+                      (selectedRec.expectedCash - selectedRec.actualCash) < 0 ? 'text-status-normal' : ''
                     )}>
-                      {(selectedRec.actualCash - selectedRec.expectedCash) > 0 ? '+' : ''}
-                      Le {((selectedRec.actualCash - selectedRec.expectedCash) || 0).toLocaleString()}
+                      {(selectedRec.expectedCash - selectedRec.actualCash) > 0 ? 'Short: ' : (selectedRec.expectedCash - selectedRec.actualCash) < 0 ? 'Surp: ' : ''}
+                      Le {(Math.abs(selectedRec.expectedCash - selectedRec.actualCash) || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="grid grid-cols-4 gap-2 py-1">
@@ -661,11 +662,11 @@ export default function ReconciliationReview() {
                     <span className="text-right">Le {(selectedRec.expectedOrangeMoney || 0).toLocaleString()}</span>
                     <span className="text-right">Le {(selectedRec.actualOrangeMoney || 0).toLocaleString()}</span>
                     <span className={cn('text-right font-medium',
-                      (selectedRec.actualOrangeMoney - selectedRec.expectedOrangeMoney) > 0 ? 'text-status-normal' :
-                      (selectedRec.actualOrangeMoney - selectedRec.expectedOrangeMoney) < 0 ? 'text-status-critical' : ''
+                      (selectedRec.expectedOrangeMoney - selectedRec.actualOrangeMoney) > 0 ? 'text-status-critical' :
+                      (selectedRec.expectedOrangeMoney - selectedRec.actualOrangeMoney) < 0 ? 'text-status-normal' : ''
                     )}>
-                      {(selectedRec.actualOrangeMoney - selectedRec.expectedOrangeMoney) > 0 ? '+' : ''}
-                      Le {((selectedRec.actualOrangeMoney - selectedRec.expectedOrangeMoney) || 0).toLocaleString()}
+                      {(selectedRec.expectedOrangeMoney - selectedRec.actualOrangeMoney) > 0 ? 'Short: ' : (selectedRec.expectedOrangeMoney - selectedRec.actualOrangeMoney) < 0 ? 'Surp: ' : ''}
+                      Le {(Math.abs(selectedRec.expectedOrangeMoney - selectedRec.actualOrangeMoney) || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="grid grid-cols-4 gap-2 py-1">
@@ -673,11 +674,11 @@ export default function ReconciliationReview() {
                     <span className="text-right">Le {(selectedRec.expectedAfrimoney || 0).toLocaleString()}</span>
                     <span className="text-right">Le {(selectedRec.actualAfrimoney || 0).toLocaleString()}</span>
                     <span className={cn('text-right font-medium',
-                      (selectedRec.actualAfrimoney - selectedRec.expectedAfrimoney) > 0 ? 'text-status-normal' :
-                      (selectedRec.actualAfrimoney - selectedRec.expectedAfrimoney) < 0 ? 'text-status-critical' : ''
+                      (selectedRec.expectedAfrimoney - selectedRec.actualAfrimoney) > 0 ? 'text-status-critical' :
+                      (selectedRec.expectedAfrimoney - selectedRec.actualAfrimoney) < 0 ? 'text-status-normal' : ''
                     )}>
-                      {(selectedRec.actualAfrimoney - selectedRec.expectedAfrimoney) > 0 ? '+' : ''}
-                      Le {((selectedRec.actualAfrimoney - selectedRec.expectedAfrimoney) || 0).toLocaleString()}
+                      {(selectedRec.expectedAfrimoney - selectedRec.actualAfrimoney) > 0 ? 'Short: ' : (selectedRec.expectedAfrimoney - selectedRec.actualAfrimoney) < 0 ? 'Surp: ' : ''}
+                      Le {(Math.abs(selectedRec.expectedAfrimoney - selectedRec.actualAfrimoney) || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="grid grid-cols-4 gap-2 py-2 font-bold">
@@ -685,11 +686,11 @@ export default function ReconciliationReview() {
                     <span className="text-right">Le {selectedRec.expectedTotal.toLocaleString()}</span>
                     <span className="text-right">Le {selectedRec.actualTotal.toLocaleString()}</span>
                     <span className={cn('text-right',
-                      selectedRec.totalVariance > 0 ? 'text-status-normal' :
-                      selectedRec.totalVariance < 0 ? 'text-status-critical' : ''
+                      selectedRec.totalVariance > 0 ? 'text-status-critical' :
+                      selectedRec.totalVariance < 0 ? 'text-status-normal' : ''
                     )}>
-                      {selectedRec.totalVariance > 0 ? '+' : ''}
-                      Le {selectedRec.totalVariance.toLocaleString()}
+                      {selectedRec.totalVariance > 0 ? 'Short: ' : selectedRec.totalVariance < 0 ? 'Surp: ' : ''}
+                      Le {Math.abs(selectedRec.totalVariance).toLocaleString()}
                     </span>
                   </div>
                 </div>
