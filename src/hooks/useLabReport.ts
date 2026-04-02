@@ -41,6 +41,7 @@ export interface ResultItem {
   comments?: string;
   isAmended: boolean;
   amendmentReason?: string;
+  subcategory?: string;
 }
 
 export interface ResultCategory {
