@@ -20,11 +20,14 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
   const categoryHeadingColor = '#dc2626';
   const tableHeaderBg = resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6';
 
-  // Determine if this category uses special layouts
-  const isInterpretationLayout = pageCategory.category === 'immunoassay' || pageCategory.category === 'serology';
+  // Determine if this category uses special layouts.
+  // serology → 3 cols: Test | Result | Interpretation (Non-Reactive/Reactive interpretation from comments)
+  // urinalysis/microbiology → 3 cols: Test | Result | Range (reference range only, no unit col)
+  // immunoassay/chemistry/hematology → 4 cols: Test | Result | Range | Unit
+  const isSerologyLayout = pageCategory.category === 'serology';
   const isRangeOnlyLayout = pageCategory.category === 'microbiology' || pageCategory.category === 'urinalysis';
-  const useThreeColumns = isInterpretationLayout || isRangeOnlyLayout;
-  const thirdColumnLabel = isInterpretationLayout || isRangeOnlyLayout ? 'Interpretation' : 'R.Range';
+  const useThreeColumns = isSerologyLayout || isRangeOnlyLayout;
+  const thirdColumnLabel = isSerologyLayout ? 'Interpretation' : 'Range';
 
   // Shared header cell styles for consistency
   const headerCellClass = "text-left py-1 px-3 font-semibold uppercase text-xs";
@@ -143,7 +146,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                         {/* Results for this subcategory */}
                         {results.map((result, resultIndex) => {
                           const firstColumnValue = result.testName || result.testCode;
-                          const thirdColumnValue = useThreeColumns
+                          const thirdColumnValue = isSerologyLayout
                             ? (result.comments || result.referenceRange || '-')
                             : (result.referenceRange || '-');
 
@@ -185,7 +188,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                   // Render results without subcategory grouping
                   panel.results.map((result, resultIndex) => {
                     const firstColumnValue = result.testName || result.testCode;
-                    const thirdColumnValue = useThreeColumns
+                    const thirdColumnValue = isSerologyLayout
                       ? (result.comments || result.referenceRange || '-')
                       : (result.referenceRange || '-');
 
