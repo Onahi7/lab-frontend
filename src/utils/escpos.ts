@@ -17,6 +17,8 @@ export interface ReceiptData {
   patientName: string;
   patientId: string;
   patientPhone?: string;
+  patientAge?: string;
+  patientGender?: string;
   tests: Array<{ code: string; name: string; price: number }>;
   subtotal: number;
   discount: number;

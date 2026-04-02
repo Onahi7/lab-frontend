@@ -473,8 +473,9 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
             margin-bottom: 1mm !important;
           }
           .category-section > h3 {
-            font-size: 15px !important;
-            font-weight: 800 !important;
+            font-size: 20px !important;
+            font-weight: 900 !important;
+            color: #dc2626 !important;
             margin-bottom: 1.5mm !important;
             line-height: 1.1 !important;
           }

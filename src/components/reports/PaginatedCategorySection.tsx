@@ -16,7 +16,8 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
   const resultsSection = template?.resultsSection;
 
   const primaryColor = colors?.primary || template?.styling?.primaryColor || '#1e3a8a';
-  const categoryHeadingColor = resultsSection?.categoryHeaderColor || '#dc2626';
+  // Always use a strong red for category headings regardless of template setting
+  const categoryHeadingColor = '#dc2626';
   const tableHeaderBg = resultsSection?.tableHeaderColor || colors?.secondary || '#f3f4f6';
 
   // Determine if this category uses special layouts
@@ -32,8 +33,8 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
     <div className="category-section mb-4">
       {/* Category title */}
       <h3
-        className="text-xl font-extrabold uppercase tracking-wide text-center mb-1"
-        style={{ color: categoryHeadingColor, fontWeight: 800 }}
+        className="text-2xl font-extrabold uppercase tracking-wide text-center mb-1"
+        style={{ color: categoryHeadingColor, fontWeight: 900, fontSize: '20px' }}
       >
         {pageCategory.categoryDisplayName}
       </h3>

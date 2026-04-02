@@ -33,6 +33,13 @@ export default function PaymentReceipt() {
     patientName: getPatientName(order),
     patientId: (order.patient || order.patients)?.patientId || 'Unknown',
     patientPhone: (order.patient || order.patients)?.phone || undefined,
+    patientAge: (() => {
+      const p = order.patient || order.patients;
+      if (!p) return undefined;
+      if (p.ageValue !== undefined && p.ageUnit) return `${p.ageValue} ${p.ageUnit}`;
+      return p.age !== undefined ? `${p.age} Years` : undefined;
+    })(),
+    patientGender: (order.patient || order.patients)?.gender || undefined,
     tests: (() => {
       const rawTests = (order.order_tests || order.tests || []) as any[];
       // Group panel tests back into a single line per panel
@@ -182,6 +189,18 @@ export default function PaymentReceipt() {
           <span className="info-label">Patient ID:</span>
           <span className="info-value">{receiptData.patientId}</span>
         </div>
+        {receiptData.patientAge && (
+          <div className="info-row">
+            <span className="info-label">Age:</span>
+            <span className="info-value">{receiptData.patientAge}</span>
+          </div>
+        )}
+        {receiptData.patientGender && (
+          <div className="info-row">
+            <span className="info-label">Sex:</span>
+            <span className="info-value">{receiptData.patientGender}</span>
+          </div>
+        )}
         {receiptData.patientPhone && (
           <div className="info-row">
             <span className="info-label">Phone:</span>
@@ -265,8 +284,8 @@ export default function PaymentReceipt() {
         </div>
       )}
 
-      {/* Instructions based on copy type */}
-      {copyType === 'patient' ? (
+      {/* Instructions — patient copy only */}
+      {copyType === 'patient' && (
         <div className="instructions">
           <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>IMPORTANT INSTRUCTIONS:</div>
           <div>• Please arrive 15 minutes before your scheduled time</div>
@@ -275,32 +294,27 @@ export default function PaymentReceipt() {
           <div>• Results will be ready within 24-48 hours</div>
           <div>• Contact us for any queries</div>
         </div>
-      ) : (
-        <div className="instructions lab-instructions">
-          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>LAB TECHNICIAN NOTES:</div>
-          <div>• Verify patient ID before collection</div>
-          <div>• Check test requirements and prep</div>
-          <div>• Label samples with order number</div>
-          <div>• Update system after collection</div>
-          <div>• Handle samples per protocol</div>
-        </div>
       )}
 
       {/* Barcode */}
       <div className="barcode">{receiptData.orderNumber}</div>
 
-      {/* Footer */}
-      <div className="thank-you">THANK YOU FOR CHOOSING US!</div>
-      <div className="footer">
-        <div>Open 24/7 | Onsite & Online Access</div>
-        <div>Trusted by Clinics & Hospitals</div>
-        <div style={{ marginTop: '10px', fontSize: '9px' }}>
-          This is a computer-generated receipt
-        </div>
-        <div style={{ fontSize: '9px' }}>
-          Printed: {format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
-        </div>
-      </div>
+      {/* Footer — patient copy only */}
+      {copyType === 'patient' && (
+        <>
+          <div className="thank-you">THANK YOU FOR CHOOSING US!</div>
+          <div className="footer">
+            <div>Open 24/7 | Onsite & Online Access</div>
+            <div>Trusted by Clinics & Hospitals</div>
+            <div style={{ marginTop: '10px', fontSize: '9px' }}>
+              This is a computer-generated receipt
+            </div>
+            <div style={{ fontSize: '9px' }}>
+              Printed: {format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 

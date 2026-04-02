@@ -379,23 +379,56 @@ export default function EnterResultsPage() {
   };
 
   const calculateFlag = (value: string, rangeStr: string, critLow?: string, critHigh?: string): ResultFlag => {
-    const numValue = parseFloat(value);
+    if (!value?.trim()) return 'normal';
+
+    // Parse comparison-style values like ">5", "<5", ">=5.2", "<=10"
+    // e.g. user types ">5" for CRP → treat as a numeric value that is ABOVE the threshold
+    const compValueMatch = value.trim().match(/^([<>]=?)\s*(\d+\.?\d*)$/);
+    const numValue = compValueMatch ? parseFloat(compValueMatch[2]) : parseFloat(value);
+    const compOp = compValueMatch ? compValueMatch[1] : null; // '<', '<=', '>', '>='
+
     if (isNaN(numValue)) return 'normal';
     if (!rangeStr) return 'no_range';
 
+    // Handle threshold-style ranges: "< 5.0", "> 10", "<= 5", ">= 10"
+    const thresholdMatch = rangeStr.trim().match(/^([<>]=?|≤|≥)\s*(\d+\.?\d*)$/);
+    if (thresholdMatch) {
+      const op = thresholdMatch[1];
+      const threshold = parseFloat(thresholdMatch[2]);
+      // Determine effective numeric value for flagging
+      // If value was typed as ">5" and range is "< 5", the value is HIGH
+      // If value was typed as "<5" and range is "< 5", the value is NORMAL
+      let effectiveHigh: boolean;
+      if (compOp === '>' || compOp === '>=') {
+        effectiveHigh = true;
+      } else if (compOp === '<' || compOp === '<=') {
+        effectiveHigh = false;
+      } else {
+        // Plain number: compare against threshold
+        effectiveHigh = (op === '<' || op === '≤') ? numValue >= threshold : numValue <= threshold;
+      }
+      return effectiveHigh ? 'high' : 'normal';
+    }
+
+    // Handle standard low–high range: "0-10.0", "5 - 50"
     const match = rangeStr.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
     if (!match) return 'no_range';
 
     const low = parseFloat(match[1]);
     const high = parseFloat(match[2]);
 
+    // For comparison-style values, resolve to a numeric position
+    let effectiveValue = numValue;
+    if (compOp === '>') effectiveValue = numValue + 0.001;
+    if (compOp === '<') effectiveValue = numValue - 0.001;
+
     const cLow = critLow ? parseFloat(critLow) : low * 0.5;
     const cHigh = critHigh ? parseFloat(critHigh) : high * 1.5;
 
-    if (!isNaN(cLow) && numValue < cLow) return 'critical_low';
-    if (!isNaN(cHigh) && numValue > cHigh) return 'critical_high';
-    if (numValue < low) return 'low';
-    if (numValue > high) return 'high';
+    if (!isNaN(cLow) && effectiveValue < cLow) return 'critical_low';
+    if (!isNaN(cHigh) && effectiveValue > cHigh) return 'critical_high';
+    if (effectiveValue < low) return 'low';
+    if (effectiveValue > high) return 'high';
     return 'normal';
   };
 
@@ -823,11 +856,11 @@ export default function EnterResultsPage() {
                           </div>
                         ) : (
                           <>
-                            <div className="col-span-4">
+                            <div className="col-span-3">
                               <p className="font-medium text-sm">{testCode}</p>
                               <p className="text-xs text-muted-foreground">{testName}</p>
                             </div>
-                            <div className="col-span-3">
+                            <div className="col-span-2">
                               {qualitativeOptions && qualitativeOptions.length > 0 ? (
                                 <Select
                                   value={entry?.value || ''}
@@ -853,6 +886,13 @@ export default function EnterResultsPage() {
                                 />
                               )}
                             </div>
+                            <div className="col-span-3 flex items-center">
+                              <p className="text-xs text-muted-foreground">
+                                {testInfo.referenceRange
+                                  ? `${testInfo.referenceRange}${testInfo.unit ? ' ' + testInfo.unit : ''}`
+                                  : '—'}
+                              </p>
+                            </div>
                             <div className="col-span-2 flex items-center">
                               {entry?.interpretation ? (
                                 <span className={cn(
@@ -869,7 +909,7 @@ export default function EnterResultsPage() {
                                 <span className="text-xs text-muted-foreground">—</span>
                               )}
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-1">
                               <p className="text-xs text-muted-foreground">{testInfo.unit || '-'}</p>
                             </div>
                             <div className="col-span-1">
@@ -895,10 +935,11 @@ export default function EnterResultsPage() {
                     <div className="space-y-4">
                       {/* Column header */}
                       <div className="grid grid-cols-12 gap-3 px-3 pb-1 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        <div className="col-span-4">Test</div>
-                        <div className="col-span-3">Result</div>
+                        <div className="col-span-3">Test</div>
+                        <div className="col-span-2">Result</div>
+                        <div className="col-span-3">Range</div>
                         <div className="col-span-2">Interpretation</div>
-                        <div className="col-span-2">Unit</div>
+                        <div className="col-span-1">Unit</div>
                         <div className="col-span-1"></div>
                       </div>
 
