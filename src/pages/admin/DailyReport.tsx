@@ -180,6 +180,18 @@ export default function DailyReport() {
                   <p className="text-xs text-muted-foreground">Pending</p>
                 </div>
               </div>
+              {report.tests.breakdown && report.tests.breakdown.length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs text-muted-foreground mb-2 font-medium">Test Breakdown</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {report.tests.breakdown.map((item: any) => (
+                      <span key={item.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                        {item.name} <span className="bg-primary text-primary-foreground rounded-full px-1.5 py-0 text-xs">{item.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -454,13 +466,16 @@ function buildPrintHTML(report: any): string {
           <div class="row border-t bold"><span>Billed Total</span><span>Le ${L(report.orders.billed)}</span></div>
         </div>
       </div>
-      <div class="section">
+        <div class="section">
         <div class="section-title">Tests Done</div>
         <div class="grid grid-3">
           <div class="stat"><div class="value">${report.tests.total}</div><div class="label">Total</div></div>
           <div class="stat"><div class="value green">${report.tests.completed}</div><div class="label">Completed</div></div>
           <div class="stat"><div class="value amber">${report.tests.pending}</div><div class="label">Pending</div></div>
         </div>
+        ${Array.isArray(report.tests.breakdown) && report.tests.breakdown.length > 0
+          ? `<div style="margin-top:8px;border-top:1px solid #eee;padding-top:6px"><strong style="font-size:10px;color:#888">Test Breakdown: </strong>${report.tests.breakdown.map((b: any) => `<span style="display:inline-block;background:#e0e7ff;color:#3730a3;border-radius:10px;padding:1px 8px;margin:2px;font-size:10px;font-weight:600">${b.name} ${b.count}</span>`).join('')}</div>`
+          : ''}
       </div>
     </div>
 

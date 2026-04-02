@@ -851,6 +851,16 @@ export default function EnterResultsPage() {
                     }
                   }
 
+                  // Sort ELEC panel tests in canonical order
+                  const ELEC_ORDER = ['K', 'NA', 'CL', 'ICA', 'NCA', 'TCA', 'TCO2', 'PH'];
+                  if (panelMap.has('ELEC')) {
+                    panelMap.get('ELEC')!.tests.sort((a, b) => {
+                      const ia = ELEC_ORDER.indexOf((a.testCode || a.test_code || '').toUpperCase());
+                      const ib = ELEC_ORDER.indexOf((b.testCode || b.test_code || '').toUpperCase());
+                      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+                    });
+                  }
+
                   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, testKey: string) => {
                     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
                     e.preventDefault();

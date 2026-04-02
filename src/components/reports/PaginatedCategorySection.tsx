@@ -186,8 +186,17 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                   </>
                 ) : (
                   // Render results without subcategory grouping
-                  panel.results.map((result, resultIndex) => {
-                    const firstColumnValue = result.testName || result.testCode;
+                  (() => {
+                    const ELEC_ORDER = ['K', 'NA', 'CL', 'ICA', 'NCA', 'TCA', 'TCO2', 'PH'];
+                    const orderedResults = panel.panelCode === 'ELEC'
+                      ? [...panel.results].sort((a, b) => {
+                          const ia = ELEC_ORDER.indexOf((a.testCode || '').toUpperCase());
+                          const ib = ELEC_ORDER.indexOf((b.testCode || '').toUpperCase());
+                          return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+                        })
+                      : panel.results;
+                    return orderedResults.map((result, resultIndex) => {
+                      const firstColumnValue = result.testName || result.testCode;
                     const thirdColumnValue = isSerologyLayout
                       ? (result.comments || result.referenceRange || '-')
                       : (result.referenceRange || '-');
@@ -222,7 +231,8 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                         )}
                       </tr>
                     );
-                  })
+                    });
+                  })()
                 )}
               </tbody>
             </table>

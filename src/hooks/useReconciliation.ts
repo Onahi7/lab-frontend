@@ -82,3 +82,12 @@ export function useDailyReport(date: string) {
     enabled: !!date,
   });
 }
+
+export function useDoctorReferralReport(params: { startDate?: string; endDate?: string; doctor?: string }) {
+  return useQuery({
+    queryKey: ['doctor-referral-report', params.startDate, params.endDate, params.doctor],
+    queryFn: async () => {
+      return await reconciliationAPI.getDoctorReferralReport(params);
+    },
+  });
+}

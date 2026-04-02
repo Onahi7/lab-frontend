@@ -21,6 +21,7 @@ import {
   BookOpen,
   Printer,
   FileBarChart,
+  Stethoscope,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -40,6 +41,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/admin/reports', icon: BarChart3, label: 'Reports' },
     { to: '/admin/reconciliation', icon: Calculator, label: 'Reconciliation' },
     { to: '/admin/daily-report', icon: FileBarChart, label: 'Daily Report' },
+    { to: '/admin/doctor-referral-report', icon: Stethoscope, label: 'Doctor Referrals' },
     { to: '/admin/payments', icon: CreditCard, label: 'Payments' },
     { to: '/admin/report-template', icon: FileEdit, label: 'Report Template' },
     { to: '/admin/test-catalog', icon: FlaskConical, label: 'Test Catalog' },
@@ -59,6 +61,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/reception/payments', icon: CreditCard, label: 'Payments' },
     { to: '/reception/reconciliation', icon: Calculator, label: 'Reconciliation' },
     { to: '/reception/daily-report', icon: FileBarChart, label: 'Daily Report' },
+    { to: '/reception/doctor-referral-report', icon: Stethoscope, label: 'Doctor Referrals' },
     { to: '/reception/enter-results', icon: FlaskConical, label: 'Quick Entry' },
     { to: '/reception/results', icon: FileCheck, label: 'View Results' },
     { to: '/reception/completed-orders', icon: FileEdit, label: 'Print Reports' },

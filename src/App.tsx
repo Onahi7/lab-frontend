@@ -49,6 +49,7 @@ import Reports from "./pages/admin/Reports";
 import TestCatalogManagement from "./pages/admin/TestCatalogManagement";
 import ReconciliationReview from "./pages/admin/ReconciliationReview";
 import DailyReport from "./pages/admin/DailyReport";
+import DoctorReferralReport from "./pages/admin/DoctorReferralReport";
 import AuditLogViewer from "./pages/admin/AuditLogViewer";
 import ReportTemplateEditor from "./pages/admin/ReportTemplateEditor";
 import PrinterSettings from "./pages/admin/PrinterSettings";
@@ -227,6 +228,12 @@ function AppRoutes() {
       } />
       <Route path="/admin/daily-report" element={
         <RoleGuard allowedRoles={['admin']}><DailyReport /></RoleGuard>
+      } />
+      <Route path="/admin/doctor-referral-report" element={
+        <RoleGuard allowedRoles={['admin']}><DoctorReferralReport /></RoleGuard>
+      } />
+      <Route path="/reception/doctor-referral-report" element={
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><DoctorReferralReport /></RoleGuard>
       } />
       <Route path="/admin/report-template" element={
         <RoleGuard allowedRoles={['admin']}><ReportTemplateEditor /></RoleGuard>

@@ -693,6 +693,11 @@ export const reconciliationAPI = {
     const response = await api.get(`/reconciliation/daily-report/${date}`);
     return response.data;
   },
+
+  getDoctorReferralReport: async (params?: { startDate?: string; endDate?: string; doctor?: string }) => {
+    const response = await api.get('/reconciliation/doctor-referral-report', { params });
+    return response.data;
+  },
 };
 
 export const expendituresAPI = {
