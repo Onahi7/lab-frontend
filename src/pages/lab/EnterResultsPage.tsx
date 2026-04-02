@@ -119,6 +119,39 @@ function includeLinkedInputTests(orderTests: any[]): any[] {
     });
   }
 
+  // UI fallback: inject TCO2 and PH for orders that have the ELEC panel
+  // but were placed before those two tests were added to the panel.
+  const electCoreTests = ['K', 'NA', 'CL', 'ICA', 'NCA', 'TCA'];
+  const hasElecPanel = electCoreTests.some(c => existingCodes.has(c));
+
+  if (hasElecPanel) {
+    // Find any existing ELEC panel test to copy its panelCode/panelName/category
+    const electRef = tests.find((test) =>
+      electCoreTests.includes(normalizeCode(test.testCode || test.test_code)),
+    );
+
+    const missingElecTests: Array<{ code: string; name: string }> = [
+      { code: 'TCO2', name: 'Total Carbon Dioxide' },
+      { code: 'PH',   name: 'Blood pH' },
+    ];
+
+    for (const missing of missingElecTests) {
+      if (!existingCodes.has(missing.code)) {
+        const linkedId = `linked-${missing.code.toLowerCase()}-for-elec`;
+        tests.push({
+          id: linkedId,
+          _id: linkedId,
+          testId: linkedId,
+          testCode: missing.code,
+          testName: missing.name,
+          category: electRef?.category,
+          panelCode: electRef?.panelCode || electRef?.panel_code,
+          panelName: electRef?.panelName || electRef?.panel_name,
+        });
+      }
+    }
+  }
+
   return tests;
 }
 
