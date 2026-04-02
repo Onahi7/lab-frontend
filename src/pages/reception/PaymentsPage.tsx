@@ -18,7 +18,7 @@ export default function PaymentsPage() {
   const navigate = useNavigate();
   const { profile, primaryRole } = useAuth();
   const currentRole = primaryRole === 'admin' ? 'admin' : 'receptionist';
-  const [paymentFilter, setPaymentFilter] = useState<string>('pending');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -390,6 +390,17 @@ export default function PaymentsPage() {
                           >
                             <Plus className="w-3 h-3 mr-1" />
                             Pay
+                          </Button>
+                        )}
+                        {paymentStatus === 'paid' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Reprint receipt"
+                            onClick={() => navigate(`/reception/receipt/${order.id || order._id}`)}
+                          >
+                            <Receipt className="w-3 h-3 mr-1" />
+                            Reprint
                           </Button>
                         )}
                         <Button

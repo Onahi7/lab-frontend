@@ -3,6 +3,8 @@
  * Uses hidden iframe and window.print() with installed printer driver
  */
 
+import { thermalPrintStyles } from '@/components/receipts/ThermalReceipt';
+
 export interface ThermalPrintOptions {
   printerName?: string; // Optional: specific printer name
   copies?: number; // Number of copies (default: 1)
@@ -45,33 +47,8 @@ export async function printThermalReceipt(
           <meta charset="UTF-8">
           <title>Receipt</title>
           <style>
-            @page {
-              size: 80mm auto;
-              margin: 0;
-            }
-            
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            
-            body {
-              width: 80mm;
-              font-family: 'Courier New', monospace;
-              font-size: 12px;
-              line-height: 1.4;
-              color: #000;
-              background: #fff;
-              padding: 5mm;
-            }
-            
+            ${thermalPrintStyles}
             @media print {
-              body {
-                padding: 0;
-              }
-              
-              /* Ensure content prints */
               * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;

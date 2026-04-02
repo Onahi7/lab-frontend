@@ -169,6 +169,8 @@ export function buildReceiptESCPOS(
   b.bold(true).line('PATIENT INFORMATION').bold(false);
   b.line(padLine('Name:', data.patientName));
   b.line(padLine('Patient ID:', data.patientId));
+  if (data.patientAge) b.line(padLine('Age:', data.patientAge));
+  if (data.patientGender) b.line(padLine('Sex:', data.patientGender));
   if (data.patientPhone) b.line(padLine('Phone:', data.patientPhone));
   b.separator();
 

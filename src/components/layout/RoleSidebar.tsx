@@ -22,6 +22,7 @@ import {
   Printer,
   FileBarChart,
   Stethoscope,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -65,6 +66,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/reception/enter-results', icon: FlaskConical, label: 'Quick Entry' },
     { to: '/reception/results', icon: FileCheck, label: 'View Results' },
     { to: '/reception/completed-orders', icon: FileEdit, label: 'Print Reports' },
+    { to: '/reception/price-list', icon: Tag, label: 'Price List' },
     { to: '/reception/printer', icon: Printer, label: 'Printer Setup' },
   ],
   lab_tech: [

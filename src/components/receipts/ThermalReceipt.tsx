@@ -65,6 +65,18 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
             <span className="info-label">Patient ID:</span>
             <span className="info-value">{data.patientId}</span>
           </div>
+          {data.patientAge && (
+            <div className="info-row">
+              <span className="info-label">Age:</span>
+              <span className="info-value">{data.patientAge}</span>
+            </div>
+          )}
+          {data.patientGender && (
+            <div className="info-row">
+              <span className="info-label">Sex:</span>
+              <span className="info-value">{data.patientGender}</span>
+            </div>
+          )}
           {data.patientPhone && (
             <div className="info-row">
               <span className="info-label">Phone:</span>
@@ -176,18 +188,22 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         {/* Barcode */}
         <div className="barcode">{data.orderNumber}</div>
 
-        {/* Footer */}
-        <div className="thank-you">THANK YOU FOR CHOOSING US!</div>
-        <div className="footer">
-          <div>Open 24/7 | Onsite & Online Access</div>
-          <div>Trusted by Clinics & Hospitals</div>
-          <div style={{ marginTop: '10px', fontSize: '9px' }}>
-            This is a computer-generated receipt
-          </div>
-          <div style={{ fontSize: '9px' }}>
-            Printed: {format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
-          </div>
-        </div>
+        {/* Footer — patient copy only */}
+        {copyType === 'patient' && (
+          <>
+            <div className="thank-you">THANK YOU FOR CHOOSING US!</div>
+            <div className="footer">
+              <div>Open 24/7 | Onsite & Online Access</div>
+              <div>Trusted by Clinics & Hospitals</div>
+              <div style={{ marginTop: '10px', fontSize: '9px' }}>
+                This is a computer-generated receipt
+              </div>
+              <div style={{ fontSize: '9px' }}>
+                Printed: {format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     );
   }

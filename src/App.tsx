@@ -27,6 +27,7 @@ import DailyReconciliation from "./pages/reception/DailyReconciliation";
 import PaymentReceipt from "./pages/reception/PaymentReceipt";
 import PaymentDemo from "./pages/reception/PaymentDemo";
 import PrinterSetup from "./pages/reception/PrinterSetup";
+import PriceListPage from "./pages/reception/PriceListPage";
 
 // Lab Pages
 import LabDashboardPage from "./pages/lab/LabDashboardPage";
@@ -148,6 +149,9 @@ function AppRoutes() {
       } />
       <Route path="/reception/printer" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><PrinterSetup /></RoleGuard>
+      } />
+      <Route path="/reception/price-list" element={
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><PriceListPage /></RoleGuard>
       } />
       <Route path="/reception/completed-orders" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><CompletedOrdersPage /></RoleGuard>

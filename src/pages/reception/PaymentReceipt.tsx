@@ -36,7 +36,10 @@ export default function PaymentReceipt() {
     patientAge: (() => {
       const p = order.patient || order.patients;
       if (!p) return undefined;
-      if (p.ageValue !== undefined && p.ageUnit) return `${p.ageValue} ${p.ageUnit}`;
+      if (p.ageValue !== undefined && p.ageUnit) {
+        const unit = (p.ageUnit as string).charAt(0).toUpperCase() + (p.ageUnit as string).slice(1);
+        return `${p.ageValue} ${unit}`;
+      }
       return p.age !== undefined ? `${p.age} Years` : undefined;
     })(),
     patientGender: (order.patient || order.patients)?.gender || undefined,
