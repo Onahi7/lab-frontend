@@ -11,6 +11,7 @@ export interface PatientInfo {
   patientId: string;
   fullName: string;
   age: number;
+  ageUnit?: string;
   dateOfBirth: string;
   gender: string;
   mrn?: string;

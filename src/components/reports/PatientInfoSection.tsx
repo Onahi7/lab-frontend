@@ -30,7 +30,7 @@ export function PatientInfoSection({ patientInfo, orderInfo, template }: Patient
   const primaryColor = template?.colors?.primary || template?.styling?.primaryColor || '#1e3a8a';
 
   const patientAge = Number.isFinite(patientInfo.age)
-    ? `${patientInfo.age} Years`
+    ? `${patientInfo.age} ${patientInfo.ageUnit ? (patientInfo.ageUnit.charAt(0).toUpperCase() + patientInfo.ageUnit.slice(1)) : 'Years'}`
     : '-';
 
   // Sanitize name fields
