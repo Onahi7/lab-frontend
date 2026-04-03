@@ -10,6 +10,11 @@ interface PatientLike {
   last_name?: string;
   patientId?: string;
   patient_id?: string;
+  age?: number | string;
+  ageValue?: number | string;
+  age_value?: number | string;
+  ageUnit?: string;
+  age_unit?: string;
   phone?: string;
   [key: string]: any;
 }
@@ -86,6 +91,50 @@ export function getPatientId(order: OrderLike): string {
 export function getPatientPhone(order: OrderLike): string | undefined {
   const patient = getPatient(order);
   return patient?.phone;
+}
+
+function parseFiniteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Get patient age display using DB fields.
+ * Prefers ageValue + ageUnit when present, then falls back to age.
+ */
+export function getPatientAgeDisplay(patient: PatientLike | null | undefined): string {
+  if (!patient) {
+    return '-';
+  }
+
+  const age = parseFiniteNumber(patient.age);
+  const ageValue = parseFiniteNumber(patient.ageValue ?? patient.age_value);
+  const rawUnit = patient.ageUnit ?? patient.age_unit;
+  const ageUnit = typeof rawUnit === 'string' ? rawUnit.trim() : '';
+
+  if (ageValue !== undefined && ageUnit) {
+    return `${ageValue} ${ageUnit}`;
+  }
+
+  if (age !== undefined && ageUnit) {
+    return `${age} ${ageUnit}`;
+  }
+
+  if (age !== undefined) {
+    return `${age} years`;
+  }
+
+  return '-';
 }
 
 /**

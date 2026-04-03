@@ -17,6 +17,7 @@ import {
   Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getPatientAgeDisplay } from '@/utils/orderHelpers';
 
 interface UnmatchedResult {
   machineId: string;
@@ -258,7 +259,7 @@ export default function MatchResults() {
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {searchedOrder.patients?.gender === 'M' ? 'Male' : 'Female'} • 
-                          Age: {searchedOrder.patients?.age} years
+                          Age: {getPatientAgeDisplay(searchedOrder.patients)}
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
                           Order: {searchedOrder.order_number}

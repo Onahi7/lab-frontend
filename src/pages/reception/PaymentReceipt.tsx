@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { format, isValid } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { useOrder } from '@/hooks/useOrders';
-import { getPatientName } from '@/utils/orderHelpers';
+import { getPatientAgeDisplay, getPatientName } from '@/utils/orderHelpers';
 import { useThermalPrint } from '@/hooks/useThermalPrint';
 import { usePrinterContext } from '@/context/PrinterContext';
 import type { ReceiptData } from '@/utils/escpos';
@@ -36,11 +36,8 @@ export default function PaymentReceipt() {
     patientAge: (() => {
       const p = order.patient || order.patients;
       if (!p) return undefined;
-      if (p.ageValue !== undefined && p.ageUnit) {
-        const unit = (p.ageUnit as string).charAt(0).toUpperCase() + (p.ageUnit as string).slice(1);
-        return `${p.ageValue} ${unit}`;
-      }
-      return p.age !== undefined ? `${p.age} Years` : undefined;
+      const ageDisplay = getPatientAgeDisplay(p);
+      return ageDisplay !== '-' ? ageDisplay : undefined;
     })(),
     patientGender: (order.patient || order.patients)?.gender || undefined,
     tests: (() => {

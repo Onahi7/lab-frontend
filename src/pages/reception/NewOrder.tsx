@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { Search, X, CreditCard, Banknote, Smartphone, Check, Printer, Plus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TestCatalogItem } from '@/types/lis';
-import { getPatientFullName } from '@/utils/orderHelpers';
+import { getPatientAgeDisplay, getPatientFullName } from '@/utils/orderHelpers';
 
 export default function NewOrder() {
   const { profile } = useAuth();
@@ -421,7 +421,7 @@ export default function NewOrder() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Age/Gender:</span>
-                  <span>{selectedPatient?.age} years / {selectedPatient?.gender === 'M' ? 'Male' : 'Female'}</span>
+                  <span>{getPatientAgeDisplay(selectedPatient)} / {selectedPatient?.gender === 'M' ? 'Male' : 'Female'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Priority:</span>
@@ -539,7 +539,7 @@ export default function NewOrder() {
                   <p className="text-sm text-muted-foreground">{selectedPatient.patientId}</p>
                   <p className="text-sm text-muted-foreground">
                     {selectedPatient.gender === 'M' ? 'Male' : selectedPatient.gender === 'F' ? 'Female' : 'Other'} • 
-                    Age: {selectedPatient.age} years
+                    Age: {getPatientAgeDisplay(selectedPatient)}
                   </p>
                 </div>
                 <Button 

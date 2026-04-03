@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import {Search, Plus, Eye, ClipboardList, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { getPatientFullName } from '@/utils/orderHelpers';
+import { getPatientAgeDisplay, getPatientFullName } from '@/utils/orderHelpers';
 
 type AgeUnit = 'years' | 'months' | 'weeks' | 'days';
 
@@ -30,11 +30,7 @@ const convertAgeToYears = (ageValue: number, ageUnit: AgeUnit): number => {
 };
 
 const formatAgeDisplay = (patient: { age: number; ageValue?: number; ageUnit?: AgeUnit }) => {
-  if (patient.ageValue !== undefined && patient.ageUnit) {
-    return `${patient.ageValue} ${patient.ageUnit}`;
-  }
-
-  return `${patient.age} years`;
+  return getPatientAgeDisplay(patient);
 };
 
 export default function PatientsPage() {
