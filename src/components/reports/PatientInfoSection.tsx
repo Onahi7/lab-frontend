@@ -29,8 +29,12 @@ export function PatientInfoSection({ patientInfo, orderInfo, template }: Patient
 
   const primaryColor = template?.colors?.primary || template?.styling?.primaryColor || '#1e3a8a';
 
-  const patientAge = Number.isFinite(patientInfo.age)
-    ? `${patientInfo.age} ${patientInfo.ageUnit ? (patientInfo.ageUnit.charAt(0).toUpperCase() + patientInfo.ageUnit.slice(1)) : 'Years'}`
+  const normalizedAgeUnit =
+    typeof patientInfo.ageUnit === 'string' ? patientInfo.ageUnit.trim() : '';
+
+  const patientAge = Number.isFinite(patientInfo.ageValue)
+    && normalizedAgeUnit.length > 0
+    ? `${patientInfo.ageValue} ${normalizedAgeUnit}`
     : '-';
 
   // Sanitize name fields
