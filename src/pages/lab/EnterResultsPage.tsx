@@ -31,6 +31,7 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   // ── Urinalysis chemical ─────────────────────────────────────────────────
   'URINE-PROTEIN': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
   'UPROTEIN': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
+  'U-PROTEIN': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
   'URINE-GLUCOSE': ['Negative', 'Trace', '+1', '+2', '+3', '+4'],
   'URINE-KETONES': ['Negative', 'Trace', '+1', '+2', '+3'],
   'URINE-BLOOD': ['Negative', 'Trace', '+1', '+2', '+3'],
@@ -74,6 +75,48 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
 
 // Tests that need a free-text area (complex/descriptive results)
 const TEXTAREA_TESTS = new Set(['STOOLMICRO']);
+
+const normalizeTestCode = (value?: string) =>
+  (value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
+const TEST_CODE_ALIASES: Record<string, string[]> = {
+  HSCRP: ['HSCR'],
+  HSCR: ['HSCRP'],
+  UPROTEIN: ['URINEPROTEIN', 'UPRO'],
+  URINEPROTEIN: ['UPROTEIN', 'UPRO'],
+  UPRO: ['UPROTEIN', 'URINEPROTEIN'],
+};
+
+const getComparableCodes = (code?: string): Set<string> => {
+  const normalizedCode = normalizeTestCode(code);
+  const codes = new Set<string>();
+  if (!normalizedCode) return codes;
+
+  codes.add(normalizedCode);
+  const aliases = TEST_CODE_ALIASES[normalizedCode] || [];
+  aliases.forEach((alias) => codes.add(alias));
+  return codes;
+};
+
+const findCatalogTestByCode = (catalog: any[] | undefined, code?: string) => {
+  const comparableCodes = getComparableCodes(code);
+  if (comparableCodes.size === 0 || !catalog || catalog.length === 0) {
+    return undefined;
+  }
+
+  return catalog.find((catalogTest: any) => {
+    const catalogComparableCodes = getComparableCodes(catalogTest?.code);
+    if (catalogComparableCodes.size === 0) return false;
+
+    for (const candidate of comparableCodes) {
+      if (catalogComparableCodes.has(candidate)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+};
 
 interface ResultEntry {
   testId: string;
@@ -344,20 +387,7 @@ export default function EnterResultsPage() {
 
   // Get reference info from test catalog
   const getTestInfo = (testCode: string, patientAge?: number, patientGender?: string) => {
-    const normalizeCode = (value?: string) => (value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const normalizedInputCode = normalizeCode(testCode);
-    const aliasMap: Record<string, string[]> = {
-      HSCRP: ['HSCR'],
-      HSCR: ['HSCRP'],
-    };
-
-    const test = testCatalog?.find((t: any) => {
-      const normalizedCatalogCode = normalizeCode(t.code);
-      if (!normalizedCatalogCode) return false;
-      if (normalizedCatalogCode === normalizedInputCode) return true;
-      const aliases = aliasMap[normalizedInputCode] || [];
-      return aliases.includes(normalizedCatalogCode);
-    });
+    const test = findCatalogTestByCode(testCatalog as any[] | undefined, testCode);
 
     if (!test) {
       return { unit: '', referenceRange: '', criticalLow: '', criticalHigh: '' };
@@ -992,7 +1022,7 @@ export default function EnterResultsPage() {
                           // Check if tests have subcategories (e.g., urinalysis)
                           const hasSubcategories = group.tests.some(t => {
                             const testCode = t.testCode || t.test_code || '';
-                            const test = testCatalog?.find((cat: any) => cat.code === testCode);
+                            const test = findCatalogTestByCode(testCatalog as any[] | undefined, testCode);
                             return test?.subcategory;
                           });
 
@@ -1001,7 +1031,7 @@ export default function EnterResultsPage() {
                           if (hasSubcategories) {
                             for (const test of group.tests) {
                               const testCode = test.testCode || test.test_code || '';
-                              const catalogTest = testCatalog?.find((cat: any) => cat.code === testCode);
+                              const catalogTest = findCatalogTestByCode(testCatalog as any[] | undefined, testCode);
                               const subcategory = catalogTest?.subcategory || 'Other';
                               if (!subcategoryMap.has(subcategory)) {
                                 subcategoryMap.set(subcategory, []);
