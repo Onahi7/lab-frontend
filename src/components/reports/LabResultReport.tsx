@@ -60,6 +60,7 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
 
   // Use admin-configured paper size and orientation
   const pageSize = `${printerSettings.a4.paperSize} ${printerSettings.a4.orientation}`;
+  const reportWatermarkSrc = import.meta.env.VITE_REPORT_HEADER_LOGO || '/logo_resized.png';
 
   // Use smart pagination to split results across pages intelligently
   // Heights calibrated to print layout (mm) - COMPACT VERSION
@@ -250,10 +251,14 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           return (
             <div
               key={page.pageNumber}
-              className={`report-page w-full mx-auto bg-white p-8 print:p-0 ${!page.isLastPage ? 'report-page-break' : ''
+              className={`report-page relative w-full mx-auto bg-white p-8 print:p-0 ${!page.isLastPage ? 'report-page-break' : ''
                 }`}
             >
-              <div className="report-content flex-grow">
+              <div className="report-watermark" aria-hidden="true">
+                <img src={reportWatermarkSrc} alt="" />
+              </div>
+
+              <div className="report-content relative z-10 flex-grow">
                 {/* Header on every page */}
                 <ReportHeader
                   laboratoryInfo={reportData.laboratoryInfo}
@@ -279,7 +284,7 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
               </div>
 
               {/* Verification + Footer pinned to bottom of page */}
-              <div className="report-footer-container mt-auto">
+              <div className="report-footer-container relative z-10 mt-auto">
                 {/* Verification section only on last page */}
                 {page.isLastPage && (
                   <VerificationSection verificationInfo={reportData.verificationInfo} />
@@ -376,6 +381,26 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
             min-height: 277mm !important; /* A4 height (297mm) minus top/bottom margins (10mm each) */
             height: auto !important;
             box-sizing: border-box !important;
+            position: relative !important;
+          }
+
+          .report-watermark {
+            position: absolute !important;
+            inset: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            pointer-events: none !important;
+            z-index: 0 !important;
+            overflow: hidden !important;
+          }
+
+          .report-watermark img {
+            width: 70% !important;
+            max-width: 700px !important;
+            opacity: 0.03 !important;
+            transform: translateY(8mm) !important;
+            filter: grayscale(100%) !important;
           }
 
           /* Page break between pages (except the last one) */
@@ -496,6 +521,18 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
             line-height: 1.25 !important;
           }
 
+          .results-table tbody tr {
+            border-bottom: 1px solid #dbe4ee !important;
+          }
+
+          .results-table tbody tr.result-row:nth-child(odd) td {
+            background: #f8fafc !important;
+          }
+
+          .results-table tbody tr.result-row:nth-child(even) td {
+            background: #ffffff !important;
+          }
+
           /* Verification section */
           .verification-section {
             margin-top: 3mm !important;
@@ -530,6 +567,44 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
         }
 
         @media screen {
+          .report-page {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px -14px rgba(15, 23, 42, 0.35);
+            overflow: hidden;
+            animation: report-fade-in 260ms ease-out;
+            position: relative;
+          }
+
+          .report-watermark {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+          }
+
+          .report-watermark img {
+            width: min(72%, 760px);
+            opacity: 0.05;
+            transform: translateY(10mm);
+            filter: grayscale(100%);
+          }
+
+          @keyframes report-fade-in {
+            from {
+              opacity: 0;
+              transform: translateY(4px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
           .report-page + .report-page {
             margin-top: 2rem;
             border-top: 2px dashed #d1d5db;

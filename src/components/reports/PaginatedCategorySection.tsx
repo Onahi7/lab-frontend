@@ -30,14 +30,19 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
   const thirdColumnLabel = isSerologyLayout ? 'Interpretation' : 'Range';
 
   // Shared header cell styles for consistency
-  const headerCellClass = "text-left py-1 px-3 font-semibold uppercase text-xs";
+  const headerCellClass = "text-left py-1.5 px-3 font-semibold uppercase tracking-wide text-[11px]";
 
   return (
     <div className="category-section mb-4">
       {/* Category title */}
       <h3
-        className="text-2xl font-extrabold uppercase tracking-wide text-center mb-1"
-        style={{ color: categoryHeadingColor, fontWeight: 900, fontSize: '20px' }}
+        className="text-[20px] font-extrabold uppercase tracking-[0.08em] text-center mb-1 py-1 border-y"
+        style={{
+          color: categoryHeadingColor,
+          fontWeight: 900,
+          borderColor: '#fecaca',
+          background: 'linear-gradient(90deg, #fff1f2 0%, #ffffff 45%, #fff1f2 100%)',
+        }}
       >
         {pageCategory.categoryDisplayName}
       </h3>
@@ -87,9 +92,10 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                   <tr>
                     <th
                       colSpan={useThreeColumns ? 3 : 4}
-                      className="text-left py-1 px-3 font-bold uppercase text-sm border-b border-gray-300"
+                      className="text-left py-1.5 px-3 font-bold uppercase text-[12px] border-b border-solid"
                       style={{
-                        backgroundColor: '#f9fafb',
+                        background: 'linear-gradient(90deg, #f8fafc 0%, #ffffff 75%)',
+                        borderColor: '#dbe2ea',
                         color: primaryColor,
                       }}
                     >
@@ -98,7 +104,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                   </tr>
                 )}
                 {/* Table header row — all columns get the same background */}
-                <tr className="border-y border-gray-400">
+                <tr className="border-y border-solid" style={{ borderColor: '#cfd8e3' }}>
                   <th
                     className={headerCellClass}
                     style={{ backgroundColor: tableHeaderBg, color: primaryColor }}
@@ -151,10 +157,23 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                             : (result.referenceRange || '-');
 
                           return (
-                            <tr key={`result-${resultIndex}`} className="border-b border-gray-200">
-                              <td className="py-0.5 px-3 font-medium text-sm">{firstColumnValue}</td>
+                            <tr
+                              key={`result-${resultIndex}`}
+                              className="result-row border-b border-solid"
+                              style={{
+                                borderColor: '#e2e8f0',
+                                backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff',
+                                borderLeft:
+                                  result.flag === 'critical_high' || result.flag === 'critical_low'
+                                    ? `2px solid ${resultsSection?.criticalColor || colors?.critical || '#dc2626'}`
+                                    : result.flag === 'high' || result.flag === 'low'
+                                      ? `2px solid ${resultsSection?.abnormalColor || colors?.abnormal || '#dc2626'}`
+                                      : '2px solid transparent',
+                              }}
+                            >
+                              <td className="py-1 px-3 font-semibold text-[13px]">{firstColumnValue}</td>
                               <td
-                                className="py-0.5 px-3 font-semibold whitespace-nowrap"
+                                className="py-1 px-3 font-bold whitespace-nowrap text-[13px]"
                                 style={{
                                   color:
                                     result.flag === 'critical_high' || result.flag === 'critical_low'
@@ -172,11 +191,11 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                                   <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
                                 )}
                               </td>
-                              <td className="py-0.5 px-3 text-sm">
+                              <td className="py-1 px-3 text-[12px] text-slate-700">
                                 {typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}
                               </td>
                               {!useThreeColumns && (
-                                <td className="py-0.5 px-3 text-sm">{result.unit || '-'}</td>
+                                <td className="py-1 px-3 text-[12px] text-slate-600">{result.unit || '-'}</td>
                               )}
                             </tr>
                           );
@@ -202,10 +221,23 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                       : (result.referenceRange || '-');
 
                     return (
-                      <tr key={`result-${resultIndex}`} className="border-b border-gray-200">
-                        <td className="py-0.5 px-3 font-medium text-sm">{firstColumnValue}</td>
+                      <tr
+                        key={`result-${resultIndex}`}
+                        className="result-row border-b border-solid"
+                        style={{
+                          borderColor: '#e2e8f0',
+                          backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff',
+                          borderLeft:
+                            result.flag === 'critical_high' || result.flag === 'critical_low'
+                              ? `2px solid ${resultsSection?.criticalColor || colors?.critical || '#dc2626'}`
+                              : result.flag === 'high' || result.flag === 'low'
+                                ? `2px solid ${resultsSection?.abnormalColor || colors?.abnormal || '#dc2626'}`
+                                : '2px solid transparent',
+                        }}
+                      >
+                        <td className="py-1 px-3 font-semibold text-[13px]">{firstColumnValue}</td>
                         <td
-                          className="py-0.5 px-3 font-semibold whitespace-nowrap"
+                          className="py-1 px-3 font-bold whitespace-nowrap text-[13px]"
                           style={{
                             color:
                               result.flag === 'critical_high' || result.flag === 'critical_low'
@@ -223,11 +255,11 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                             <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
                           )}
                         </td>
-                        <td className="py-0.5 px-3 text-sm">
+                        <td className="py-1 px-3 text-[12px] text-slate-700">
                           {typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}
                         </td>
                         {!useThreeColumns && (
-                          <td className="py-0.5 px-3 text-sm">{result.unit || '-'}</td>
+                          <td className="py-1 px-3 text-[12px] text-slate-600">{result.unit || '-'}</td>
                         )}
                       </tr>
                     );
