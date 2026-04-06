@@ -188,6 +188,9 @@ function AppRoutes() {
       <Route path="/lab/patients" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin']}><PatientsPage /></RoleGuard>
       } />
+      <Route path="/lab/patients/:id" element={
+        <RoleGuard allowedRoles={['lab_tech', 'admin']}><PatientDetails /></RoleGuard>
+      } />
       <Route path="/lab/verify-results" element={
         <RoleGuard allowedRoles={['lab_tech', 'admin']}><ResultVerification /></RoleGuard>
       } />
@@ -244,6 +247,9 @@ function AppRoutes() {
       } />
       <Route path="/admin/patients" element={
         <RoleGuard allowedRoles={['admin']}><PatientsPage /></RoleGuard>
+      } />
+      <Route path="/admin/patients/:id" element={
+        <RoleGuard allowedRoles={['admin']}><PatientDetails /></RoleGuard>
       } />
       <Route path="/admin/orders" element={
         <RoleGuard allowedRoles={['admin']}><OrdersPage /></RoleGuard>

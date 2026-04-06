@@ -41,6 +41,46 @@ interface PatientUpdate {
   address?: string;
 }
 
+export interface PatientResult {
+  id: string;
+  orderId?: string;
+  orderNumber?: string;
+  testCode: string;
+  testName: string;
+  value: string;
+  unit?: string;
+  referenceRange?: string;
+  flag?: 'normal' | 'high' | 'low' | 'critical_high' | 'critical_low';
+  status?: 'preliminary' | 'verified' | 'amended';
+  resultedAt?: string;
+  createdAt?: string;
+}
+
+function normalizePatientResult(result: any): PatientResult {
+  const orderRef = result.orderId || result.order || result.orders;
+
+  return {
+    id: result.id || result._id,
+    orderId:
+      (typeof orderRef === 'string' ? orderRef : orderRef?.id || orderRef?._id) ||
+      result.order_id ||
+      result.orderId,
+    orderNumber:
+      (typeof orderRef === 'object' ? orderRef?.orderNumber || orderRef?.order_number : undefined) ||
+      result.orderNumber ||
+      result.order_number,
+    testCode: result.testCode || result.test_code || '',
+    testName: result.testName || result.test_name || result.testCode || result.test_code || '',
+    value: result.value ?? '',
+    unit: result.unit,
+    referenceRange: result.referenceRange || result.reference_range,
+    flag: result.flag,
+    status: result.status,
+    resultedAt: result.resultedAt || result.resulted_at,
+    createdAt: result.createdAt || result.created_at,
+  };
+}
+
 export function usePatients() {
   return useQuery({
     queryKey: ['patients'],
@@ -128,5 +168,21 @@ export function useDeletePatient() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
     },
+  });
+}
+
+export function usePatientResults(id: string) {
+  return useQuery({
+    queryKey: ['patients', id, 'results'],
+    queryFn: async () => {
+      const response = await patientsAPI.getResults(id);
+      const results = Array.isArray(response)
+        ? response
+        : response?.data || response?.results || [];
+
+      return results.map((result: any) => normalizePatientResult(result));
+    },
+    enabled: !!id && !!getAccessToken(),
+    staleTime: 30 * 1000,
   });
 }

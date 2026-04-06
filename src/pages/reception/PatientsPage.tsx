@@ -180,7 +180,19 @@ export default function PatientsPage() {
                   </td>
                   <td>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          navigate(
+                            currentRole === 'lab_tech'
+                              ? `/lab/patients/${patient.id}`
+                              : currentRole === 'admin'
+                                ? `/admin/patients/${patient.id}`
+                                : `/reception/patients/${patient.id}`,
+                          )
+                        }
+                      >
                         <Eye className="w-4 h-4 mr-1" />
                         View
                       </Button>
