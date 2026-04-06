@@ -163,7 +163,7 @@ export default function PatientsPage() {
             </thead>
             <tbody>
               {patients?.map(patient => (
-                <tr key={patient.id}>
+                <tr key={patient.id || patient._id}>
                   <td className="font-mono text-sm">{patient.patientId}</td>
                   <td className="font-medium">
                     {getPatientFullName(patient)}
@@ -183,15 +183,21 @@ export default function PatientsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
+                        onClick={() => {
+                          const patientObjectId = patient.id || patient._id;
+                          if (!patientObjectId) {
+                            toast.error('Patient record is missing ID');
+                            return;
+                          }
+
                           navigate(
                             currentRole === 'lab_tech'
-                              ? `/lab/patients/${patient.id}`
+                              ? `/lab/patients/${patientObjectId}`
                               : currentRole === 'admin'
-                                ? `/admin/patients/${patient.id}`
-                                : `/reception/patients/${patient.id}`,
-                          )
-                        }
+                                ? `/admin/patients/${patientObjectId}`
+                                : `/reception/patients/${patientObjectId}`,
+                          );
+                        }}
                       >
                         <Eye className="w-4 h-4 mr-1" />
                         View
@@ -199,7 +205,14 @@ export default function PatientsPage() {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => navigate(`/reception/new-order?patient=${patient.id}`)}
+                        onClick={() => {
+                          const patientObjectId = patient.id || patient._id;
+                          if (!patientObjectId) {
+                            toast.error('Patient record is missing ID');
+                            return;
+                          }
+                          navigate(`/reception/new-order?patient=${patientObjectId}`);
+                        }}
                       >
                         <ClipboardList className="w-4 h-4 mr-1" />
                         Order

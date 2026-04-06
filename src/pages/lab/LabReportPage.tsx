@@ -167,8 +167,16 @@ export default function LabReportPage() {
 
       setShowEditDialog(false);
       setSelectedResult(null);
-    } catch {
-      toast.error('Failed to save changes');
+    } catch (error: any) {
+      const statusCode = error?.response?.status;
+      const backendMessage = error?.response?.data?.message;
+
+      if (statusCode === 409) {
+        toast.error(backendMessage || 'Amendment conflict. Please refresh and try again.');
+        return;
+      }
+
+      toast.error(backendMessage || 'Failed to save changes');
     }
   };
 

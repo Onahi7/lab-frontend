@@ -149,7 +149,17 @@ export default function RegisterPatient() {
               <Button variant="outline" onClick={resetForm} className="flex-1">
                 Register Another
               </Button>
-              <Button onClick={() => navigate(`/reception/new-order?patient=${createdPatient.id}`)} className="flex-1">
+              <Button
+                onClick={() => {
+                  const patientObjectId = createdPatient.id || createdPatient._id;
+                  if (!patientObjectId) {
+                    toast.error('Patient record is missing ID');
+                    return;
+                  }
+                  navigate(`/reception/new-order?patient=${patientObjectId}`);
+                }}
+                className="flex-1"
+              >
                 Create Order
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>

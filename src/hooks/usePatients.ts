@@ -41,6 +41,33 @@ interface PatientUpdate {
   address?: string;
 }
 
+const isValidResourceId = (id?: string): boolean => {
+  if (!id) {
+    return false;
+  }
+
+  const trimmed = id.trim().toLowerCase();
+  return trimmed !== 'undefined' && trimmed !== 'null' && trimmed.length > 0;
+};
+
+function normalizePatient(patient: any): Patient {
+  const age = Number(patient?.age ?? 0);
+  const ageValue = Number(patient?.ageValue ?? patient?.age_value ?? age);
+
+  return {
+    ...patient,
+    id: patient?.id || patient?._id,
+    patientId: patient?.patientId || patient?.patient_id || '-',
+    firstName: patient?.firstName || patient?.first_name || '',
+    lastName: patient?.lastName || patient?.last_name || '',
+    age: Number.isFinite(age) ? age : 0,
+    ageValue: Number.isFinite(ageValue) ? ageValue : undefined,
+    ageUnit: patient?.ageUnit || patient?.age_unit,
+    createdAt: patient?.createdAt || patient?.created_at,
+    updatedAt: patient?.updatedAt || patient?.updated_at,
+  } as Patient;
+}
+
 export interface PatientResult {
   id: string;
   orderId?: string;
@@ -86,8 +113,8 @@ export function usePatients() {
     queryKey: ['patients'],
     queryFn: async () => {
       const response = await patientsAPI.getAll();
-      // Backend returns { data: Patient[] }
-      return response.data || response;
+      const list = Array.isArray(response) ? response : response?.data || [];
+      return list.map((patient: any) => normalizePatient(patient));
     },
     staleTime: 2 * 60 * 1000, // 2 minutes — avoid refetch on every mount
   });
@@ -97,9 +124,11 @@ export function usePatient(id: string) {
   return useQuery({
     queryKey: ['patients', id],
     queryFn: async () => {
-      return await patientsAPI.getById(id);
+      const response = await patientsAPI.getById(id);
+      const patient = response?.data || response;
+      return normalizePatient(patient);
     },
-    enabled: !!id,
+    enabled: isValidResourceId(id),
     staleTime: 2 * 60 * 1000,
   });
 }
@@ -112,7 +141,8 @@ export function useSearchPatients(searchTerm: string) {
         // If no search term, get all patients
         if (!searchTerm || searchTerm.trim().length === 0) {
           const response = await patientsAPI.getAll();
-          return response.data || response;
+          const list = Array.isArray(response) ? response : response?.data || [];
+          return list.map((patient: any) => normalizePatient(patient));
         }
         
         // If search term is too short, return empty
@@ -121,7 +151,9 @@ export function useSearchPatients(searchTerm: string) {
         }
         
         // Backend returns Patient[] directly for search
-        return await patientsAPI.search(searchTerm);
+        const response = await patientsAPI.search(searchTerm);
+        const list = Array.isArray(response) ? response : response?.data || [];
+        return list.map((patient: any) => normalizePatient(patient));
       } catch (error) {
         console.error('useSearchPatients error:', error);
         return [];
@@ -182,7 +214,7 @@ export function usePatientResults(id: string) {
 
       return results.map((result: any) => normalizePatientResult(result));
     },
-    enabled: !!id && !!getAccessToken(),
+    enabled: isValidResourceId(id) && !!getAccessToken(),
     staleTime: 30 * 1000,
   });
 }
