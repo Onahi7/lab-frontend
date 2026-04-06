@@ -765,21 +765,16 @@ Machine: **Wondfo Finecare FIA System**
 
 | Interpretation Category | Age Range | Gender | Range |
 |------------------------|-----------|--------|-------|
-| Normal | ≥ 0 yr | All | < 5.0 |
-| Mild Inflammation | ≥ 0 yr | All | 5.0 – 10.0 |
-| Moderate Inflammation | ≥ 0 yr | All | 10.0 – 50.0 |
-| Severe Inflammation | ≥ 0 yr | All | > 50.0 |
+| Normal | ≥ 0 yr | All | 0 – 10.0 |
 
 ---
 
 ### 5.3 High Sensitivity CRP (HSCR)
 **Code:** `HSCR` | **Price:** ₦350 | **Sample:** Blood | **TAT:** 30 min | **Unit:** mg/L
 
-| Interpretation Category | Age Range | Gender | Cardiovascular Risk |
-|------------------------|-----------|--------|--------------------|
-| Low CV Risk | ≥ 18 yr | All | < 1.0 |
-| Average CV Risk | ≥ 18 yr | All | 1.0 – 3.0 |
-| High CV Risk | ≥ 18 yr | All | > 3.0 |
+| Interpretation Category | Age Range | Gender | Range |
+|------------------------|-----------|--------|-------|
+| Normal | ≥ 0 yr | All | 0 – 1.0 |
 
 ---
 
@@ -1382,7 +1377,7 @@ All sub-components below have `price: 0` and are reported as part of the `URINE`
 |------|------|-----------------|------|
 | `URINE-COLOR` | Urine Color | Yellow to Amber | qualitative |
 | `URINE-CLARITY` | Urine Clarity | Clear | qualitative |
-| `URINE-SG` | Specific Gravity | 1.005 – 1.030 | SG |
+| `URINE-SG` | Specific Gravity | 1.000 – 1.030 | SG |
 | `URINE-PH` | pH | 4.5 – 8.0 | pH |
 
 #### Chemical (Dipstick) Examination

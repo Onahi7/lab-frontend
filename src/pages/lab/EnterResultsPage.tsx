@@ -118,6 +118,90 @@ const findCatalogTestByCode = (catalog: any[] | undefined, code?: string) => {
   });
 };
 
+const MCHC_CODE = 'MCHC';
+
+const isMchcTest = (testCode?: string) => normalizeTestCode(testCode) === MCHC_CODE;
+
+const formatScaledNumericValue = (numericValue: number): string => {
+  if (!Number.isFinite(numericValue)) return '';
+  return parseFloat(numericValue.toFixed(1)).toString();
+};
+
+const normalizeMchcValue = (testCode: string, rawValue?: string | number): string => {
+  const value = rawValue === undefined || rawValue === null ? '' : String(rawValue).trim();
+  if (!value || !isMchcTest(testCode)) {
+    return value;
+  }
+
+  const numericValue = parseFloat(value);
+  if (Number.isNaN(numericValue)) {
+    return value;
+  }
+
+  const normalizedValue = numericValue > 100 ? numericValue / 10 : numericValue;
+  return formatScaledNumericValue(normalizedValue);
+};
+
+const normalizeMchcRange = (testCode: string, rawRange?: string): string => {
+  const range = (rawRange || '').trim();
+  if (!range || !isMchcTest(testCode)) {
+    return range;
+  }
+
+  // Remove explicit unit text from range so the Unit column stays authoritative.
+  const sanitizedRange = range.replace(/\bg\s*\/\s*(?:d)?l\b/gi, '').trim();
+
+  const rangeMatch = sanitizedRange.match(/^(-?\d*\.?\d+)\s*(?:-|–)\s*(-?\d*\.?\d+)$/);
+  if (rangeMatch) {
+    const low = parseFloat(rangeMatch[1]);
+    const high = parseFloat(rangeMatch[2]);
+    const normalizedLow = low > 100 ? low / 10 : low;
+    const normalizedHigh = high > 100 ? high / 10 : high;
+    return `${formatScaledNumericValue(normalizedLow)}-${formatScaledNumericValue(normalizedHigh)}`;
+  }
+
+  const thresholdMatch = sanitizedRange.match(/^(<=|>=|<|>|≤|≥)\s*(-?\d*\.?\d+)$/);
+  if (thresholdMatch) {
+    const operator = thresholdMatch[1];
+    const threshold = parseFloat(thresholdMatch[2]);
+    const normalizedThreshold = threshold > 100 ? threshold / 10 : threshold;
+    return `${operator} ${formatScaledNumericValue(normalizedThreshold)}`;
+  }
+
+  return sanitizedRange.replace(/-?\d*\.?\d+/g, (token) => {
+    const numeric = parseFloat(token);
+    if (Number.isNaN(numeric)) {
+      return token;
+    }
+
+    const normalized = numeric > 100 ? numeric / 10 : numeric;
+    return formatScaledNumericValue(normalized);
+  });
+};
+
+const normalizeMchcThreshold = (testCode: string, rawThreshold?: string): string => {
+  const threshold = (rawThreshold || '').trim();
+  if (!threshold || !isMchcTest(testCode)) {
+    return threshold;
+  }
+
+  const numericValue = parseFloat(threshold);
+  if (Number.isNaN(numericValue)) {
+    return threshold;
+  }
+
+  const normalizedValue = numericValue > 100 ? numericValue / 10 : numericValue;
+  return formatScaledNumericValue(normalizedValue);
+};
+
+const normalizeMchcUnit = (testCode: string, rawUnit?: string): string => {
+  if (isMchcTest(testCode)) {
+    return 'g/dL';
+  }
+
+  return rawUnit || '';
+};
+
 interface ResultEntry {
   testId: string;
   orderTestId: string;
@@ -275,15 +359,20 @@ export default function EnterResultsPage() {
           const patientAge = patient?.age;
           const patientGender = patient?.gender;
           const testInfo = getTestInfo(testCode, patientAge, patientGender);
+          const normalizedValue = normalizeMchcValue(testCode, result.value);
+          const resolvedRange =
+            result.referenceRange || result.reference_range || testInfo.referenceRange || '';
+          const normalizedRange = normalizeMchcRange(testCode, resolvedRange);
+          const normalizedUnit = normalizeMchcUnit(testCode, result.unit || testInfo.unit || '');
           
           savedResultsMap[testKey] = {
             testId: testKey,
             orderTestId: testKey,
             testCode: testCode,
             testName: result.testName || result.test_name || testCode,
-            value: result.value,
-            unit: result.unit || testInfo.unit || '',
-            referenceRange: result.referenceRange || result.reference_range || testInfo.referenceRange || '',
+            value: normalizedValue,
+            unit: normalizedUnit,
+            referenceRange: normalizedRange,
             flag: result.flag || 'normal',
             panelCode: matchingTest.panelCode || matchingTest.panel_code,
             panelName: matchingTest.panelName || matchingTest.panel_name,
@@ -363,10 +452,12 @@ export default function EnterResultsPage() {
           orderTestId: testKey,
           testCode: result.testCode,
           testName: result.testName || result.test_name || result.testCode,
-          value: result.value,
-          unit: result.unit || prev[testKey]?.unit || '',
-          referenceRange:
+          value: normalizeMchcValue(result.testCode, result.value),
+          unit: normalizeMchcUnit(result.testCode, result.unit || prev[testKey]?.unit || ''),
+          referenceRange: normalizeMchcRange(
+            result.testCode,
             result.referenceRange || result.reference_range || prev[testKey]?.referenceRange || '',
+          ),
           flag: result.flag || 'normal',
         },
       }));
@@ -433,11 +524,11 @@ export default function EnterResultsPage() {
     }
 
     return {
-      unit: test.unit || '',
-      referenceRange,
+      unit: normalizeMchcUnit(testCode, test.unit || ''),
+      referenceRange: normalizeMchcRange(testCode, referenceRange),
       ageGroup: matchedAgeGroup,
-      criticalLow,
-      criticalHigh,
+      criticalLow: normalizeMchcThreshold(testCode, criticalLow),
+      criticalHigh: normalizeMchcThreshold(testCode, criticalHigh),
     };
   };
 
@@ -501,7 +592,16 @@ export default function EnterResultsPage() {
     const patientAge = patient?.age;
     const patientGender = patient?.gender;
     const testInfo = getTestInfo(testCode, patientAge, patientGender);
-    const flag = calculateFlag(value, testInfo.referenceRange, testInfo.criticalLow, testInfo.criticalHigh);
+    const normalizedValue = normalizeMchcValue(testCode, value);
+    const normalizedReferenceRange = normalizeMchcRange(testCode, testInfo.referenceRange);
+    const normalizedCriticalLow = normalizeMchcThreshold(testCode, testInfo.criticalLow);
+    const normalizedCriticalHigh = normalizeMchcThreshold(testCode, testInfo.criticalHigh);
+    const flag = calculateFlag(
+      normalizedValue,
+      normalizedReferenceRange,
+      normalizedCriticalLow,
+      normalizedCriticalHigh,
+    );
     const entryKey = orderTest.id || orderTest._id || testCode;
 
     // Generate automatic interpretation for HB Genotype
@@ -559,9 +659,9 @@ export default function EnterResultsPage() {
         panelCode: orderTest.panelCode || orderTest.panel_code,
         panelName: orderTest.panelName || orderTest.panel_name,
         category: orderTest.category,
-        value,
-        unit: testInfo.unit,
-        referenceRange: testInfo.referenceRange,
+        value: normalizedValue,
+        unit: normalizeMchcUnit(testCode, testInfo.unit),
+        referenceRange: normalizedReferenceRange,
         flag,
         interpretation, // Add interpretation to the result entry
       }
@@ -617,13 +717,17 @@ export default function EnterResultsPage() {
 
       // Prepare all results for bulk insert (only entries with values)
       const resultsToCreate = entriesWithValues.map(entry => {
+        const normalizedValue = normalizeMchcValue(entry.testCode, entry.value);
+        const normalizedReferenceRange = normalizeMchcRange(entry.testCode, entry.referenceRange);
+        const normalizedUnit = normalizeMchcUnit(entry.testCode, entry.unit);
+
         const payload: any = {
           orderId: orderId,
           testCode: entry.testCode,
           testName: entry.testName,
-          value: entry.value,
-          unit: entry.unit || undefined,
-          referenceRange: entry.referenceRange || undefined,
+          value: normalizedValue,
+          unit: normalizedUnit || undefined,
+          referenceRange: normalizedReferenceRange || undefined,
           flag: entry.flag,
           panelCode: entry.panelCode || undefined,
           panelName: entry.panelName || undefined,

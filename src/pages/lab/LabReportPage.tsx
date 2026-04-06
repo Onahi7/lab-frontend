@@ -10,7 +10,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/dialog';
 import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Loader2, Clock } from 'lucide-react';
 import { useOrders } from '../../hooks/useOrders';
-import { useResults, useAmendResult } from '../../hooks/useResults';
+import { useResults, useAmendResult, useUpdateResult } from '../../hooks/useResults';
 import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ export default function LabReportPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedResult, setSelectedResult] = useState<any>(null);
   const [newValue, setNewValue] = useState('');
+  const [newReferenceRange, setNewReferenceRange] = useState('');
   const [amendReason, setAmendReason] = useState('');
 
   // Fetch completed orders for pagination
@@ -37,6 +38,7 @@ export default function LabReportPage() {
   // Fetch results for this order (for edit + admin amendment view)
   const { data: orderResults } = useResults(orderId);
   const amendResult = useAmendResult();
+  const updateResult = useUpdateResult();
 
   // Combine orders and find current index
   const allOrders = useMemo(() => {
@@ -99,25 +101,74 @@ export default function LabReportPage() {
   const openEditDialog = (result: any) => {
     setSelectedResult(result);
     setNewValue(result.value || '');
+    setNewReferenceRange(result.referenceRange || result.reference_range || '');
     setAmendReason('');
     setShowEditDialog(true);
   };
 
-  const handleAmend = async () => {
-    if (!selectedResult || !newValue.trim() || !amendReason.trim()) {
-      toast.error('Please enter a new value and reason');
+  const handleSaveChanges = async () => {
+    if (!selectedResult) {
       return;
     }
+
+    const currentValue = String(selectedResult.value || '').trim();
+    const currentRange = String(selectedResult.referenceRange || selectedResult.reference_range || '').trim();
+    const nextValue = newValue.trim();
+    const nextRange = newReferenceRange.trim();
+    const valueChanged = nextValue !== currentValue;
+    const rangeChanged = nextRange !== currentRange;
+
+    if (!valueChanged && !rangeChanged) {
+      toast.info('No changes to save');
+      return;
+    }
+
+    if (valueChanged && !nextValue) {
+      toast.error('New value cannot be empty');
+      return;
+    }
+
+    if (valueChanged && !amendReason.trim()) {
+      toast.error('Please provide a reason for value amendment');
+      return;
+    }
+
+    const originalResultId = selectedResult._id || selectedResult.id;
+
     try {
-      await amendResult.mutateAsync({
-        id: selectedResult._id || selectedResult.id,
-        newValue: newValue.trim(),
-        reason: amendReason.trim(),
-      });
-      toast.success('Result amended successfully');
+      let targetResultId = originalResultId;
+
+      if (valueChanged) {
+        const amendedResult = await amendResult.mutateAsync({
+          id: originalResultId,
+          newValue: nextValue,
+          reason: amendReason.trim(),
+        });
+
+        targetResultId = amendedResult?._id || amendedResult?.id || originalResultId;
+      }
+
+      if (rangeChanged) {
+        await updateResult.mutateAsync({
+          id: targetResultId,
+          updates: {
+            referenceRange: nextRange,
+          },
+        });
+      }
+
+      if (valueChanged && rangeChanged) {
+        toast.success('Result value and reference range updated');
+      } else if (valueChanged) {
+        toast.success('Result amended successfully');
+      } else {
+        toast.success('Reference range updated successfully');
+      }
+
       setShowEditDialog(false);
+      setSelectedResult(null);
     } catch {
-      toast.error('Failed to amend result');
+      toast.error('Failed to save changes');
     }
   };
 
@@ -242,7 +293,7 @@ export default function LabReportPage() {
           <DialogHeader>
             <DialogTitle>Edit Result</DialogTitle>
             <DialogDescription>
-              Select a result to amend. The original value is preserved and an amendment record is created.
+              Select a result to edit. Value changes are saved as amendments, while reference ranges are updated directly.
             </DialogDescription>
           </DialogHeader>
 
@@ -275,9 +326,10 @@ export default function LabReportPage() {
               <div className="bg-muted rounded-lg p-3 text-sm">
                 <p className="font-medium">{selectedResult.testName || selectedResult.test_name} ({selectedResult.testCode || selectedResult.test_code})</p>
                 <p className="text-muted-foreground mt-1">Current value: <strong>{selectedResult.value}</strong> {selectedResult.unit}</p>
+                <p className="text-muted-foreground mt-1">Current range: <strong>{selectedResult.referenceRange || selectedResult.reference_range || '-'}</strong></p>
               </div>
               <div className="space-y-2">
-                <Label>New Value *</Label>
+                <Label>New Value</Label>
                 <Input
                   value={newValue}
                   onChange={e => setNewValue(e.target.value)}
@@ -285,11 +337,19 @@ export default function LabReportPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Reason for Amendment *</Label>
+                <Label>Reference Range</Label>
+                <Input
+                  value={newReferenceRange}
+                  onChange={e => setNewReferenceRange(e.target.value)}
+                  placeholder="e.g., 12-16"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Reason for Amendment (required only when value changes)</Label>
                 <Textarea
                   value={amendReason}
                   onChange={e => setAmendReason(e.target.value)}
-                  placeholder="Explain why the result is being amended..."
+                  placeholder="Explain why the value is being amended..."
                   rows={3}
                 />
               </div>
@@ -304,9 +364,9 @@ export default function LabReportPage() {
               Cancel
             </Button>
             {selectedResult && (
-              <Button onClick={handleAmend} disabled={amendResult.isPending}>
-                {amendResult.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Save Amendment
+              <Button onClick={handleSaveChanges} disabled={amendResult.isPending || updateResult.isPending}>
+                {(amendResult.isPending || updateResult.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Changes
               </Button>
             )}
           </DialogFooter>
