@@ -101,7 +101,7 @@ export default function PriceListPage() {
     b.line('HARBOUR Medical Diagnostic');
     b.fontSize(0x00).bold(false);
     b.line('114, Fourah Bay Road, Freetown');
-    b.line('Tel: +232744414434');
+    b.line('Tel: +23274414434');
     b.separator('=');
     b.bold(true).line(selectedTests.length > 0 ? 'SELECTED TESTS — QUOTATION' : 'FULL PRICE LIST').bold(false);
     b.line(format(new Date(), 'dd/MM/yyyy HH:mm'));
@@ -171,7 +171,7 @@ export default function PriceListPage() {
           <div class="logo">🏥</div>
           <div class="company-name">HARBOUR Medical Diagnostic</div>
           <div class="company-info">114, Fourah Bay Road, Freetown, Sierra Leone</div>
-          <div class="company-info">Tel: +232744414434</div>
+          <div class="company-info">Tel: +23274414434</div>
         </div>
         <div class="copy-type">${selectedTests.length > 0 ? 'SELECTED TESTS — QUOTATION' : 'FULL PRICE LIST'}</div>
         <div class="company-info" style="text-align:center;margin-bottom:8px">${format(new Date(), 'dd/MM/yyyy HH:mm')}</div>

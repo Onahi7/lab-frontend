@@ -17,8 +17,8 @@ export function ReportHeader({ laboratoryInfo }: ReportHeaderProps) {
   const defaultLabName = 'HARBOUR Medical Diagnostic';
   const defaultMotto = 'Automated Precision...';
   const defaultAddress = '114, Fourah Bay Road, Freetown, Sierra leone';
-  const defaultPhone = '+232744414434';
-  const defaultEmail = 'habourlab@gmail.com';
+  const defaultPhone = '+23274414434';
+  const defaultEmail = 'harbourmedicaldiagnostics@gmail.com';
 
   const labName = defaultLabName;
   const motto = defaultMotto;

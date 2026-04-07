@@ -27,7 +27,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
           <div className="logo">🏥</div>
           <div className="company-name">HARBOUR Medical Diagnostic</div>
           <div className="company-info">114, Fourah Bay Road, Freetown, Sierra Leone</div>
-          <div className="company-info">Tel: +232744414434</div>
+          <div className="company-info">Tel: +23274414434</div>
           <div className="company-info">habourlab@gmail.com</div>
         </div>
 
