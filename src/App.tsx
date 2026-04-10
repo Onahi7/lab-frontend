@@ -73,8 +73,8 @@ const queryClient = new QueryClient({
       retryDelay: (attempt) => Math.min(1000 * Math.pow(2, attempt), 10000),
       // Refetch when reconnecting to network
       refetchOnReconnect: 'always',
-      // Don't refetch on window focus in poor network conditions
-      refetchOnWindowFocus: false,
+      // Refetch on window focus so switching tabs/pages shows fresh data
+      refetchOnWindowFocus: true,
     },
     mutations: {
       retry: 1,

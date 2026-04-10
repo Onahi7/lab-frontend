@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { notificationService } from '@/services/notificationService';
 import { soundService } from '@/services/soundService';
@@ -19,6 +20,7 @@ const WebSocketContext = createContext<WebSocketContextType>({
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectedClients, setConnectedClients] = useState(0);
@@ -101,6 +103,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     newSocket.on('order:created', (order: any) => {
       console.log('📋 New order created:', order.orderNumber);
       
+      // Invalidate orders cache globally so all pages see the new order
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      
       // Play new order sound
       soundService.play('new-order');
       
@@ -117,6 +123,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     // Sample collected
     newSocket.on('sample:collected', (sample: any) => {
       console.log('🧪 Sample collected:', sample);
+      
+      // Invalidate so queues update everywhere
+      queryClient.invalidateQueries({ queryKey: ['samples'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       
       // Play sample ready sound
       soundService.play('sample-collected');
@@ -176,9 +186,19 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Result created — invalidate globally
+    newSocket.on('result:created', () => {
+      queryClient.invalidateQueries({ queryKey: ['results'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    });
+
     // Result verified
     newSocket.on('result:verified', (result: any) => {
       console.log('✅ Result verified:', result);
+      
+      // Invalidate so report pages and order lists update
+      queryClient.invalidateQueries({ queryKey: ['results'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       
       // Play success sound
       soundService.play('results-ready');
@@ -191,6 +211,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     // Order status changed
     newSocket.on('order:status_changed', (data: any) => {
       console.log('📊 Order status changed:', data);
+      
+      // Invalidate orders so the status change is reflected everywhere
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
       
       toast.info('Order status updated', {
         description: `${data.orderNumber}: ${data.status}`,
