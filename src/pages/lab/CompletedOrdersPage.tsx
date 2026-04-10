@@ -27,11 +27,15 @@ export default function CompletedOrdersPage() {
   
   const isLoading = loadingCompleted || loadingProcessing;
   
-  // Combine both completed and processing orders
+  // Combine both completed and processing orders, sorted by newest first
   const allOrders = [
     ...(Array.isArray(completedOrders) ? completedOrders : []),
     ...(Array.isArray(processingOrders) ? processingOrders : [])
-  ];
+  ].sort((a, b) => {
+    const dateA = new Date(a.createdAt || a.created_at || 0).getTime();
+    const dateB = new Date(b.createdAt || b.created_at || 0).getTime();
+    return dateB - dateA;
+  });
 
   const filteredOrders = allOrders.filter(order => {
     if (!searchTerm) return true;
