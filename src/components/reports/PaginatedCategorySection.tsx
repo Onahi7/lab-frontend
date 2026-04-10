@@ -152,7 +152,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                         {/* Results for this subcategory */}
                         {results.map((result, resultIndex) => {
                           const firstColumnValue = result.testName || result.testCode;
-                          const thirdColumnValue = isSerologyLayout
+                          const thirdColumnValue = (isSerologyLayout || result.comments)
                             ? (result.comments || result.referenceRange || '-')
                             : (result.referenceRange || '-');
 
@@ -216,7 +216,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                       : panel.results;
                     return orderedResults.map((result, resultIndex) => {
                       const firstColumnValue = result.testName || result.testCode;
-                    const thirdColumnValue = isSerologyLayout
+                    const thirdColumnValue = (isSerologyLayout || result.comments)
                       ? (result.comments || result.referenceRange || '-')
                       : (result.referenceRange || '-');
 
