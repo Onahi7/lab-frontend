@@ -93,13 +93,28 @@ export default function Machines() {
     }
   };
 
-  const handleDownloadBridge = (machine: Machine) => {
+  const handleDownloadBridge = async (machine: Machine) => {
     const token = localStorage.getItem('access_token');
     const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/machines/${machine.id}/bridge-script`;
     
-    const downloadUrl = `${url}?token=${token}`;
-    window.open(downloadUrl, '_blank');
-    toast.success('Bridge script downloading — run it on the lab laptop');
+    try {
+      const response = await fetch(`${url}?token=${token}`);
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const filename = `harbour-bridge-${(machine.name || 'machine').replace(/\s+/g, '-').toLowerCase()}.bat`;
+      
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      
+      toast.success('Bridge script downloaded — double-click to run on the lab laptop');
+    } catch (error) {
+      toast.error('Failed to download bridge script');
+    }
   };
 
   const getListenerStatus = (machineId: string): boolean => {
