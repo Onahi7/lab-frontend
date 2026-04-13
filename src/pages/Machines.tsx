@@ -94,12 +94,9 @@ export default function Machines() {
   };
 
   const handleDownloadBridge = (machine: Machine) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
     const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/machines/${machine.id}/bridge-script`;
     
-    // Create a hidden link to trigger download with auth header
-    // Since we can't set headers on a direct link, open in new tab with token as query param
-    // The backend will return the .ps1 file as a download
     const downloadUrl = `${url}?token=${token}`;
     window.open(downloadUrl, '_blank');
     toast.success('Bridge script downloading — run it on the lab laptop');
