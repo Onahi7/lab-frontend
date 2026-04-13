@@ -159,7 +159,7 @@ export function useAddMaintenance() {
 export function useTestMachineConnection() {
   return useMutation({
     mutationFn: async ({ machineId }: { machineId: string }) => {
-      return await machinesAPI.testConnection(machineId) as { success: boolean; message: string; latency?: number };
+      return await machinesAPI.testConnection(machineId) as { success: boolean; message: string; latency?: number; listenerActive?: boolean; analyzerReachable?: boolean };
     },
   });
 }

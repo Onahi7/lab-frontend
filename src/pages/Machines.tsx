@@ -29,7 +29,7 @@ export default function Machines() {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isTestOpen, setIsTestOpen] = useState(false);
-  const [testResult, setTestResult] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message?: string }>({ status: 'idle' });
+  const [testResult, setTestResult] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message?: string; listenerActive?: boolean; analyzerReachable?: boolean }>({ status: 'idle' });
 
   const statusConfig: Record<MachineStatus, { indicator: string; label: string; icon: typeof Wifi; labelClass: string }> = {
     online: {
@@ -66,11 +66,11 @@ export default function Machines() {
     try {
       const result = await testConnection.mutateAsync({ machineId: machine.id });
       if (result.success) {
-        setTestResult({ status: 'success', message: result.message });
+        setTestResult({ status: 'success', message: result.message, listenerActive: result.listenerActive, analyzerReachable: result.analyzerReachable });
         toast.success(`Connection to ${machine.name} successful`);
       } else {
-        setTestResult({ status: 'error', message: result.message });
-        toast.error(`Failed to connect to ${machine.name}: ${result.message}`);
+        setTestResult({ status: 'error', message: result.message, listenerActive: result.listenerActive, analyzerReachable: result.analyzerReachable });
+        toast.error(`Connection issue: ${result.message}`);
       }
       refetch();
     } catch (error) {
@@ -346,13 +346,13 @@ export default function Machines() {
             <DialogTitle>Connection Test: {selectedMachine?.name}</DialogTitle>
           </DialogHeader>
           
-          <div className="py-8 text-center">
+          <div className="py-6 text-center">
             {testResult.status === 'testing' && (
               <>
                 <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin" />
                 <p className="text-lg font-medium">Testing connection...</p>
                 <p className="text-muted-foreground text-sm">
-                  Attempting to reach {selectedMachine?.ipAddress}:{selectedMachine?.port}
+                  Checking TCP listener and network reachability
                 </p>
               </>
             )}
@@ -360,17 +360,34 @@ export default function Machines() {
               <>
                 <CheckCircle className="w-16 h-16 text-status-normal mx-auto mb-4" />
                 <p className="text-lg font-medium text-status-normal">Connection Successful</p>
-                <p className="text-muted-foreground text-sm">
-                  {testResult.message || 'The analyzer is responding and ready to receive data.'}
-                </p>
+                <div className="mt-4 space-y-2 text-left max-w-sm mx-auto">
+                  <div className="flex items-center gap-2 text-sm">
+                    {testResult.listenerActive !== false ? <CheckCircle className="w-4 h-4 text-status-normal" /> : <XCircle className="w-4 h-4 text-status-critical" />}
+                    <span>TCP Listener on port {selectedMachine?.port}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    {testResult.analyzerReachable !== false ? <CheckCircle className="w-4 h-4 text-status-normal" /> : <XCircle className="w-4 h-4 text-status-critical" />}
+                    <span>Analyzer at {selectedMachine?.ipAddress} reachable</span>
+                  </div>
+                </div>
               </>
             )}
             {testResult.status === 'error' && (
               <>
                 <XCircle className="w-16 h-16 text-status-critical mx-auto mb-4" />
                 <p className="text-lg font-medium text-status-critical">Connection Failed</p>
-                <p className="text-muted-foreground text-sm">
-                  {testResult.message || 'Could not establish connection. Check network settings and ensure the analyzer is powered on.'}
+                <div className="mt-4 space-y-2 text-left max-w-sm mx-auto">
+                  <div className="flex items-center gap-2 text-sm">
+                    {testResult.listenerActive ? <CheckCircle className="w-4 h-4 text-status-normal" /> : <XCircle className="w-4 h-4 text-status-critical" />}
+                    <span>TCP Listener on port {selectedMachine?.port}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    {testResult.analyzerReachable ? <CheckCircle className="w-4 h-4 text-status-normal" /> : <XCircle className="w-4 h-4 text-status-critical" />}
+                    <span>Analyzer at {selectedMachine?.ipAddress} reachable</span>
+                  </div>
+                </div>
+                <p className="text-muted-foreground text-sm mt-4">
+                  {testResult.message || 'Check network settings and ensure the analyzer is powered on.'}
                 </p>
               </>
             )}
