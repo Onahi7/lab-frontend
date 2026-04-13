@@ -3,7 +3,7 @@ import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useMachines, useTestMachineConnection, useUpdateMachine, useCreateMachine, useRestartListener, useListenerStatus, type Machine, type MachineCreate } from '@/hooks/useMachines';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw, Settings, Wifi, WifiOff, Activity, Send, CheckCircle, XCircle, Loader2, RotateCw, Radio } from 'lucide-react';
+import { Plus, RefreshCw, Settings, Wifi, WifiOff, Activity, Send, CheckCircle, XCircle, Loader2, RotateCw, Radio, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -91,6 +91,18 @@ export default function Machines() {
     } catch (error) {
       toast.error(`Failed to restart listener for ${machine.name}`);
     }
+  };
+
+  const handleDownloadBridge = (machine: Machine) => {
+    const token = localStorage.getItem('token');
+    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/machines/${machine.id}/bridge-script`;
+    
+    // Create a hidden link to trigger download with auth header
+    // Since we can't set headers on a direct link, open in new tab with token as query param
+    // The backend will return the .ps1 file as a download
+    const downloadUrl = `${url}?token=${token}`;
+    window.open(downloadUrl, '_blank');
+    toast.success('Bridge script downloading — run it on the lab laptop');
   };
 
   const getListenerStatus = (machineId: string): boolean => {
@@ -273,19 +285,29 @@ export default function Machines() {
                   Test Connection
                 </Button>
                 {machine.ipAddress && machine.port && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRestartListener(machine)}
-                    disabled={restartListener.isPending}
-                    title="Restart TCP Listener"
-                  >
-                    {restartListener.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <RotateCw className="w-4 h-4" />
-                    )}
-                  </Button>
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRestartListener(machine)}
+                      disabled={restartListener.isPending}
+                      title="Restart TCP Listener"
+                    >
+                      {restartListener.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RotateCw className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDownloadBridge(machine)}
+                      title="Download Bridge Script for Lab Laptop"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
