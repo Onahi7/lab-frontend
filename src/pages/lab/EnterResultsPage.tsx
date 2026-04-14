@@ -76,6 +76,16 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
 // Tests that need a free-text area (complex/descriptive results)
 const TEXTAREA_TESTS = new Set(['STOOLMICRO']);
 
+// Structured fields for Stool Microscopy (replaces plain textarea)
+const STOOL_MICRO_FIELDS = {
+  color: { label: 'Color', options: ['Yellow', 'Brown', 'Red', 'Black', 'Green', 'Clay-colored', 'White'] },
+  appearance: { label: 'Appearance', options: ['Soft', 'Coarse', 'Watery', 'Mucoid', 'Formed', 'Semi-formed', 'Hard', 'Pellet-like'] },
+  blood: { label: 'Blood', options: ['None', 'Trace', 'Moderate', 'Frank', 'Occult'] },
+  mucus: { label: 'Mucus', options: ['None', 'Trace', 'Moderate', 'Abundant'] },
+  microscopy: { label: 'Microscopy', textarea: true },
+};
+const STOOL_MICRO_TEST_CODES = new Set(['STOOLMICRO', 'STOOL', 'STOOLEXAM']);
+
 const normalizeTestCode = (value?: string) =>
   (value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
@@ -295,6 +305,7 @@ export default function EnterResultsPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [resultEntries, setResultEntries] = useState<Record<string, ResultEntry>>({});
+  const [stoolMicroFields, setStoolMicroFields] = useState<Record<string, { color: string; appearance: string; blood: string; mucus: string; microscopy: string }>>({});
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSendToAnalyzer, setShowSendToAnalyzer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -305,6 +316,51 @@ export default function EnterResultsPage() {
   const [fbcMessage, setFbcMessage] = useState('');
 
   const getDraftStorageKey = (orderId?: string) => `result-draft:${orderId || 'unknown'}`;
+
+  // Build combined stool microscopy value from individual fields
+  const buildStoolMicroValue = (fields: { color: string; appearance: string; blood: string; mucus: string; microscopy: string }) => {
+    const parts: string[] = [];
+    if (fields.color) parts.push(`Color: ${fields.color}`);
+    if (fields.appearance) parts.push(`Appearance: ${fields.appearance}`);
+    if (fields.blood) parts.push(`Blood: ${fields.blood}`);
+    if (fields.mucus) parts.push(`Mucus: ${fields.mucus}`);
+    if (fields.microscopy) parts.push(`Microscopy: ${fields.microscopy}`);
+    return parts.join('\n');
+  };
+
+  // Parse existing stool micro value back into individual fields
+  const parseStoolMicroValue = (value: string) => {
+    const fields = { color: '', appearance: '', blood: '', mucus: '', microscopy: '' };
+    if (!value) return fields;
+    const lines = value.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('Color: ')) fields.color = line.replace('Color: ', '');
+      else if (line.startsWith('Appearance: ')) fields.appearance = line.replace('Appearance: ', '');
+      else if (line.startsWith('Blood: ')) fields.blood = line.replace('Blood: ', '');
+      else if (line.startsWith('Mucus: ')) fields.mucus = line.replace('Mucus: ', '');
+      else if (line.startsWith('Microscopy: ')) fields.microscopy = line.replace('Microscopy: ', '');
+    }
+    return fields;
+  };
+
+  const handleStoolMicroChange = (testKey: string, field: string, value: string) => {
+    setStoolMicroFields(prev => {
+      const current = prev[testKey] || parseStoolMicroValue(resultEntries[testKey]?.value || '');
+      const updated = { ...current, [field]: value };
+      // Also update the combined resultEntries value
+      const combinedValue = buildStoolMicroValue(updated);
+      setResultEntries(prevEntries => ({
+        ...prevEntries,
+        [testKey]: {
+          ...prevEntries[testKey],
+          testId: testKey,
+          value: combinedValue,
+          flag: 'normal' as const,
+        },
+      }));
+      return { ...prev, [testKey]: updated };
+    });
+  };
 
   // Memoize the selected order ID to prevent infinite loops
   const selectedOrderId = useMemo(() => {
@@ -1014,10 +1070,53 @@ export default function EnterResultsPage() {
 
                     const qualitativeOptions = QUALITATIVE_OPTIONS[testCode];
                     const isTextarea = TEXTAREA_TESTS.has(testCode);
+                    const isStoolMicro = STOOL_MICRO_TEST_CODES.has(normalizeTestCode(testCode));
 
                     return (
-                      <div key={testKey} className={cn('grid gap-3 items-start py-3 px-3 border-b last:border-b-0', isTextarea ? 'grid-cols-1' : 'grid-cols-12')}>
-                        {isTextarea ? (
+                      <div key={testKey} className={cn('grid gap-3 items-start py-3 px-3 border-b last:border-b-0', (isTextarea || isStoolMicro) ? 'grid-cols-1' : 'grid-cols-12')}>
+                        {isStoolMicro ? (
+                          // Structured layout for Stool Microscopy
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                              <p className="font-medium text-sm">{testCode}</p>
+                              <p className="text-xs text-muted-foreground">{testName}</p>
+                            </div>
+                            {(() => {
+                              const smf = stoolMicroFields[testKey] || parseStoolMicroValue(entry?.value || '');
+                              return (
+                                <div className="grid grid-cols-2 gap-3">
+                                  {Object.entries(STOOL_MICRO_FIELDS).map(([fieldKey, fieldDef]) => (
+                                    <div key={fieldKey} className={fieldDef.textarea ? 'col-span-2' : ''}>
+                                      <Label className="text-xs font-medium mb-1 block">{fieldDef.label}</Label>
+                                      {fieldDef.textarea ? (
+                                        <textarea
+                                          placeholder="Enter microscopy findings (e.g. ova, cysts, parasites, cells)..."
+                                          value={smf[fieldKey as keyof typeof smf] || ''}
+                                          onChange={e => handleStoolMicroChange(testKey, fieldKey, e.target.value)}
+                                          className="w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+                                        />
+                                      ) : (
+                                        <Select
+                                          value={smf[fieldKey as keyof typeof smf] || ''}
+                                          onValueChange={val => handleStoolMicroChange(testKey, fieldKey, val)}
+                                        >
+                                          <SelectTrigger className="h-8 text-sm">
+                                            <SelectValue placeholder={`Select ${fieldDef.label.toLowerCase()}...`} />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {fieldDef.options!.map(opt => (
+                                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ) : isTextarea ? (
                           // Full-width layout for descriptive/textarea tests
                           <div className="space-y-2">
                             <div className="flex items-center gap-3">
