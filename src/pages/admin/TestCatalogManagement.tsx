@@ -1,12 +1,13 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Save, X, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Copy, ChevronDown, ChevronRight, FlaskConical, Layers, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -47,13 +48,13 @@ interface Test {
 }
 
 const CATEGORIES = [
-  { value: 'hematology', label: 'Hematology' },
-  { value: 'chemistry', label: 'Clinical Chemistry' },
-  { value: 'immunoassay', label: 'Immunoassay' },
-  { value: 'serology', label: 'Serology' },
-  { value: 'urinalysis', label: 'Urinalysis' },
-  { value: 'microbiology', label: 'Microbiology' },
-  { value: 'other', label: 'Other' },
+  { value: 'hematology', label: 'Hematology', color: 'bg-red-100 text-red-800 border-red-200' },
+  { value: 'chemistry', label: 'Clinical Chemistry', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  { value: 'immunoassay', label: 'Immunoassay', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { value: 'serology', label: 'Serology', color: 'bg-pink-100 text-pink-800 border-pink-200' },
+  { value: 'urinalysis', label: 'Urinalysis', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  { value: 'microbiology', label: 'Microbiology', color: 'bg-green-100 text-green-800 border-green-200' },
+  { value: 'other', label: 'Other', color: 'bg-gray-100 text-gray-800 border-gray-200' },
 ];
 
 const SAMPLE_TYPES = [
@@ -197,6 +198,51 @@ export default function TestCatalogManagement() {
     setReferenceRanges(referenceRanges.filter((_, i) => i !== index));
   };
 
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const toggleCategory = (cat: string) => setOpenCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+
+  // Panel creation state
+  const [panelForm, setPanelForm] = useState({ name: '', code: '', description: '', price: '' });
+  const [panelTestCodes, setPanelTestCodes] = useState('');
+  const [panelSaving, setPanelSaving] = useState(false);
+
+  const handleCreatePanel = async () => {
+    if (!panelForm.code || !panelForm.name) {
+      toast.error('Panel code and name are required');
+      return;
+    }
+    const testCodeList = panelTestCodes.split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
+    if (testCodeList.length < 2) {
+      toast.error('A panel needs at least 2 test codes');
+      return;
+    }
+    setPanelSaving(true);
+    try {
+      const matchedTests = tests.filter((t: Test) => testCodeList.includes(t.code));
+      const missing = testCodeList.filter(c => !matchedTests.find((t: Test) => t.code === c));
+      if (missing.length) {
+        toast.error(`Tests not found in catalog: ${missing.join(', ')}`);
+        return;
+      }
+      await api.post('/test-panels', {
+        code: panelForm.code.toUpperCase(),
+        name: panelForm.name,
+        description: panelForm.description,
+        price: parseFloat(panelForm.price) || 0,
+        isActive: true,
+        tests: matchedTests.map((t: Test) => ({ testId: t._id, testCode: t.code, testName: t.name })),
+      });
+      toast.success(`Panel "${panelForm.name}" created successfully`);
+      setPanelForm({ name: '', code: '', description: '', price: '' });
+      setPanelTestCodes('');
+      queryClient.invalidateQueries({ queryKey: ['tests'] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to create panel');
+    } finally {
+      setPanelSaving(false);
+    }
+  };
+
   // Filter tests
   const filteredTests = tests.filter((test: Test) => {
     const matchesCategory = selectedCategory === 'all' || test.category === selectedCategory;
@@ -204,6 +250,14 @@ export default function TestCatalogManagement() {
                          test.code.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  // Group by category
+  const testsByCategory = CATEGORIES.map(cat => ({
+    ...cat,
+    tests: filteredTests.filter((t: Test) => t.category === cat.value),
+  })).filter(g => g.tests.length > 0);
+
+  const activeCount = tests.filter((t: Test) => t.isActive).length;
 
   return (
     <RoleLayout 
@@ -223,118 +277,155 @@ export default function TestCatalogManagement() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Search</Label>
-              <Input
-                placeholder="Search by test name or code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <FlaskConical className="h-8 w-8 text-blue-500" />
+              <div>
+                <p className="text-2xl font-bold">{tests.length}</p>
+                <p className="text-xs text-muted-foreground">Total Tests</p>
+              </div>
             </div>
-            <div>
-              <Label>Category</Label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {CATEGORIES.map(cat => (
-                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                <span className="text-green-700 font-bold text-sm">{activeCount}</span>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-green-600">{activeCount}</p>
+                <p className="text-xs text-muted-foreground">Active</p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tests List */}
-      <div className="grid grid-cols-1 gap-4">
-        {isLoading ? (
-          <div className="text-center py-8">Loading tests...</div>
-        ) : filteredTests.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No tests found</div>
-        ) : (
-          filteredTests.map((test: Test) => (
-            <Card key={test._id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <CardTitle>{test.name}</CardTitle>
-                      <Badge variant={test.isActive ? 'default' : 'secondary'}>
-                        {test.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                      {test.linkedTests && test.linkedTests.length > 0 && (
-                        <Badge variant="outline">Linked</Badge>
-                      )}
-                    </div>
-                    <CardDescription>
-                      Code: {test.code} | Category: {test.category} | Price: ${test.price}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleDuplicate(test)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleOpenDialog(test)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    {isAdmin && (
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(test._id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="font-semibold">Sample:</span> {test.sampleType}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Unit:</span> {test.unit || 'N/A'}
-                  </div>
-                  <div>
-                    <span className="font-semibold">TAT:</span> {test.turnaroundTime || 'N/A'} min
-                  </div>
-                  <div>
-                    <span className="font-semibold">Panel:</span> {test.panelName || 'N/A'}
-                  </div>
-                </div>
-                {test.referenceRange && (
-                  <div className="mt-2 text-sm">
-                    <span className="font-semibold">Reference Range:</span> {test.referenceRange}
-                  </div>
-                )}
-                {test.referenceRanges && test.referenceRanges.length > 0 && (
-                  <div className="mt-2">
-                    <span className="font-semibold text-sm">Dynamic Ranges:</span>
-                    <div className="mt-1 space-y-1">
-                      {test.referenceRanges.map((range, idx) => (
-                        <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
-                          {range.ageGroup} {range.gender !== 'all' && `(${range.gender})`}: {range.range} {range.unit}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {test.linkedTests && test.linkedTests.length > 0 && (
-                  <div className="mt-2 text-sm">
-                    <span className="font-semibold">Linked Tests:</span> {test.linkedTests.join(', ')}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))
-        )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <Layers className="h-8 w-8 text-purple-500" />
+              <div>
+                <p className="text-2xl font-bold">{CATEGORIES.length}</p>
+                <p className="text-xs text-muted-foreground">Categories</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Search + filter */}
+      <div className="flex gap-3 items-center">
+        <div className="flex-1">
+          <Input
+            placeholder="Search by name or code..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {CATEGORIES.map(cat => (
+              <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Tests grouped by category */}
+      {isLoading ? (
+        <div className="text-center py-12 text-muted-foreground">Loading tests...</div>
+      ) : testsByCategory.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">No tests found</div>
+      ) : (
+        <div className="space-y-3">
+          {testsByCategory.map(group => (
+            <Collapsible
+              key={group.value}
+              open={openCategories[group.value] !== false}
+              onOpenChange={() => toggleCategory(group.value)}
+            >
+              <Card>
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-muted/40 rounded-t-lg select-none">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${group.color}`}>{group.label}</span>
+                      <span className="text-sm text-muted-foreground">{group.tests.length} test{group.tests.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    {openCategories[group.value] === false ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="border-t">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/30 text-xs text-muted-foreground uppercase tracking-wide">
+                          <th className="text-left px-5 py-2">Code</th>
+                          <th className="text-left px-5 py-2">Name</th>
+                          <th className="text-left px-5 py-2">Unit</th>
+                          <th className="text-left px-5 py-2">Reference Range</th>
+                          <th className="text-left px-5 py-2">Price</th>
+                          <th className="text-left px-5 py-2">Status</th>
+                          <th className="text-right px-5 py-2">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {group.tests.map((test: Test) => (
+                          <tr key={test._id} className="hover:bg-muted/20 transition-colors">
+                            <td className="px-5 py-2.5 font-mono font-semibold text-xs">{test.code}</td>
+                            <td className="px-5 py-2.5 font-medium">
+                              {test.name}
+                              {test.panelName && (
+                                <span className="ml-2 text-xs text-muted-foreground">({test.panelName})</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-2.5 text-muted-foreground">{test.unit || '—'}</td>
+                            <td className="px-5 py-2.5 text-muted-foreground">
+                              {test.referenceRanges && test.referenceRanges.length > 0
+                                ? test.referenceRanges.map((r, i) => (
+                                    <span key={i} className="block text-xs">{r.range} {r.unit}</span>
+                                  ))
+                                : test.referenceRange || '—'
+                              }
+                            </td>
+                            <td className="px-5 py-2.5">Le {test.price?.toLocaleString()}</td>
+                            <td className="px-5 py-2.5">
+                              <Badge variant={test.isActive ? 'default' : 'secondary'} className="text-xs">
+                                {test.isActive ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </td>
+                            <td className="px-5 py-2.5">
+                              <div className="flex justify-end gap-1">
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDuplicate(test)}>
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleOpenDialog(test)}>
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                {isAdmin && (
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDelete(test._id)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          ))}
+        </div>
+      )}
 
       {/* Edit/Create Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -346,10 +437,11 @@ export default function TestCatalogManagement() {
           </DialogHeader>
 
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="ranges">Reference Ranges</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="ranges">Ref. Ranges</TabsTrigger>
+              <TabsTrigger value="advanced">Create Panel</TabsTrigger>
+              <TabsTrigger value="preview">Report Preview</TabsTrigger>
             </TabsList>
 
             {/* Basic Info Tab */}
@@ -617,32 +709,120 @@ export default function TestCatalogManagement() {
               )}
             </TabsContent>
 
-            {/* Advanced Tab */}
-            <TabsContent value="advanced" className="space-y-4">
-              <div>
-                <Label>Linked Tests</Label>
-                <Input
-                  value={formData.linkedTests?.join(', ') || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    linkedTests: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
-                  })}
-                  placeholder="e.g., HSCRP (comma-separated test codes)"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Tests that should be automatically included when this test is ordered (e.g., CRP includes HSCRP)
-                </p>
-              </div>
+            {/* Report Preview Tab */}
+            <TabsContent value="preview" className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-base">
+                  <Info className="h-4 w-4 text-blue-500" />
+                  How this test appears on the result sheet
+                </div>
 
-              <div>
-                <Label>Machine ID</Label>
-                <Input
-                  value={formData.machineId || ''}
-                  onChange={(e) => setFormData({ ...formData, machineId: e.target.value })}
-                  placeholder="Optional machine/analyzer ID"
-                />
+                {/* Category heading */}
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Section heading on report</p>
+                  <div className="bg-white border rounded px-4 py-2 font-bold text-sm uppercase tracking-widest">
+                    {CATEGORIES.find(c => c.value === formData.category)?.label?.toUpperCase() || 'CATEGORY'}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    All tests in the same category share this page heading.
+                    {formData.category === 'hematology' && ' Coagulation Profile (COAG panel) always prints on its own page.'}
+                    {formData.category === 'chemistry' && ' Urea, Creatinine, and Uric Acid print on a separate page when ordered individually.'}
+                  </p>
+                </div>
+
+                {/* Panel vs individual */}
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Grouping</p>
+                  {formData.panelCode ? (
+                    <div className="bg-white border rounded px-4 py-2 text-sm">
+                      <span className="font-semibold">{formData.panelName || formData.panelCode}</span>
+                      <span className="text-muted-foreground ml-2 text-xs">(panel sub-header)</span>
+                      <div className="mt-2 pl-3 border-l-2 border-muted">
+                        <div className="flex justify-between text-xs py-1">
+                          <span className="font-medium">{formData.name || 'Test Name'}</span>
+                          <span className="text-muted-foreground">{formData.unit || 'unit'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white border rounded px-4 py-2 text-sm">
+                      <p className="text-xs text-muted-foreground mb-1">Individual test row (no panel sub-header)</p>
+                      <div className="flex justify-between text-xs py-1 border-b">
+                        <span className="font-medium">{formData.name || 'Test Name'}</span>
+                        <span className="text-muted-foreground">{formData.unit || 'unit'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Reference range preview */}
+                {(referenceRanges.length > 0 || formData.referenceRange) && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Reference range shown alongside result</p>
+                    <div className="bg-white border rounded px-4 py-2 text-xs space-y-1">
+                      {referenceRanges.length > 0
+                        ? referenceRanges.map((r, i) => (
+                            <div key={i} className="flex justify-between">
+                              <span className="text-muted-foreground">{r.ageGroup}{r.gender && r.gender !== 'all' ? ` (${r.gender})` : ''}</span>
+                              <span>{r.range} {r.unit}</span>
+                            </div>
+                          ))
+                        : <span>{formData.referenceRange}</span>
+                      }
+                    </div>
+                  </div>
+                )}
+
+                {/* Tips */}
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-800 space-y-1">
+                  <p className="font-semibold">Tips:</p>
+                  <p>• Assign a <strong>Panel Code</strong> (Basic Info tab) to group this test under a panel sub-header on the report.</p>
+                  <p>• Tests with no panel code appear as individual rows under the category heading.</p>
+                  <p>• Use the <strong>Panel</strong> tab to create a new orderable panel combining multiple tests.</p>
+                  <p>• Age/gender-specific ranges (Reference Ranges tab) are automatically matched to the patient at report time.</p>
+                </div>
               </div>
             </TabsContent>
+
+            {/* Panel Tab */}
+            <TabsContent value="advanced" className="space-y-4">
+              <div className="rounded-lg border bg-amber-50 border-amber-200 p-4 space-y-4">
+                <div className="font-semibold text-amber-900 flex items-center gap-2">
+                  <Layers className="h-4 w-4" />
+                  Create a New Orderable Panel
+                </div>
+                <p className="text-xs text-amber-700">A panel groups multiple individual tests so they can be ordered as one item. Enter the test codes that belong in the panel (must already exist in the catalog).</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Panel Code *</Label>
+                    <Input value={panelForm.code} onChange={e => setPanelForm({...panelForm, code: e.target.value.toUpperCase()})} placeholder="e.g., LIPID, THYROID" />
+                  </div>
+                  <div>
+                    <Label>Panel Name *</Label>
+                    <Input value={panelForm.name} onChange={e => setPanelForm({...panelForm, name: e.target.value})} placeholder="e.g., Lipid Profile" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Price (Le)</Label>
+                    <Input type="number" value={panelForm.price} onChange={e => setPanelForm({...panelForm, price: e.target.value})} placeholder="0" />
+                  </div>
+                  <div>
+                    <Label>Description</Label>
+                    <Input value={panelForm.description} onChange={e => setPanelForm({...panelForm, description: e.target.value})} placeholder="Optional" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Test Codes (comma-separated) *</Label>
+                  <Input value={panelTestCodes} onChange={e => setPanelTestCodes(e.target.value)} placeholder="e.g., CHOL, HDL, LDL, TG, VLDL" />
+                  <p className="text-xs text-muted-foreground mt-1">These tests must already exist in the catalog above.</p>
+                </div>
+                <Button onClick={handleCreatePanel} disabled={panelSaving} className="w-full">
+                  {panelSaving ? 'Creating...' : 'Create Panel'}
+                </Button>
+              </div>
+            </TabsContent>
+
           </Tabs>
 
           <DialogFooter>
@@ -655,6 +835,7 @@ export default function TestCatalogManagement() {
               {editingTest ? 'Update Test' : 'Create Test'}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </div>
