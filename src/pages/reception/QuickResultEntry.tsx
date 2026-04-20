@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useOrders, useUpdateOrder } from '@/hooks/useOrders';
 import { useCreateResult } from '@/hooks/useResults';
 import { useAllTests } from '@/hooks/useTestCatalog';
+import { ordersAPI } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -151,6 +152,24 @@ export default function QuickResultEntry() {
     setTimeout(() => firstInputRef.current?.focus(), 100);
   }, [getTestInfo, isNumericReferenceRange, isReceptionistEntry]);
 
+  // Fetch fresh order by ID and load it (ensures newly added tests are visible)
+  const loadOrderById = useCallback(async (orderId: string) => {
+    try {
+      const fresh = await ordersAPI.getById(orderId);
+      const normalized = {
+        ...fresh,
+        id: fresh.id || fresh._id,
+        orderNumber: fresh.orderNumber || fresh.order_number,
+        tests: (fresh.order_tests || fresh.tests || []),
+        order_tests: (fresh.order_tests || fresh.tests || []),
+        patient: fresh.patient || (typeof fresh.patientId === 'object' ? fresh.patientId : null),
+      };
+      loadOrder(normalized);
+    } catch {
+      toast.error('Failed to load order details');
+    }
+  }, [loadOrder]);
+
   // Search / barcode scan handler
   const handleSearch = useCallback(() => {
     if (!searchTerm.trim() || !allOrders) return;
@@ -164,7 +183,7 @@ export default function QuickResultEntry() {
     });
 
     if (exact) {
-      loadOrder(exact);
+      loadOrderById(exact.id || exact._id || '');
       return;
     }
 
@@ -178,7 +197,7 @@ export default function QuickResultEntry() {
     });
 
     if (partial) {
-      loadOrder(partial);
+      loadOrderById(partial.id || partial._id || '');
       return;
     }
 
@@ -189,12 +208,12 @@ export default function QuickResultEntry() {
     });
 
     if (byName) {
-      loadOrder(byName);
+      loadOrderById(byName.id || byName._id || '');
       return;
     }
 
     toast.error('No order found for that search');
-  }, [searchTerm, allOrders, loadOrder]);
+  }, [searchTerm, allOrders, loadOrderById]);
 
   const handleValueChange = (testKey: string, value: string) => {
     const entry = entries[testKey];
