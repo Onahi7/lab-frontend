@@ -44,6 +44,8 @@ export interface ResultItem {
   isAmended: boolean;
   amendmentReason?: string;
   subcategory?: string;
+  menstrualPhase?: string;
+  allReferenceRanges?: string;
 }
 
 export interface ResultCategory {
