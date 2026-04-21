@@ -87,7 +87,7 @@ const STOOL_MICRO_FIELDS = {
 const STOOL_MICRO_TEST_CODES = new Set(['STOOLMICRO', 'STOOL', 'STOOLEXAM']);
 
 // Hormone tests that have phase-specific ranges
-const HORMONE_TESTS_WITH_PHASES = new Set(['FSH', 'LH', 'PROG', 'PROGESTERONE']);
+const HORMONE_TESTS_WITH_PHASES = new Set(['FSH', 'LH', 'PROG', 'PROGESTERONE', 'E2', 'ESTRADIOL']);
 
 // Menstrual phase options for hormone tests
 const MENSTRUAL_PHASE_OPTIONS = [
