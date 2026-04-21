@@ -86,6 +86,18 @@ const STOOL_MICRO_FIELDS = {
 };
 const STOOL_MICRO_TEST_CODES = new Set(['STOOLMICRO', 'STOOL', 'STOOLEXAM']);
 
+// Hormone tests that have phase-specific ranges
+const HORMONE_TESTS_WITH_PHASES = new Set(['FSH', 'LH', 'PROG', 'PROGESTERONE']);
+
+// Menstrual phase options for hormone tests
+const MENSTRUAL_PHASE_OPTIONS = [
+  { value: 'follicular', label: 'Follicular Phase (Day 1-14)' },
+  { value: 'ovulation', label: 'Ovulation Phase (Day 14-16)' },
+  { value: 'luteal', label: 'Luteal Phase (Day 15-28)' },
+  { value: 'menopause', label: 'Menopause' },
+  { value: 'pregnancy', label: 'Pregnancy' },
+];
+
 const normalizeTestCode = (value?: string) =>
   (value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
@@ -225,6 +237,8 @@ interface ResultEntry {
   panelName?: string;
   category?: string;
   interpretation?: string; // Add interpretation field
+  menstrualPhase?: string; // Add menstrual phase field
+  allReferenceRanges?: Array<{ ageGroup: string; range: string; unit: string; gender?: string }>; // All applicable ranges
 }
 
 function includeLinkedInputTests(orderTests: any[]): any[] {
@@ -533,22 +547,59 @@ export default function EnterResultsPage() {
   }, [socket, selectedOrderId, selectedOrderTests]);
 
   // Get reference info from test catalog
-  const getTestInfo = (testCode: string, patientAge?: number, patientGender?: string) => {
+  const getTestInfo = (testCode: string, patientAge?: number, patientGender?: string, selectedPhase?: string) => {
     const test = findCatalogTestByCode(testCatalog as any[] | undefined, testCode);
 
     if (!test) {
-      return { unit: '', referenceRange: '', criticalLow: '', criticalHigh: '' };
+      return { unit: '', referenceRange: '', criticalLow: '', criticalHigh: '', allRanges: [] };
     }
 
     let referenceRange = test.referenceRange || '';
     let matchedAgeGroup = '';
     let criticalLow = '';
     let criticalHigh = '';
+    let allRanges: Array<{ ageGroup: string; range: string; unit: string; gender?: string }> = [];
+
+    // Check if this is a hormone test with phase-specific ranges
+    const isHormoneTest = HORMONE_TESTS_WITH_PHASES.has(normalizeTestCode(testCode));
 
     if (test.referenceRanges && test.referenceRanges.length > 0) {
+      // Collect all applicable ranges for hormone tests
+      if (isHormoneTest && patientGender) {
+        allRanges = test.referenceRanges
+          .filter((r: any) => {
+            // Include ranges that match patient gender or are gender-neutral
+            return !r.gender || r.gender === 'all' || r.gender === patientGender;
+          })
+          .map((r: any) => ({
+            ageGroup: r.ageGroup || '',
+            range: r.range || '',
+            unit: r.unit || test.unit || '',
+            gender: r.gender,
+          }));
+      }
+
       let matchedRange: any;
 
-      if (patientAge !== undefined) {
+      // If phase is selected for hormone test, match by phase
+      if (isHormoneTest && selectedPhase && patientGender) {
+        matchedRange = test.referenceRanges.find((r: any) => {
+          const ageGroupLower = (r.ageGroup || '').toLowerCase();
+          const genderMatch = !r.gender || r.gender === 'all' || r.gender === patientGender;
+          
+          // Match phase in age group name
+          if (selectedPhase === 'follicular' && ageGroupLower.includes('follicular')) return genderMatch;
+          if (selectedPhase === 'ovulation' && ageGroupLower.includes('ovulation')) return genderMatch;
+          if (selectedPhase === 'luteal' && ageGroupLower.includes('luteal')) return genderMatch;
+          if (selectedPhase === 'menopause' && ageGroupLower.includes('menopause')) return genderMatch;
+          if (selectedPhase === 'pregnancy' && ageGroupLower.includes('pregnancy')) return genderMatch;
+          
+          return false;
+        });
+      }
+
+      // If no phase match or not a hormone test, match by age and gender
+      if (!matchedRange && patientAge !== undefined) {
         matchedRange = test.referenceRanges.find((r: any) => {
           const ageMatch =
             (r.ageMin === undefined || patientAge >= r.ageMin) &&
@@ -585,6 +636,8 @@ export default function EnterResultsPage() {
       ageGroup: matchedAgeGroup,
       criticalLow: normalizeMchcThreshold(testCode, criticalLow),
       criticalHigh: normalizeMchcThreshold(testCode, criticalHigh),
+      allRanges,
+      isHormoneTest,
     };
   };
 
@@ -642,12 +695,17 @@ export default function EnterResultsPage() {
     return 'normal';
   };
 
-  const handleValueChange = (orderTest: any, value: string) => {
+  const handleValueChange = (orderTest: any, value: string, phase?: string) => {
     const testCode = orderTest.testCode || orderTest.test_code || '';
     const patient = typeof selectedOrder?.patient === 'object' ? selectedOrder.patient : null;
     const patientAge = patient?.age;
     const patientGender = patient?.gender;
-    const testInfo = getTestInfo(testCode, patientAge, patientGender);
+    const entryKey = orderTest.id || orderTest._id || testCode;
+    
+    // Get current phase from entry or use provided phase
+    const currentPhase = phase || resultEntries[entryKey]?.menstrualPhase;
+    
+    const testInfo = getTestInfo(testCode, patientAge, patientGender, currentPhase);
     const normalizedValue = normalizeMchcValue(testCode, value);
     const normalizedReferenceRange = normalizeMchcRange(testCode, testInfo.referenceRange);
     const normalizedCriticalLow = normalizeMchcThreshold(testCode, testInfo.criticalLow);
@@ -658,7 +716,6 @@ export default function EnterResultsPage() {
       normalizedCriticalLow,
       normalizedCriticalHigh,
     );
-    const entryKey = orderTest.id || orderTest._id || testCode;
 
     // Generate automatic interpretation for HB Genotype
     let interpretation = '';
@@ -719,9 +776,20 @@ export default function EnterResultsPage() {
         unit: normalizeMchcUnit(testCode, testInfo.unit),
         referenceRange: normalizedReferenceRange,
         flag,
-        interpretation, // Add interpretation to the result entry
-      }
+        interpretation,
+        menstrualPhase: currentPhase,
+        allReferenceRanges: testInfo.allRanges,
+      },
     }));
+  };
+
+  const handlePhaseChange = (orderTest: any, phase: string) => {
+    const testCode = orderTest.testCode || orderTest.test_code || '';
+    const entryKey = orderTest.id || orderTest._id || testCode;
+    const currentValue = resultEntries[entryKey]?.value || '';
+    
+    // Re-calculate with new phase
+    handleValueChange(orderTest, currentValue, phase);
   };
 
   const handleSubmitResults = () => {
@@ -792,6 +860,16 @@ export default function EnterResultsPage() {
 
         if (entry.orderTestId && MONGO_OBJECT_ID_REGEX.test(entry.orderTestId)) {
           payload.orderTestId = entry.orderTestId;
+        }
+
+        // Add menstrual phase for hormone tests
+        if (entry.menstrualPhase) {
+          payload.menstrualPhase = entry.menstrualPhase;
+        }
+
+        // Add all reference ranges for hormone tests
+        if (entry.allReferenceRanges && entry.allReferenceRanges.length > 0) {
+          payload.allReferenceRanges = JSON.stringify(entry.allReferenceRanges);
         }
 
         // Add FBC interpretation message to WBC test (it will appear at bottom of FBC panel in report)
@@ -1066,14 +1144,19 @@ export default function EnterResultsPage() {
                     const testName = test.testName || test.test_name || testCode;
                     const testKey = test.id || test._id || testCode;
                     const entry = resultEntries[testKey];
-                    const testInfo = getTestInfo(testCode, patientAge, patientGender);
+                    const patient = typeof selectedOrder?.patient === 'object' ? selectedOrder.patient : null;
+                    const patientAge = patient?.age;
+                    const patientGender = patient?.gender;
+                    const testInfo = getTestInfo(testCode, patientAge, patientGender, entry?.menstrualPhase);
 
                     const qualitativeOptions = QUALITATIVE_OPTIONS[testCode];
                     const isTextarea = TEXTAREA_TESTS.has(testCode);
                     const isStoolMicro = STOOL_MICRO_TEST_CODES.has(normalizeTestCode(testCode));
+                    const isHormoneTest = testInfo.isHormoneTest && patientGender === 'F';
+                    const showAllRanges = isHormoneTest && entry?.allReferenceRanges && entry.allReferenceRanges.length > 1;
 
                     return (
-                      <div key={testKey} className={cn('grid gap-3 items-start py-3 px-3 border-b last:border-b-0', (isTextarea || isStoolMicro) ? 'grid-cols-1' : 'grid-cols-12')}>
+                      <div key={testKey} className={cn('grid gap-3 items-start py-3 px-3 border-b last:border-b-0', (isTextarea || isStoolMicro || showAllRanges) ? 'grid-cols-1' : 'grid-cols-12')}>
                         {isStoolMicro ? (
                           // Structured layout for Stool Microscopy
                           <div className="space-y-3">
@@ -1129,6 +1212,97 @@ export default function EnterResultsPage() {
                               onChange={e => handleValueChange(test, e.target.value)}
                               className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring"
                             />
+                          </div>
+                        ) : showAllRanges ? (
+                          // Special layout for hormone tests with multiple ranges
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-12 gap-3">
+                              <div className="col-span-3">
+                                <p className="font-medium text-sm">{testCode}</p>
+                                <p className="text-xs text-muted-foreground">{testName}</p>
+                              </div>
+                              <div className="col-span-2">
+                                <Input
+                                  id={`value-${testKey}`}
+                                  placeholder="Value"
+                                  value={entry?.value || ''}
+                                  onChange={e => handleValueChange(test, e.target.value)}
+                                  onKeyDown={e => handleKeyDown(e, testKey)}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                              <div className="col-span-3">
+                                <Select
+                                  value={entry?.menstrualPhase || ''}
+                                  onValueChange={val => handlePhaseChange(test, val)}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue placeholder="Select phase..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {MENSTRUAL_PHASE_OPTIONS.map(opt => (
+                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="col-span-2 flex items-center">
+                                {entry?.interpretation ? (
+                                  <span className={cn(
+                                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold',
+                                    entry.interpretation === 'Negative' || entry.interpretation === 'Not Detected' || entry.interpretation === 'No malaria antigen detected'
+                                      ? 'bg-green-100 text-green-700'
+                                      : entry.interpretation.toLowerCase().includes('weakly')
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-red-100 text-red-700'
+                                  )}>
+                                    {entry.interpretation}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </div>
+                              <div className="col-span-1">
+                                <p className="text-xs text-muted-foreground">{testInfo.unit || '-'}</p>
+                              </div>
+                              <div className="col-span-1">
+                                {entry?.value && (
+                                  <Badge variant="outline" className={cn('text-xs', flagStyles[entry.flag])}>
+                                    {entry.flag === 'normal' ? '✓' : entry.flag === 'critical_high' || entry.flag === 'critical_low' ? '!!' : entry.flag === 'high' ? '↑' : entry.flag === 'low' ? '↓' : '—'}
+                                  </Badge>
+                                )}
+                                {liveUpdates[testKey] && (
+                                  <span className="text-[9px] text-primary/70 flex items-center gap-0.5" title={`Synced at ${liveUpdates[testKey]}`}>
+                                    <Radio className="w-2.5 h-2.5" />
+                                    live
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {/* Display all reference ranges */}
+                            <div className="pl-3 border-l-2 border-primary/20 bg-muted/30 p-2 rounded-r">
+                              <p className="text-xs font-semibold text-muted-foreground mb-1">Reference Ranges ({patientGender === 'F' ? 'Female' : 'Male'}):</p>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                {entry.allReferenceRanges?.map((range, idx) => {
+                                  const isSelected = entry.menstrualPhase && range.ageGroup.toLowerCase().includes(entry.menstrualPhase);
+                                  return (
+                                    <div key={idx} className={cn(
+                                      'text-xs flex items-center gap-1',
+                                      isSelected ? 'font-semibold text-primary' : 'text-muted-foreground'
+                                    )}>
+                                      {isSelected && <span className="text-primary">►</span>}
+                                      <span>{range.ageGroup}:</span>
+                                      <span className="font-mono">{range.range} {range.unit}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {entry.menstrualPhase && (
+                                <p className="text-xs text-primary mt-1.5 italic">
+                                  ► Flagged based on {MENSTRUAL_PHASE_OPTIONS.find(p => p.value === entry.menstrualPhase)?.label || entry.menstrualPhase} range
+                                </p>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           <>

@@ -70,7 +70,20 @@ export default function QuickResultEntry() {
 
     if (test.referenceRanges?.length > 0 && patientAge !== undefined) {
       const matchedRange = test.referenceRanges.find((r: any) => {
-        const ageMatch = (r.ageMin === undefined || patientAge >= r.ageMin) && (r.ageMax === undefined || patientAge <= r.ageMax);
+        let ageMatch = true;
+        // Handle age ranges like "18-25 years"
+        if (r.ageGroup && r.ageGroup.includes('years')) {
+          const ageRangeMatch = r.ageGroup.match(/(\d+)-(\d+)\s*years/);
+          if (ageRangeMatch) {
+            const minAge = parseInt(ageRangeMatch[1]);
+            const maxAge = parseInt(ageRangeMatch[2]);
+            ageMatch = patientAge >= minAge && patientAge <= maxAge;
+          }
+        } else {
+          // Handle numeric ageMin/ageMax
+          ageMatch = (r.ageMin === undefined || patientAge >= r.ageMin) && (r.ageMax === undefined || patientAge <= r.ageMax);
+        }
+        
         const genderMatch = !r.gender || r.gender === 'all' || r.gender === patientGender;
         return ageMatch && genderMatch;
       });
@@ -88,9 +101,29 @@ export default function QuickResultEntry() {
     };
   }, [testCatalog]);
 
-  const calculateFlag = useCallback((value: string, refLow: number, refHigh: number): ResultFlag => {
+  const calculateFlag = useCallback((value: string, refLow: number, refHigh: number, referenceRange?: string): ResultFlag => {
     const num = parseFloat(value);
-    if (isNaN(num) || isNaN(refLow) || isNaN(refHigh)) return 'normal';
+    if (isNaN(num)) return 'normal';
+    
+    // Handle threshold values like "<0.5" or ">3.0"
+    if (referenceRange) {
+      const thresholdMatch = referenceRange.match(/^(<|>|<=|>=|≤|≥)\s*(\d+\.?\d*)/);
+      if (thresholdMatch) {
+        const operator = thresholdMatch[1];
+        const threshold = parseFloat(thresholdMatch[2]);
+        if (operator === '<' || operator === '<=') {
+          if (num > threshold) return 'high';
+          if (num > threshold * 2) return 'critical_high';
+        } else if (operator === '>' || operator === '>=') {
+          if (num < threshold) return 'low';
+          if (num < threshold * 0.5) return 'critical_low';
+        }
+        return 'normal';
+      }
+    }
+    
+    // Handle normal ranges
+    if (isNaN(refLow) || isNaN(refHigh)) return 'normal';
     if (num < refLow * 0.5) return 'critical_low';
     if (num > refHigh * 1.5) return 'critical_high';
     if (num < refLow) return 'low';
@@ -104,7 +137,7 @@ export default function QuickResultEntry() {
     if (!trimmed) return false;
 
     const rangeMatch = trimmed.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
-    const thresholdMatch = trimmed.match(/^(<|>|<=|>=|≤|≥)\s*(\d+\.?\d*)$/);
+    const thresholdMatch = trimmed.match(/^(<|>|<=|>=|≤|≥)\s*(\d+\.?\d*)/);
 
     return Boolean(rangeMatch || thresholdMatch);
   }, []);
@@ -227,7 +260,7 @@ export default function QuickResultEntry() {
     const patientGender = (matchedOrder?.patient || (typeof matchedOrder?.patientId === 'object' ? matchedOrder?.patientId : null) as any)?.gender;
 
     const info = getTestInfo(entry.testCode, patientAge, patientGender);
-    const flag = calculateFlag(value, info.refLow, info.refHigh);
+    const flag = calculateFlag(value, info.refLow, info.refHigh, info.referenceRange);
 
     setEntries(prev => ({
       ...prev,

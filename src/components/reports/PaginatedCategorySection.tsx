@@ -156,48 +156,95 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                             ? (result.comments || result.referenceRange || '-')
                             : (result.referenceRange || '-');
 
+                          // Check if this is a hormone test with multiple ranges
+                          const hasMultipleRanges = result.allReferenceRanges && 
+                            (() => {
+                              try {
+                                const ranges = typeof result.allReferenceRanges === 'string' 
+                                  ? JSON.parse(result.allReferenceRanges) 
+                                  : result.allReferenceRanges;
+                                return Array.isArray(ranges) && ranges.length > 1;
+                              } catch {
+                                return false;
+                              }
+                            })();
+
                           return (
-                            <tr
-                              key={`result-${resultIndex}`}
-                              className="result-row border-b border-solid"
-                              style={{
-                                borderColor: '#e2e8f0',
-                                backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff',
-                                borderLeft:
-                                  result.flag === 'critical_high' || result.flag === 'critical_low'
-                                    ? `2px solid ${resultsSection?.criticalColor || colors?.critical || '#dc2626'}`
-                                    : result.flag === 'high' || result.flag === 'low'
-                                      ? `2px solid ${resultsSection?.abnormalColor || colors?.abnormal || '#dc2626'}`
-                                      : '2px solid transparent',
-                              }}
-                            >
-                              <td className="py-1 px-3 font-semibold text-[13px]">{firstColumnValue}</td>
-                              <td
-                                className="py-1 px-3 font-bold whitespace-nowrap text-[13px]"
+                            <Fragment key={`result-${resultIndex}`}>
+                              <tr
+                                key={`result-${resultIndex}`}
+                                className="result-row border-b border-solid"
                                 style={{
-                                  color:
+                                  borderColor: '#e2e8f0',
+                                  backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff',
+                                  borderLeft:
                                     result.flag === 'critical_high' || result.flag === 'critical_low'
-                                      ? (resultsSection?.criticalColor || colors?.critical || '#dc2626')
+                                      ? `2px solid ${resultsSection?.criticalColor || colors?.critical || '#dc2626'}`
                                       : result.flag === 'high' || result.flag === 'low'
-                                        ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
-                                        : undefined,
+                                        ? `2px solid ${resultsSection?.abnormalColor || colors?.abnormal || '#dc2626'}`
+                                        : '2px solid transparent',
                                 }}
                               >
-                                {result.value}
-                                {(result.flag === 'high' || result.flag === 'critical_high') && (
-                                  <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                                <td className="py-1 px-3 font-semibold text-[13px]">{firstColumnValue}</td>
+                                <td
+                                  className="py-1 px-3 font-bold whitespace-nowrap text-[13px]"
+                                  style={{
+                                    color:
+                                      result.flag === 'critical_high' || result.flag === 'critical_low'
+                                        ? (resultsSection?.criticalColor || colors?.critical || '#dc2626')
+                                        : result.flag === 'high' || result.flag === 'low'
+                                          ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
+                                          : undefined,
+                                  }}
+                                >
+                                  {result.value}
+                                  {(result.flag === 'high' || result.flag === 'critical_high') && (
+                                    <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                                  )}
+                                  {(result.flag === 'low' || result.flag === 'critical_low') && (
+                                    <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                                  )}
+                                </td>
+                                <td className="py-1 px-3 text-[12px] text-slate-700">
+                                  {typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}
+                                </td>
+                                {!useThreeColumns && (
+                                  <td className="py-1 px-3 text-[12px] text-slate-600">{result.unit || '-'}</td>
                                 )}
-                                {(result.flag === 'low' || result.flag === 'critical_low') && (
-                                  <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
-                                )}
-                              </td>
-                              <td className="py-1 px-3 text-[12px] text-slate-700">
-                                {typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}
-                              </td>
-                              {!useThreeColumns && (
-                                <td className="py-1 px-3 text-[12px] text-slate-600">{result.unit || '-'}</td>
+                              </tr>
+                              {/* Show all reference ranges for hormone tests */}
+                              {hasMultipleRanges && (
+                                <tr className="border-b border-solid" style={{ borderColor: '#e2e8f0', backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff' }}>
+                                  <td colSpan={useThreeColumns ? 3 : 4} className="py-1 px-3">
+                                    <div className="text-[10px] text-slate-600 pl-4 border-l-2 border-primary/30">
+                                      <span className="font-semibold">All Reference Ranges: </span>
+                                      {(() => {
+                                        try {
+                                          const ranges = typeof result.allReferenceRanges === 'string' 
+                                            ? JSON.parse(result.allReferenceRanges) 
+                                            : result.allReferenceRanges;
+                                          return ranges.map((r: any, i: number) => (
+                                            <span key={i}>
+                                              {i > 0 && ' | '}
+                                              <span className={result.menstrualPhase && r.ageGroup.toLowerCase().includes(result.menstrualPhase) ? 'font-bold text-primary' : ''}>
+                                                {r.ageGroup}: {r.range} {r.unit}
+                                              </span>
+                                            </span>
+                                          ));
+                                        } catch {
+                                          return null;
+                                        }
+                                      })()}
+                                      {result.menstrualPhase && (
+                                        <span className="italic text-primary ml-2">
+                                          (Flagged based on {result.menstrualPhase} phase)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
                               )}
-                            </tr>
+                            </Fragment>
                           );
                         })}
                       </Fragment>
@@ -220,48 +267,95 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                       ? (result.comments || result.referenceRange || '-')
                       : (result.referenceRange || '-');
 
+                    // Check if this is a hormone test with multiple ranges
+                    const hasMultipleRanges = result.allReferenceRanges && 
+                      (() => {
+                        try {
+                          const ranges = typeof result.allReferenceRanges === 'string' 
+                            ? JSON.parse(result.allReferenceRanges) 
+                            : result.allReferenceRanges;
+                          return Array.isArray(ranges) && ranges.length > 1;
+                        } catch {
+                          return false;
+                        }
+                      })();
+
                     return (
-                      <tr
-                        key={`result-${resultIndex}`}
-                        className="result-row border-b border-solid"
-                        style={{
-                          borderColor: '#e2e8f0',
-                          backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff',
-                          borderLeft:
-                            result.flag === 'critical_high' || result.flag === 'critical_low'
-                              ? `2px solid ${resultsSection?.criticalColor || colors?.critical || '#dc2626'}`
-                              : result.flag === 'high' || result.flag === 'low'
-                                ? `2px solid ${resultsSection?.abnormalColor || colors?.abnormal || '#dc2626'}`
-                                : '2px solid transparent',
-                        }}
-                      >
-                        <td className="py-1 px-3 font-semibold text-[13px]">{firstColumnValue}</td>
-                        <td
-                          className="py-1 px-3 font-bold whitespace-nowrap text-[13px]"
+                      <Fragment key={`result-${resultIndex}`}>
+                        <tr
+                          key={`result-${resultIndex}`}
+                          className="result-row border-b border-solid"
                           style={{
-                            color:
+                            borderColor: '#e2e8f0',
+                            backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff',
+                            borderLeft:
                               result.flag === 'critical_high' || result.flag === 'critical_low'
-                                ? (resultsSection?.criticalColor || colors?.critical || '#dc2626')
+                                ? `2px solid ${resultsSection?.criticalColor || colors?.critical || '#dc2626'}`
                                 : result.flag === 'high' || result.flag === 'low'
-                                  ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
-                                  : undefined,
+                                  ? `2px solid ${resultsSection?.abnormalColor || colors?.abnormal || '#dc2626'}`
+                                  : '2px solid transparent',
                           }}
                         >
-                          {result.value}
-                          {(result.flag === 'high' || result.flag === 'critical_high') && (
-                            <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                          <td className="py-1 px-3 font-semibold text-[13px]">{firstColumnValue}</td>
+                          <td
+                            className="py-1 px-3 font-bold whitespace-nowrap text-[13px]"
+                            style={{
+                              color:
+                                result.flag === 'critical_high' || result.flag === 'critical_low'
+                                  ? (resultsSection?.criticalColor || colors?.critical || '#dc2626')
+                                  : result.flag === 'high' || result.flag === 'low'
+                                    ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
+                                    : undefined,
+                            }}
+                          >
+                            {result.value}
+                            {(result.flag === 'high' || result.flag === 'critical_high') && (
+                              <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                            )}
+                            {(result.flag === 'low' || result.flag === 'critical_low') && (
+                              <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                            )}
+                          </td>
+                          <td className="py-1 px-3 text-[12px] text-slate-700">
+                            {typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}
+                          </td>
+                          {!useThreeColumns && (
+                            <td className="py-1 px-3 text-[12px] text-slate-600">{result.unit || '-'}</td>
                           )}
-                          {(result.flag === 'low' || result.flag === 'critical_low') && (
-                            <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
-                          )}
-                        </td>
-                        <td className="py-1 px-3 text-[12px] text-slate-700">
-                          {typeof thirdColumnValue === 'string' ? thirdColumnValue.replace(/(\d)-(\d)/g, '$1 – $2') : thirdColumnValue}
-                        </td>
-                        {!useThreeColumns && (
-                          <td className="py-1 px-3 text-[12px] text-slate-600">{result.unit || '-'}</td>
+                        </tr>
+                        {/* Show all reference ranges for hormone tests */}
+                        {hasMultipleRanges && (
+                          <tr className="border-b border-solid" style={{ borderColor: '#e2e8f0', backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff' }}>
+                            <td colSpan={useThreeColumns ? 3 : 4} className="py-1 px-3">
+                              <div className="text-[10px] text-slate-600 pl-4 border-l-2 border-primary/30">
+                                <span className="font-semibold">All Reference Ranges: </span>
+                                {(() => {
+                                  try {
+                                    const ranges = typeof result.allReferenceRanges === 'string' 
+                                      ? JSON.parse(result.allReferenceRanges) 
+                                      : result.allReferenceRanges;
+                                    return ranges.map((r: any, i: number) => (
+                                      <span key={i}>
+                                        {i > 0 && ' | '}
+                                        <span className={result.menstrualPhase && r.ageGroup.toLowerCase().includes(result.menstrualPhase) ? 'font-bold text-primary' : ''}>
+                                          {r.ageGroup}: {r.range} {r.unit}
+                                        </span>
+                                      </span>
+                                    ));
+                                  } catch {
+                                    return null;
+                                  }
+                                })()}
+                                {result.menstrualPhase && (
+                                  <span className="italic text-primary ml-2">
+                                    (Flagged based on {result.menstrualPhase} phase)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </tr>
+                      </Fragment>
                     );
                     });
                   })()
