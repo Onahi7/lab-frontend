@@ -226,7 +226,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                                           return ranges.map((r: any, i: number) => (
                                             <span key={i}>
                                               {i > 0 && ' | '}
-                                              <span className={result.menstrualPhase && r.ageGroup.toLowerCase().includes(result.menstrualPhase) ? 'font-bold text-primary' : ''}>
+                                              <span className={result.menstrualPhase && (r.ageGroup || '').toLowerCase().includes(result.menstrualPhase) ? 'font-bold text-primary' : ''}>
                                                 {r.ageGroup}: {r.range} {r.unit}
                                               </span>
                                             </span>
@@ -337,7 +337,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                                     return ranges.map((r: any, i: number) => (
                                       <span key={i}>
                                         {i > 0 && ' | '}
-                                        <span className={result.menstrualPhase && r.ageGroup.toLowerCase().includes(result.menstrualPhase) ? 'font-bold text-primary' : ''}>
+                                        <span className={result.menstrualPhase && (r.ageGroup || '').toLowerCase().includes(result.menstrualPhase) ? 'font-bold text-primary' : ''}>
                                           {r.ageGroup}: {r.range} {r.unit}
                                         </span>
                                       </span>

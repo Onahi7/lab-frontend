@@ -1284,7 +1284,7 @@ export default function EnterResultsPage() {
                               <p className="text-xs font-semibold text-muted-foreground mb-1">Reference Ranges ({patientGender === 'F' ? 'Female' : 'Male'}):</p>
                               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                                 {entry.allReferenceRanges?.map((range, idx) => {
-                                  const isSelected = entry.menstrualPhase && range.ageGroup.toLowerCase().includes(entry.menstrualPhase);
+                                  const isSelected = entry.menstrualPhase && (range.ageGroup || '').toLowerCase().includes(entry.menstrualPhase);
                                   return (
                                     <div key={idx} className={cn(
                                       'text-xs flex items-center gap-1',
