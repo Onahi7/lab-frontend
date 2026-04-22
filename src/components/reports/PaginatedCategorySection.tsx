@@ -2,6 +2,17 @@ import { Fragment } from 'react';
 import { PageCategory } from './SmartPaginatedReport';
 import { ReportTemplate } from '../../hooks/useReportTemplates';
 
+/** Parse pipe-delimited stool microscopy values like "Color:Brown|Appearance:Formed|Mucus:Nil" */
+function parseStoolValue(value: string): { label: string; val: string }[] | null {
+  if (!value || !value.includes(':')) return null;
+  const parts = value.split('|').map(p => p.trim()).filter(Boolean);
+  const pairs = parts.map(p => {
+    const idx = p.indexOf(':');
+    return idx > 0 ? { label: p.slice(0, idx).trim(), val: p.slice(idx + 1).trim() } : null;
+  }).filter(Boolean) as { label: string; val: string }[];
+  return pairs.length >= 2 ? pairs : null;
+}
+
 interface PaginatedCategorySectionProps {
   pageCategory: PageCategory;
   template?: ReportTemplate;
@@ -169,8 +180,26 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                               }
                             })();
 
+                          const stoolFields = parseStoolValue(result.value || '');
+
                           return (
                             <Fragment key={`result-${resultIndex}`}>
+                              {stoolFields ? (
+                                // Stool microscopy — expand into individual field rows
+                                <>
+                                  <tr className="result-row border-b border-solid" style={{ borderColor: '#e2e8f0', backgroundColor: '#f0fdf4' }}>
+                                    <td colSpan={useThreeColumns ? 3 : 4} className="py-1 px-3 font-bold text-[12px] uppercase tracking-wide" style={{ color: primaryColor }}>
+                                      {firstColumnValue}
+                                    </td>
+                                  </tr>
+                                  {stoolFields.map((field, fi) => (
+                                    <tr key={fi} className="border-b border-solid" style={{ borderColor: '#e2e8f0', backgroundColor: fi % 2 === 0 ? '#f8fafc' : '#ffffff' }}>
+                                      <td className="py-1 px-3 pl-6 text-[13px] text-slate-600">{field.label}</td>
+                                      <td className="py-1 px-3 font-semibold text-[13px]" colSpan={useThreeColumns ? 2 : 3}>{field.val || '—'}</td>
+                                    </tr>
+                                  ))}
+                                </>
+                              ) : (
                               <tr
                                 key={`result-${resultIndex}`}
                                 className="result-row border-b border-solid"
@@ -212,6 +241,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                                   <td className="py-1 px-3 text-[12px] text-slate-600">{result.unit || '-'}</td>
                                 )}
                               </tr>
+                              )}
                               {/* Show all reference ranges for hormone tests */}
                               {hasMultipleRanges && (
                                 <tr className="border-b border-solid" style={{ borderColor: '#e2e8f0', backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff' }}>
@@ -280,8 +310,26 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                         }
                       })();
 
+                    const stoolFields = parseStoolValue(result.value || '');
+
                     return (
                       <Fragment key={`result-${resultIndex}`}>
+                        {stoolFields ? (
+                          // Stool microscopy — expand into individual field rows
+                          <>
+                            <tr className="result-row border-b border-solid" style={{ borderColor: '#e2e8f0', backgroundColor: '#f0fdf4' }}>
+                              <td colSpan={useThreeColumns ? 3 : 4} className="py-1 px-3 font-bold text-[12px] uppercase tracking-wide" style={{ color: primaryColor }}>
+                                {firstColumnValue}
+                              </td>
+                            </tr>
+                            {stoolFields.map((field, fi) => (
+                              <tr key={fi} className="border-b border-solid" style={{ borderColor: '#e2e8f0', backgroundColor: fi % 2 === 0 ? '#f8fafc' : '#ffffff' }}>
+                                <td className="py-1 px-3 pl-6 text-[13px] text-slate-600">{field.label}</td>
+                                <td className="py-1 px-3 font-semibold text-[13px]" colSpan={useThreeColumns ? 2 : 3}>{field.val || '—'}</td>
+                              </tr>
+                            ))}
+                          </>
+                        ) : (
                         <tr
                           key={`result-${resultIndex}`}
                           className="result-row border-b border-solid"
@@ -323,6 +371,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                             <td className="py-1 px-3 text-[12px] text-slate-600">{result.unit || '-'}</td>
                           )}
                         </tr>
+                        )}
                         {/* Show all reference ranges for hormone tests */}
                         {hasMultipleRanges && (
                           <tr className="border-b border-solid" style={{ borderColor: '#e2e8f0', backgroundColor: resultIndex % 2 === 0 ? '#f8fafc' : '#ffffff' }}>
