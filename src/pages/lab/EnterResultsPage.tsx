@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, Check, AlertTriangle, Loader2, Search, Radio } from 'lucide-react';
+import { FileText, Check, AlertTriangle, Loader2, Search, Radio, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
@@ -1009,7 +1009,22 @@ export default function EnterResultsPage() {
                         {order.priority?.toUpperCase() || 'ROUTINE'}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{getOrderNumber(order)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">{getOrderNumber(order)}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-status-normal hover:text-status-normal hover:bg-status-normal/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCompleteOrder(order.id || (order as any)._id);
+                        }}
+                        title="Mark as completed (skip remaining tests)"
+                      >
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Complete
+                      </Button>
+                    </div>
                     {(() => {
                       const codes = ((order as any).tests || (order as any).order_tests || [])
                         .map((t: any) => t.testCode || t.test_code || '')

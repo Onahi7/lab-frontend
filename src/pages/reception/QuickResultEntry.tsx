@@ -17,6 +17,7 @@ import {
   Loader2,
   ScanBarcode,
   RotateCcw,
+  CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
@@ -300,6 +301,36 @@ export default function QuickResultEntry() {
     doSubmit();
   };
 
+  const handleCompleteOrder = async () => {
+    if (!matchedOrder) return;
+    try {
+      const orderId = (matchedOrder as any)._id || matchedOrder.id;
+      await updateOrder.mutateAsync({
+        id: orderId,
+        updates: { status: 'completed' },
+      });
+      toast.success('Order marked as completed');
+      
+      // Track for recent list
+      setRecentlyCompleted(prev => [
+        {
+          orderNumber: getOrderNumber(matchedOrder),
+          patientName: getPatientName(matchedOrder),
+          testCount: 0,
+          time: new Date().toLocaleTimeString(),
+        },
+        ...prev.slice(0, 9),
+      ]);
+      
+      setMatchedOrder(null);
+      setEntries({});
+      setSkippedNonNumericCount(0);
+      searchRef.current?.focus();
+    } catch (error) {
+      toast.error('Failed to complete order');
+    }
+  };
+
   const doSubmit = async () => {
     if (!matchedOrder) return;
     setIsSubmitting(true);
@@ -563,6 +594,16 @@ export default function QuickResultEntry() {
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={handleReset}>Clear</Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCompleteOrder} 
+                    disabled={updateOrder.isPending}
+                    className="text-status-normal hover:text-status-normal hover:bg-status-normal/10"
+                    title="Mark order as completed without saving more results"
+                  >
+                    {updateOrder.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                    Complete Order
+                  </Button>
                   <Button onClick={handleSubmitResults} disabled={isSubmitting || filledCount === 0}>
                     {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
                     Save {filledCount} Result{filledCount !== 1 ? 's' : ''}
