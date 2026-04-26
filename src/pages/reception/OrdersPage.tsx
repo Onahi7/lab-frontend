@@ -11,7 +11,7 @@ import { Search, CreditCard, Loader2, Eye, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
-import { getPatientName } from '@/utils/orderHelpers';
+import { getPatientName, getGroupedTestsByPanel, getPanelTestCount } from '@/utils/orderHelpers';
 import { PaymentDialog } from '@/components/orders/PaymentDialog';
 import { toast } from 'sonner';
 
@@ -141,15 +141,22 @@ export default function OrdersPage() {
                     </div>
                   </td>
                   <td>
-                    <div>
-                      <p className="font-medium">{order.order_tests?.length || 0} test(s)</p>
-                      <p className="text-xs text-muted-foreground">
-                        {order.order_tests?.slice(0, 2).map(t => 
-                          `${t.test_code || t.testCode} (${t.test_name || t.testName})`
-                        ).join(', ')}
-                        {order.order_tests?.length > 2 && ` +${order.order_tests.length - 2} more`}
-                      </p>
-                    </div>
+                    {(() => {
+                      const testCount = getPanelTestCount(order);
+                      const groupedTests = getGroupedTestsByPanel(order, true); // hide component counts
+                      const displayItems = groupedTests.split(', ').slice(0, 2);
+                      const totalItems = groupedTests.split(', ').length;
+                      
+                      return (
+                        <div>
+                          <p className="font-medium">{testCount} test{testCount !== 1 ? 's' : ''}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {displayItems.join(', ')}
+                            {totalItems > 2 && ` +${totalItems - 2} more`}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="font-medium">Le {Number(order.total || order.totalAmount).toLocaleString()}</td>
                   <td>
@@ -235,11 +242,38 @@ export default function OrdersPage() {
             patientName: getPatientName(selectedOrder),
             patientId: selectedOrder.patient?.patientId || selectedOrder.patients?.patient_id || '',
             patientPhone: selectedOrder.patient?.phone || selectedOrder.patients?.phone,
-            tests: (selectedOrder.order_tests || selectedOrder.tests || []).map(t => ({
-              code: t.testCode || (t as any).test_code || '',
-              name: t.testName || (t as any).test_name || '',
-              price: t.price || 0,
-            })),
+            tests: (() => {
+              // Group by panel for display
+              const allTests = selectedOrder.order_tests || selectedOrder.tests || [];
+              const panelGroups = new Map<string, { code: string; name: string; price: number }>();
+              const individualTests: typeof allTests = [];
+              
+              for (const t of allTests) {
+                const panelCode = t.panelCode || t.panel_code;
+                const panelName = t.panelName || t.panel_name;
+                if (panelCode || panelName) {
+                  const key = panelCode || panelName;
+                  if (!panelGroups.has(key)) {
+                    panelGroups.set(key, {
+                      code: panelCode || '',
+                      name: panelName || panelCode || '',
+                      price: t.price || 0,
+                    });
+                  }
+                } else {
+                  individualTests.push(t);
+                }
+              }
+              
+              return [
+                ...Array.from(panelGroups.values()).map(p => ({ code: p.code, name: p.name, price: p.price })),
+                ...individualTests.map(t => ({
+                  code: t.testCode || t.test_code || '',
+                  name: t.testName || t.test_name || '',
+                  price: t.price || 0,
+                }))
+              ];
+            })(),
             subtotal: selectedOrder.subtotal || selectedOrder.total || selectedOrder.totalAmount || 0,
             discount: selectedOrder.discount || 0,
             discountType: (selectedOrder.discountType || 'fixed') as 'percentage' | 'fixed',

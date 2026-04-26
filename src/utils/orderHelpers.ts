@@ -158,8 +158,9 @@ export function getTestCodes(order: any): string {
 /**
  * Get tests grouped by panel name
  * Tests with panel names are grouped, tests without panels are listed individually
+ * @param hideCount - If true, don't show component count in parentheses
  */
-export function getGroupedTestsByPanel(order: any): string {
+export function getGroupedTestsByPanel(order: any, hideCount = false): string {
   const tests = getOrderTests(order);
   
   if (!Array.isArray(tests) || tests.length === 0) {
@@ -173,28 +174,56 @@ export function getGroupedTestsByPanel(order: any): string {
   tests.forEach(test => {
     const panelName = test.panelName || test.panel_name;
     const testCode = test.testCode || test.test_code || 'Unknown';
+    const testName = test.testName || test.test_name || testCode;
     
     if (panelName) {
       // Has a panel - group it
       if (!panelGroups.has(panelName)) {
         panelGroups.set(panelName, []);
       }
-      panelGroups.get(panelName)!.push(testCode);
+      panelGroups.get(panelName)!.push(testName);
     } else {
       // No panel - list individually
-      individualTests.push(testCode);
+      individualTests.push(testName);
     }
   });
   
-  // Format panels as "Panel Name (count)"
+  // Format panels as "Panel Name (count)" or just "Panel Name"
   const panelSummaries = Array.from(panelGroups.entries()).map(([panelName, codes]) => {
-    return `${panelName} (${codes.length})`;
+    return hideCount ? panelName : `${panelName} (${codes.length})`;
   });
   
   // Combine panel summaries with individual tests
   const allItems = [...panelSummaries, ...individualTests];
   
   return allItems.join(', ');
+}
+
+/**
+ * Get test count where panels count as 1 test (not individual components)
+ * For example, FBC with 24 components counts as 1 test, not 24
+ */
+export function getPanelTestCount(order: any): number {
+  const tests = getOrderTests(order);
+  
+  if (!Array.isArray(tests) || tests.length === 0) {
+    return 0;
+  }
+  
+  // Count unique panels + individual tests
+  const uniquePanels = new Set<string>();
+  let individualCount = 0;
+  
+  tests.forEach(test => {
+    const panelName = test.panelName || test.panel_name;
+    if (panelName) {
+      uniquePanels.add(panelName);
+    } else {
+      individualCount++;
+    }
+  });
+  
+  return uniquePanels.size + individualCount;
 }
 
 /**
