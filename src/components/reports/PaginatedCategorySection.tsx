@@ -163,8 +163,9 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                         {/* Results for this subcategory */}
                         {results.map((result, resultIndex) => {
                           const firstColumnValue = result.testName || result.testCode;
+                          // Exclude WBC comments from third column (FBC panel messages shown as panel footer instead)
                           const thirdColumnValue = isSerologyLayout
-                            ? (result.comments || result.referenceRange || '-')
+                            ? (result.testCode !== 'WBC' ? (result.comments || result.referenceRange || '-') : (result.referenceRange || '-'))
                             : (result.referenceRange || '-');
 
                           // Check if this is a hormone test with multiple ranges
@@ -235,8 +236,8 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                                       <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
                                     )}
                                   </span>
-                                  {/* Show interpretation subtitle for immunoassay/chemistry tests */}
-                                  {!isSerologyLayout && result.comments && (
+                                  {/* Show interpretation subtitle for immunoassay/chemistry tests - exclude WBC in FBC panels (shown as panel footer instead) */}
+                                  {!isSerologyLayout && result.comments && result.testCode !== 'WBC' && (
                                     <div
                                       className="text-[10px] font-normal mt-0.5"
                                       style={{
@@ -309,8 +310,9 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                       : panel.results;
                     return orderedResults.map((result, resultIndex) => {
                       const firstColumnValue = result.testName || result.testCode;
+                    // Exclude WBC comments from third column (FBC panel messages shown as panel footer instead)
                     const thirdColumnValue = isSerologyLayout
-                      ? (result.comments || result.referenceRange || '-')
+                      ? (result.testCode !== 'WBC' ? (result.comments || result.referenceRange || '-') : (result.referenceRange || '-'))
                       : (result.referenceRange || '-');
 
                     // Check if this is a hormone test with multiple ranges
@@ -381,8 +383,8 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                                 <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
                               )}
                             </span>
-                            {/* Show interpretation subtitle for immunoassay/chemistry tests */}
-                            {!isSerologyLayout && result.comments && (
+                            {/* Show interpretation subtitle for immunoassay/chemistry tests - exclude WBC in FBC panels (shown as panel footer instead) */}
+                            {!isSerologyLayout && result.comments && result.testCode !== 'WBC' && (
                               <div
                                 className="text-[10px] font-normal mt-0.5"
                                 style={{

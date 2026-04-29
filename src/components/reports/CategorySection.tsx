@@ -179,8 +179,9 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                         {/* Results for this subcategory */}
                         {results.map((result) => {
                           const firstColumnValue = result.testName || result.testCode;
+                          // Exclude WBC comments from third column (FBC panel messages shown as panel footer instead)
                           const thirdColumnValue = useThreeColumns
-                            ? (result.comments || result.referenceRange || '-')
+                            ? (result.testCode !== 'WBC' ? (result.comments || result.referenceRange || '-') : (result.referenceRange || '-'))
                             : (result.referenceRange || '-');
 
                           return (
@@ -232,8 +233,9 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
                   // Render results without subcategory grouping
                   group.results.map((result, resultIndex) => {
                     const firstColumnValue = result.testName || result.testCode;
+                    // Exclude WBC comments from third column (FBC panel messages shown as panel footer instead)
                     const thirdColumnValue = useThreeColumns
-                      ? (result.comments || result.referenceRange || '-')
+                      ? (result.testCode !== 'WBC' ? (result.comments || result.referenceRange || '-') : (result.referenceRange || '-'))
                       : (result.referenceRange || '-');
 
                     return (
