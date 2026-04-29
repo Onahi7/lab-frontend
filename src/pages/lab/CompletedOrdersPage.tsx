@@ -1,25 +1,30 @@
 import { useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useOrders } from '@/hooks/useOrders';
+import { useOrders, useUpdateOrder } from '@/hooks/useOrders';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Printer, Loader2, FileText, Eye, PrinterIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Search, Printer, Loader2, FileText, Eye, PrinterIcon, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getPatientName, getOrderId } from '@/utils/orderHelpers';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function CompletedOrdersPage() {
   const { profile, primaryRole } = useAuth();
   const navigate = useNavigate();
+  const updateOrder = useUpdateOrder();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [undoOrderId, setUndoOrderId] = useState<string | null>(null);
+  const [undoOrderNumber, setUndoOrderNumber] = useState<string>('');
   
   // Fetch orders with status 'completed' or 'processing' (orders with results)
   const { data: completedOrders, isLoading: loadingCompleted } = useOrders('completed');
@@ -71,6 +76,28 @@ export default function CompletedOrdersPage() {
       ? `/reception/reports/${orderId}` 
       : `/lab/reports/${orderId}`;
     navigate(reportPath);
+  };
+
+  // Undo completed order - move back to processing
+  const handleUndoComplete = async () => {
+    if (!undoOrderId) return;
+    
+    try {
+      await updateOrder.mutateAsync({
+        id: undoOrderId,
+        updates: { status: 'processing' },
+      });
+      toast.success(`Order ${undoOrderNumber} moved back to processing`);
+      setUndoOrderId(null);
+      setUndoOrderNumber('');
+    } catch (error) {
+      toast.error('Failed to undo completion');
+    }
+  };
+
+  const openUndoDialog = (orderId: string, orderNumber: string) => {
+    setUndoOrderId(orderId);
+    setUndoOrderNumber(orderNumber);
   };
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
@@ -246,6 +273,18 @@ export default function CompletedOrdersPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
+                        {order.status === 'completed' && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => openUndoDialog(orderId, orderNumber)}
+                            title="Undo completion - move back to processing"
+                            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            Undo
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -336,6 +375,45 @@ export default function CompletedOrdersPage() {
           </div>
         </div>
       </div>
+
+      {/* Undo Confirmation Dialog */}
+      <Dialog open={!!undoOrderId} onOpenChange={() => setUndoOrderId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Undo Completion?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to move order <strong>{undoOrderNumber}</strong> back to processing status?
+              This will allow you to re-enter or modify results.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setUndoOrderId(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleUndoComplete}
+              disabled={updateOrder.isPending}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {updateOrder.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Undoing...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Undo Completion
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </RoleLayout>
   );
 }
