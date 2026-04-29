@@ -72,9 +72,9 @@ export default function ReceptionDashboard() {
   const pendingOrders = Array.isArray(orders) ? orders.filter(o => 
     o.status === 'pending_collection' || o.status === 'collected'
   ).length : 0;
-  const todayRevenue = Array.isArray(orders) ? orders
-    .filter(o => new Date(o.createdAt) >= todayStart && (o.paymentStatus === 'paid' || o.payment_status === 'paid'))
-    .reduce((sum, o) => sum + (o.total || o.totalAmount || 0), 0) : 0;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const { data: paymentStats } = usePaymentStats(todayStr, todayStr);
+  const todayRevenue = paymentStats?.paidRevenue ?? 0;
   const pendingPayments = Array.isArray(orders) ? orders.filter(o => 
     o.paymentStatus === 'pending' || o.payment_status === 'pending'
   ).length : 0;

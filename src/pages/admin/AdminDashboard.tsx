@@ -1,7 +1,7 @@
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useSearchPatients } from '@/hooks/usePatients';
-import { useOrders } from '@/hooks/useOrders';
+import { useOrders, usePaymentStats } from '@/hooks/useOrders';
 import { useResults } from '@/hooks/useResults';
 import { useMachines } from '@/hooks/useMachines';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
@@ -50,9 +50,9 @@ export default function AdminDashboard() {
   const completedOrders = orders.filter(o => o.status === 'completed').length;
   const pendingOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length;
   const criticalResults = results.filter(r => r.flag === 'critical_high' || r.flag === 'critical_low').length;
-  const todayRevenue = orders
-    .filter(o => new Date(o.createdAt) >= todayStart && o.paymentStatus === 'paid')
-    .reduce((sum, o) => sum + Number(o.total || o.totalAmount || 0), 0);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const { data: paymentStats } = usePaymentStats(todayStr, todayStr);
+  const todayRevenue = paymentStats?.paidRevenue ?? 0;
   const onlineMachines = machines?.filter((m: any) => m.status === 'online' || m.status === 'processing').length || 0;
   const totalMachines = machines?.length || 0;
   
