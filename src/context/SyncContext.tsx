@@ -302,15 +302,16 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
         await db.pendingMutations.delete(mut.id!);
         console.log(`[Sync] ✓ Mutation ${mut.id} synced successfully`);
-      } catch (err: any) {
+      } catch (err: unknown) {
         const retries = (mut.retries || 0) + 1;
-        const isNetworkError = !err.response || err.code === 'ECONNABORTED';
+        const axiosErr = err as { response?: unknown; code?: string; message?: string };
+        const isNetworkError = !axiosErr.response || axiosErr.code === 'ECONNABORTED';
         
         if (retries >= MAX_RETRIES) {
           await db.pendingMutations.update(mut.id!, {
             status: 'failed',
             retries,
-            error: err?.message || 'Max retries exceeded',
+            error: axiosErr?.message || 'Max retries exceeded',
           });
           console.error(`[Sync] ✗ Mutation ${mut.id} failed after ${MAX_RETRIES} retries`);
         } else {

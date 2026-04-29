@@ -74,7 +74,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Critical result alert
     newSocket.on('result:critical', (result: any) => {
-      console.log('🚨 Critical result received:', result);
+      if (import.meta.env.DEV) {
+        console.log('Critical result received:', result);
+      }
       
       // Play urgent sound (3 repetitions)
       soundService.play('urgent-order');
@@ -101,32 +103,48 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // New order created
     newSocket.on('order:created', (order: any) => {
-      console.log('📋 New order created:', order.orderNumber);
+      if (import.meta.env.DEV) {
+        console.log('New order created:', order.orderNumber);
+      }
       
-      // Invalidate orders cache globally so all pages see the new order
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      // Invalidate ALL order-related queries so all pages see the new order
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['patients'], exact: false });
       
-      // Play new order sound
+      // Play LOUD new order sound
       soundService.play('new-order');
       
-      // Show notification for reception staff
+      // Show toast to ALL users
+      const patientName = order.patient?.firstName 
+        ? `${order.patient.firstName} ${order.patient.lastName || ''}`.trim()
+        : 'Unknown Patient';
+      const testCount = order.order_tests?.length || order.tests?.length || 0;
+      
+      toast.success(`NEW ORDER: ${order.orderNumber}`, {
+        description: `${patientName} — ${testCount} test(s)`,
+        duration: 10000,
+        important: true,
+      });
+      
+      // Browser notification for reception staff
       if (user?.roles?.includes('receptionist')) {
         notificationService.showNewOrder({
           orderNumber: order.orderNumber,
-          patientName: order.patient?.firstName + ' ' + order.patient?.lastName || 'Unknown',
-          testCount: order.order_tests?.length || 0,
+          patientName,
+          testCount,
         });
       }
     });
 
     // Sample collected
     newSocket.on('sample:collected', (sample: any) => {
-      console.log('🧪 Sample collected:', sample);
+      if (import.meta.env.DEV) {
+        console.log('Sample collected:', sample);
+      }
       
       // Invalidate so queues update everywhere
-      queryClient.invalidateQueries({ queryKey: ['samples'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['samples'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
       
       // Play sample ready sound
       soundService.play('sample-collected');
@@ -146,7 +164,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Unmatched result from analyzer
     newSocket.on('result:unmatched', (result: any) => {
-      console.log('⚠️ Unmatched result:', result);
+      if (import.meta.env.DEV) {
+        console.log('Unmatched result:', result);
+      }
       
       // Play warning sound
       soundService.play('urgent-order');
@@ -168,7 +188,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Machine status changed
     newSocket.on('machine:updated', (machine: any) => {
-      console.log('⚙️ Machine status changed:', machine);
+      if (import.meta.env.DEV) {
+        console.log('Machine status changed:', machine);
+      }
       
       // Play error sound if machine has error
       if (machine.status === 'error' || machine.status === 'maintenance') {
@@ -187,18 +209,47 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     });
 
     // Result created — invalidate globally
-    newSocket.on('result:created', () => {
-      queryClient.invalidateQueries({ queryKey: ['results'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    newSocket.on('result:created', (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ['results'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
+
+      // Play loud sound when results come from analyzer
+      if (result.source === 'automated') {
+        soundService.play('results-ready');
+        toast.success('Results received from analyzer', {
+          description: `${result.testCode}: ${result.value} — Order ${result.orderNumber || ''}`,
+          duration: 5000,
+        });
+      }
+    });
+
+    // Machine received results batch
+    newSocket.on('machine:result_received', (data: any) => {
+      if (import.meta.env.DEV) {
+        console.log('Machine result received:', data);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['results'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
+      
+      // Play loud alert sound
+      soundService.play('results-ready');
+      
+      toast.success(`${data.resultCount} results from ${data.machineName}`, {
+        description: data.orderNumber ? `Order ${data.orderNumber}` : 'Results ready for review',
+        duration: 8000,
+      });
     });
 
     // Result verified
     newSocket.on('result:verified', (result: any) => {
-      console.log('✅ Result verified:', result);
+      if (import.meta.env.DEV) {
+        console.log('Result verified:', result);
+      }
       
       // Invalidate so report pages and order lists update
-      queryClient.invalidateQueries({ queryKey: ['results'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['results'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
       
       // Play success sound
       soundService.play('results-ready');
@@ -210,10 +261,12 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     // Order status changed
     newSocket.on('order:status_changed', (data: any) => {
-      console.log('📊 Order status changed:', data);
+      if (import.meta.env.DEV) {
+        console.log('Order status changed:', data);
+      }
       
-      // Invalidate orders so the status change is reflected everywhere
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      // Invalidate ALL order queries so the status change is reflected everywhere
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
       
       toast.info('Order status updated', {
         description: `${data.orderNumber}: ${data.status}`,

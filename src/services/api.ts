@@ -94,7 +94,7 @@ api.interceptors.response.use(
       const refreshToken = getRefreshToken();
       if (!refreshToken) {
         clearTokens();
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         return Promise.reject(error);
       }
 
@@ -120,9 +120,47 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         isRefreshing = false;
         clearTokens();
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         return Promise.reject(refreshError);
       }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 2,
+  retryDelay: 1000,
+  retryableStatuses: [408, 429, 500, 502, 503, 504],
+  retryableCodes: ['ECONNABORTED', 'ERR_NETWORK', 'ETIMEDOUT'],
+};
+
+// Request deduplication - prevent duplicate in-flight requests
+const pendingRequests = new Map<string, Promise<any>>();
+
+function getRequestKey(config: InternalAxiosRequestConfig): string {
+  return `${config.method}:${config.url}:${JSON.stringify(config.params || {})}:${JSON.stringify(config.data || {})}`;
+}
+
+// Retry interceptor
+api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError & { config: InternalAxiosRequestConfig & { _retryCount?: number } }) => {
+    const config = error.config;
+    if (!config) return Promise.reject(error);
+
+    const retryCount = config._retryCount || 0;
+    const isRetryable =
+      RETRY_CONFIG.retryableCodes.includes(error.code || '') ||
+      RETRY_CONFIG.retryableStatuses.includes(error.response?.status || 0);
+
+    if (isRetryable && retryCount < RETRY_CONFIG.maxRetries) {
+      config._retryCount = retryCount + 1;
+      const delay = RETRY_CONFIG.retryDelay * Math.pow(2, retryCount);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return api(config);
     }
 
     return Promise.reject(error);

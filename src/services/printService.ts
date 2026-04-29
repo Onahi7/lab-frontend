@@ -107,15 +107,16 @@ class PrintService {
           await thermalPrinter.printReceipt(receipt);
           return { success: true, method: 'serial' };
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Serial printing failed:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Serial printing failed';
         
         // If serial was explicitly requested, don't fallback
         if (method === 'serial') {
           return { 
             success: false, 
             method: 'serial', 
-            error: error.message || 'Serial printing failed' 
+            error: errorMessage
           };
         }
       }
@@ -126,11 +127,12 @@ class PrintService {
       try {
         browserPrint.printReceipt(receipt);
         return { success: true, method: 'browser' };
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Browser printing failed';
         return { 
           success: false, 
           method: 'browser', 
-          error: error.message || 'Browser printing failed' 
+          error: errorMessage
         };
       }
     }

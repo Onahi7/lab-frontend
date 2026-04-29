@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { WebSocketProvider } from "./context/WebSocketContext";
 import { SyncProvider } from "./context/SyncContext";
@@ -66,25 +67,38 @@ const queryClient = new QueryClient({
     queries: {
       // Keep cached data for 24 hours in memory
       gcTime: 1000 * 60 * 60 * 24,
-      // Consider data stale after 60 seconds
-      staleTime: 1000 * 60,
-      // Retry up to 2 times with exponential backoff
-      retry: 2,
+      // Consider data stale after 30 seconds (faster refresh)
+      staleTime: 1000 * 30,
+      // Retry up to 3 times with exponential backoff
+      retry: 3,
       retryDelay: (attempt) => Math.min(1000 * Math.pow(2, attempt), 10000),
       // Refetch when reconnecting to network
       refetchOnReconnect: 'always',
       // Refetch on window focus so switching tabs/pages shows fresh data
       refetchOnWindowFocus: true,
+      // Keep previous data while fetching new data (no flash of loading)
+      placeholderData: (previousData: unknown) => previousData,
     },
     mutations: {
-      retry: 1,
-      retryDelay: 1000,
+      retry: 2,
+      retryDelay: (attempt) => Math.min(1000 * Math.pow(2, attempt), 5000),
     },
   },
 });
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, primaryRole } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      if (window.location.pathname !== '/login') {
+        navigate('/login', { replace: true });
+      }
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, [navigate]);
 
   if (isLoading) {
     return (
@@ -280,7 +294,7 @@ function AppRoutes() {
 }
 
 // Use HashRouter for Electron (file:// protocol), BrowserRouter for web
-const isElectron = !!(window as any).electronAPI?.isElectron;
+const isElectron = typeof window !== 'undefined' && 'electronAPI' in window;
 const Router = isElectron ? HashRouter : BrowserRouter;
 
 const App = () => (

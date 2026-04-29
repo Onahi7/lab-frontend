@@ -204,7 +204,8 @@ export function useProcessingOrders() {
       const orders = await ordersAPI.getPendingResults();
       return (orders || []).map((order: any) => normalizeOrder(order));
     },
-    staleTime: 30 * 1000,
+    staleTime: 10 * 1000, // 10 seconds - refresh more often for live queue
+    refetchInterval: 15 * 1000, // Auto-refetch every 15 seconds
   });
 }
 
@@ -228,10 +229,25 @@ export function useUpdateOrder() {
     mutationFn: async ({ id, updates }: { id: string; updates: OrderUpdate }) => {
       return await ordersAPI.update(id, updates);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    onSuccess: (_, variables) => {
+      // Invalidate ALL order-related queries immediately
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
       queryClient.invalidateQueries({ queryKey: ['daily-income'] });
+
+      // If marking as completed, optimistically remove from processing queue
+      if (variables.updates.status === 'completed') {
+        queryClient.setQueriesData(
+          { queryKey: ['orders', 'processing'], exact: false },
+          (old: unknown) => {
+            if (!Array.isArray(old)) return old;
+            return old.filter((order: any) => {
+              const orderId = order.id || order._id;
+              return orderId !== variables.id;
+            });
+          }
+        );
+      }
     },
   });
 }

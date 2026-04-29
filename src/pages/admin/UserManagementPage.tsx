@@ -55,8 +55,9 @@ export default function UserManagementPage() {
       });
       toast.success(`Role ${roleLabels[selectedRole]} assigned to ${selectedUser.full_name}`);
       setShowRoleDialog(false);
-    } catch (error: any) {
-      if (error.message?.includes('duplicate')) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage.includes('duplicate')) {
         toast.error('User already has this role');
       } else {
         toast.error('Failed to assign role');
@@ -107,12 +108,13 @@ export default function UserManagementPage() {
       setNewUserRole('receptionist');
       setShowCreateDialog(false);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating user:', error);
-      if (error.response?.data?.message?.includes('duplicate') || error.response?.data?.message?.includes('already exists')) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      if (axiosError.response?.data?.message?.includes('duplicate') || axiosError.response?.data?.message?.includes('already exists')) {
         toast.error('A user with this email already exists');
       } else {
-        toast.error(error.response?.data?.message || error.message || 'Failed to create user');
+        toast.error(axiosError.response?.data?.message || axiosError.message || 'Failed to create user');
       }
     } finally {
       setIsCreating(false);

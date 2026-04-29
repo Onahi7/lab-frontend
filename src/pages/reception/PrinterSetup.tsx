@@ -70,8 +70,8 @@ export default function PrinterSetup() {
     try {
       await connectThermalPrinter();
       toast.success('Thermal printer connected successfully');
-    } catch (err: any) {
-      const msg = err?.message ?? 'Failed to connect printer';
+    } catch (err: unknown) {
+      const msg = (err instanceof Error ? err.message : null) ?? 'Failed to connect printer';
       if (msg.includes('No device selected')) {
         toast.info('No device was selected');
       } else if (msg.startsWith('ACCESS_DENIED')) {
@@ -93,8 +93,9 @@ export default function PrinterSetup() {
     try {
       await disconnectThermalPrinter();
       toast.success('Printer disconnected');
-    } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to disconnect printer');
+    } catch (err: unknown) {
+      const msg = (err instanceof Error ? err.message : null) ?? 'Failed to disconnect printer';
+      toast.error(msg);
     } finally {
       setDisconnectingThermal(false);
     }
@@ -110,8 +111,9 @@ export default function PrinterSetup() {
       const bytes = buildReceiptESCPOS(TEST_RECEIPT_DATA, 'patient');
       await usbPrinterService.print(bytes);
       toast.success('Test receipt sent to printer');
-    } catch (err: any) {
-      toast.error(err?.message ?? 'Test print failed');
+    } catch (err: unknown) {
+      const msg = (err instanceof Error ? err.message : null) ?? 'Test print failed';
+      toast.error(msg);
     } finally {
       setTestPrintingThermal(false);
     }

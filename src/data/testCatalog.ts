@@ -45,7 +45,7 @@ export const testCatalog: TestCatalogItem[] = [
   { id: 'malaria', code: 'MP', name: 'Malaria Parasite (Blood Film)', category: 'microbiology', price: 1500, turnaroundTime: 30, sampleType: 'blood' },
   { id: 'widal', code: 'WIDAL', name: 'Widal Test', category: 'microbiology', price: 2000, turnaroundTime: 60, sampleType: 'blood' },
   { id: 'stool-exam', code: 'STOOL', name: 'Stool Examination', category: 'microbiology', price: 1500, turnaroundTime: 45, sampleType: 'stool' },
-  { id: 'hiv-screen', code: 'HIV', name: 'HIV Screening', category: 'microbiology', price: 3000, turnaroundTime: 30, sampleType: 'blood' },
+  { id: 'rvs-screen', code: 'RVS', name: 'RVS Screening', category: 'microbiology', price: 3000, turnaroundTime: 30, sampleType: 'blood' },
   { id: 'hbsag', code: 'HBSAG', name: 'Hepatitis B Surface Antigen', category: 'microbiology', price: 2500, turnaroundTime: 30, sampleType: 'blood' },
   { id: 'hcv', code: 'HCV', name: 'Hepatitis C Antibody', category: 'microbiology', price: 3000, turnaroundTime: 30, sampleType: 'blood' },
 ];

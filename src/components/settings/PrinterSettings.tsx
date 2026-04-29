@@ -49,8 +49,9 @@ export function PrinterSettings() {
       } else {
         toast.error('Failed to connect to printer');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to connect to printer');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect to printer';
+      toast.error(errorMessage);
       setIsConnected(false);
     } finally {
       setIsConnecting(false);
@@ -62,8 +63,9 @@ export function PrinterSettings() {
       await printService.disconnectSerialPrinter();
       setIsConnected(false);
       toast.success('Disconnected from printer');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to disconnect');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to disconnect';
+      toast.error(errorMessage);
     }
   };
 
@@ -77,8 +79,9 @@ export function PrinterSettings() {
       } else {
         toast.error('Test print failed');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Test print failed');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Test print failed';
+      toast.error(errorMessage);
     } finally {
       setIsTesting(false);
     }
@@ -93,8 +96,9 @@ export function PrinterSettings() {
       } else {
         toast.error('Failed to open cash drawer');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to open cash drawer');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to open cash drawer';
+      toast.error(errorMessage);
     }
   };
 
@@ -107,8 +111,9 @@ export function PrinterSettings() {
       } else {
         toast.error('Failed to connect to QZ Tray. Make sure QZ Tray is running.');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to connect to QZ Tray');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect to QZ Tray';
+      toast.error(errorMessage);
     } finally {
       setIsConnecting(false);
     }
@@ -118,8 +123,9 @@ export function PrinterSettings() {
     try {
       await disconnectQZTray();
       toast.success('Disconnected from QZ Tray');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to disconnect');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to disconnect';
+      toast.error(errorMessage);
     }
   };
 
@@ -132,8 +138,9 @@ export function PrinterSettings() {
       } else {
         toast.error('QZ Tray test print failed');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'QZ Tray test print failed');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'QZ Tray test print failed';
+      toast.error(errorMessage);
     } finally {
       setIsQzTesting(false);
     }

@@ -143,8 +143,9 @@ export async function offlineFirstRequest<T = any>(
       }
       
       return response.data;
-    } catch (error: any) {
-      const isNetworkError = !error.response || error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK';
+    } catch (error: unknown) {
+      const axiosError = error as { response?: unknown; code?: string };
+      const isNetworkError = !axiosError.response || axiosError.code === 'ECONNABORTED' || axiosError.code === 'ERR_NETWORK';
       
       // Retry logic for network errors
       if (isNetworkError && attemptNumber < maxRetries) {

@@ -236,8 +236,9 @@ export default function TestCatalogManagement() {
       setPanelForm({ name: '', code: '', description: '', price: '' });
       setPanelTestCodes('');
       queryClient.invalidateQueries({ queryKey: ['tests'] });
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to create panel');
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosError?.response?.data?.message || 'Failed to create panel');
     } finally {
       setPanelSaving(false);
     }

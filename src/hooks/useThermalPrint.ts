@@ -73,7 +73,7 @@ export const useThermalPrint = () => {
             options.onError?.(error);
             reject(error);
             return;
-          } catch (err: any) {
+          } catch (err: unknown) {
             const error = err instanceof Error ? err : new Error(String(err));
             options.onError?.(error);
             reject(error);

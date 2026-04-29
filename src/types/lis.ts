@@ -41,12 +41,12 @@ export interface TestOrder {
   patient: Patient;
   tests: OrderedTest[];
   priority: 'routine' | 'urgent' | 'stat';
-  status: 'pending-payment' | 'pending-collection' | 'collected' | 'processing' | 'completed' | 'cancelled';
+  status: 'pending_payment' | 'pending_collection' | 'collected' | 'processing' | 'completed' | 'cancelled';
   subtotal: number;
   discount: number;
   discountType: 'percentage' | 'fixed';
   total: number;
-  paymentMethod?: 'cash' | 'card' | 'mobile-money';
+  paymentMethod?: 'cash' | 'card' | 'orange_money' | 'bank_transfer';
   paymentStatus: 'pending' | 'paid' | 'partial';
   orderedAt: string;
   orderedBy: string;
@@ -90,7 +90,7 @@ export interface TestResult {
   value: string;
   unit: string;
   referenceRange: string;
-  flag: 'normal' | 'low' | 'high' | 'critical-low' | 'critical-high';
+  flag: 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
   resultedAt: string;
   resultedBy: string;
   verifiedBy?: string;

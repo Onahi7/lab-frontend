@@ -140,10 +140,10 @@ class USBPrinterService {
   private async _openDevice(device: USBDevice): Promise<void> {
     try {
       await device.open();
-    } catch (err: any) {
+    } catch (err: unknown) {
       const isDenied =
-        err?.name === 'SecurityError' ||
-        (err?.message ?? '').toLowerCase().includes('access denied');
+        (err instanceof DOMException && err.name === 'SecurityError') ||
+        (err instanceof Error && err.message.toLowerCase().includes('access denied'));
       if (isDenied) {
         throw new Error(
           'ACCESS_DENIED: Windows is blocking WebUSB access to this printer.\n\n' +

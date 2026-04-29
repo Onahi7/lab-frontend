@@ -226,12 +226,28 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                                           : undefined,
                                   }}
                                 >
-                                  {result.value}
-                                  {(result.flag === 'high' || result.flag === 'critical_high') && (
-                                    <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
-                                  )}
-                                  {(result.flag === 'low' || result.flag === 'critical_low') && (
-                                    <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                                  <span>
+                                    {result.value}
+                                    {(result.flag === 'high' || result.flag === 'critical_high') && (
+                                      <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                                    )}
+                                    {(result.flag === 'low' || result.flag === 'critical_low') && (
+                                      <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                                    )}
+                                  </span>
+                                  {/* Show interpretation subtitle for immunoassay/chemistry tests */}
+                                  {!isSerologyLayout && result.comments && (
+                                    <div
+                                      className="text-[10px] font-normal mt-0.5"
+                                      style={{
+                                        color:
+                                          result.flag === 'high' || result.flag === 'critical_high' || result.flag === 'low' || result.flag === 'critical_low'
+                                            ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
+                                            : '#64748b',
+                                      }}
+                                    >
+                                      {result.comments}
+                                    </div>
                                   )}
                                 </td>
                                 <td className="py-1 px-3 text-[12px] text-slate-700">
@@ -356,12 +372,28 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
                                     : undefined,
                             }}
                           >
-                            {result.value}
-                            {(result.flag === 'high' || result.flag === 'critical_high') && (
-                              <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
-                            )}
-                            {(result.flag === 'low' || result.flag === 'critical_low') && (
-                              <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                            <span>
+                              {result.value}
+                              {(result.flag === 'high' || result.flag === 'critical_high') && (
+                                <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2191;</span>
+                              )}
+                              {(result.flag === 'low' || result.flag === 'critical_low') && (
+                                <span style={{ marginLeft: '4px', fontSize: '0.85em' }}>&#x2193;</span>
+                              )}
+                            </span>
+                            {/* Show interpretation subtitle for immunoassay/chemistry tests */}
+                            {!isSerologyLayout && result.comments && (
+                              <div
+                                className="text-[10px] font-normal mt-0.5"
+                                style={{
+                                  color:
+                                    result.flag === 'high' || result.flag === 'critical_high' || result.flag === 'low' || result.flag === 'critical_low'
+                                      ? (resultsSection?.abnormalColor || colors?.abnormal || '#dc2626')
+                                      : '#64748b',
+                                }}
+                              >
+                                {result.comments}
+                              </div>
                             )}
                           </td>
                           <td className="py-1 px-3 text-[12px] text-slate-700">

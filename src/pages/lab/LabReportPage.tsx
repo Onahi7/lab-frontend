@@ -167,9 +167,10 @@ export default function LabReportPage() {
 
       setShowEditDialog(false);
       setSelectedResult(null);
-    } catch (error: any) {
-      const statusCode = error?.response?.status;
-      const backendMessage = error?.response?.data?.message;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
+      const statusCode = axiosError?.response?.status;
+      const backendMessage = axiosError?.response?.data?.message;
 
       if (statusCode === 409) {
         toast.error(backendMessage || 'Amendment conflict. Please refresh and try again.');

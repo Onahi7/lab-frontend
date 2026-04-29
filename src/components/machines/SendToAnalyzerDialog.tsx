@@ -46,8 +46,9 @@ export function SendToAnalyzerDialog({
         setSendResult({ status: 'error', message: result.message });
         toast.error(result.message);
       }
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Failed to send order to analyzer';
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const msg = axiosError?.response?.data?.message || 'Failed to send order to analyzer';
       setSendResult({ status: 'error', message: msg });
       toast.error(msg);
     }

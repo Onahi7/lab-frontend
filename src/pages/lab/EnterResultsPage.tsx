@@ -46,10 +46,10 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'URINE-CRYSTALS': ['None', 'Rare', 'Few', 'Moderate', 'Many'],
   // ── Rapid tests (Positive / Negative) ──────────────────────────────────
   'MALARIA': ['Negative', 'Positive (P. falciparum)', 'Positive (P. vivax)', 'Positive (Mixed)'],
-  'HIV': ['Non-Reactive', 'Reactive'],
+  'RVS': ['Non-Reactive', 'Reactive'],
   'HBSAG': ['Non-Reactive', 'Reactive'],
   'HCV': ['Non-Reactive', 'Reactive'],
-  'HIVP24': ['Non-Reactive', 'Reactive'],
+  'RVSP24': ['Non-Reactive', 'Reactive'],
   'HPYLORI': ['Non-Reactive', 'Reactive'],
   'HPYLORI_IA': ['Non-Reactive', 'Reactive'],
   'IFOB': ['Negative', 'Positive'],
@@ -730,7 +730,7 @@ export default function EnterResultsPage() {
     }
 
     // Generate automatic interpretation for all serology Reactive/Non-Reactive tests
-    const SEROLOGY_REACTIVE_TESTS = new Set(['HIV', 'HBSAG', 'HCV', 'HIVP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
+    const SEROLOGY_REACTIVE_TESTS = new Set(['RVS', 'HBSAG', 'HCV', 'RVSP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
     if (SEROLOGY_REACTIVE_TESTS.has(testCode) && value) {
       if (value === 'Non-Reactive') {
         interpretation = 'Negative';
@@ -883,7 +883,7 @@ export default function EnterResultsPage() {
         }
 
         // Add automatic interpretation for all serology Reactive/Non-Reactive tests
-        const SEROLOGY_REACTIVE_TESTS = new Set(['HIV', 'HBSAG', 'HCV', 'HIVP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
+    const SEROLOGY_REACTIVE_TESTS = new Set(['RVS', 'HBSAG', 'HCV', 'RVSP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
         if (SEROLOGY_REACTIVE_TESTS.has(entry.testCode) && entry.interpretation) {
           payload.comments = entry.interpretation;
         }
@@ -919,12 +919,36 @@ export default function EnterResultsPage() {
       setResultEntries({});
       setFbcMessage('');
       setSelectedOrder(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to submit results:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to submit results';
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError?.response?.data?.message || axiosError?.message || 'Failed to submit results';
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Mark an order as completed (removes from processing queue)
+  const handleCompleteOrder = async (orderId: string) => {
+    if (!orderId) return;
+
+    try {
+      await updateOrder.mutateAsync({
+        id: orderId,
+        updates: { status: 'completed' },
+      });
+      toast.success('Order marked as completed');
+
+      // If the completed order was selected, clear the selection
+      if (selectedOrder?.id === orderId || (selectedOrder as any)?._id === orderId) {
+        setSelectedOrder(null);
+        setResultEntries({});
+      }
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError?.response?.data?.message || axiosError?.message || 'Failed to complete order';
+      toast.error(errorMessage);
     }
   };
 

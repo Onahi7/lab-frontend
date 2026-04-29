@@ -88,7 +88,7 @@ export function useCreateResult() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['results'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
     },
   });
 }
@@ -102,7 +102,7 @@ export function useCreateBulkResults() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['results'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'], exact: false });
     },
   });
 }

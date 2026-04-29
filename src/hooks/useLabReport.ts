@@ -115,8 +115,9 @@ export function useLabReport(orderId: string) {
       setError(null);
       const response = await api.get(`/reports/lab-results/${orderId}`);
       setReportData(response.data);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to load report';
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Failed to load report';
       setError(errorMessage);
       setReportData(null);
     } finally {

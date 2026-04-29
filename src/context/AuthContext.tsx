@@ -71,18 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar_url: data.avatarUrl,
       });
       setRoles(data.roles || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching user profile:', error);
       // Only clear tokens on authentication errors (401, 403)
-      const status = error?.response?.status;
+      const axiosError = error as { response?: { status?: number } };
+      const status = axiosError?.response?.status;
       if (status === 401 || status === 403) {
         clearTokens();
         setUser(null);
         setProfile(null);
         setRoles([]);
-        // Redirect to login if we're not already there
         if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         }
       } else {
         // For other errors (network, server errors), keep the user logged in
@@ -116,9 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setRoles(data.user.roles || []);
       return { error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      return { error: error.response?.data?.message || error.message || 'Login failed' };
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      return { error: axiosError.response?.data?.message || axiosError.message || 'Login failed' };
     }
   };
 

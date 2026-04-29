@@ -177,8 +177,9 @@ export default function DailyReconciliation() {
       setActualOrangeMoney('');
       setActualAfrimoney('');
       setNotes('');
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to submit reconciliation');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || 'Failed to submit reconciliation');
     }
   };
 
@@ -213,8 +214,9 @@ export default function DailyReconciliation() {
       setReceiptNum('');
       setVend('');
       setExpNotes('');
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to record expenditure');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError?.response?.data?.message || 'Failed to record expenditure');
     }
   };
 

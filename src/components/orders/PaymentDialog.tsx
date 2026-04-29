@@ -92,13 +92,15 @@ export function PaymentDialog({
   const change = receiptData.amountPaid - order.total;
 
   const handlePrintReceipts = async () => {
-    console.log('=== PRINT RECEIPTS DEBUG START ===');
-    console.log('Settings:', settings);
-    console.log('Thermal Connected (state):', thermalConnected);
-    console.log('USB Service Connected (singleton):', usbPrinterService.isConnected);
-    console.log('Receipt Data:', receiptData);
-    console.log('Patient Ref:', patientReceiptRef.current);
-    console.log('Lab Ref:', labReceiptRef.current);
+    if (import.meta.env.DEV) {
+      console.log('=== PRINT RECEIPTS DEBUG START ===');
+      console.log('Settings:', settings);
+      console.log('Thermal Connected (state):', thermalConnected);
+      console.log('USB Service Connected (singleton):', usbPrinterService.isConnected);
+      console.log('Receipt Data:', receiptData);
+      console.log('Patient Ref:', patientReceiptRef.current);
+      console.log('Lab Ref:', labReceiptRef.current);
+    }
     
     setIsPrinting(true);
 
@@ -110,8 +112,10 @@ export function PaymentDialog({
         receiptData
       );
 
-      console.log('Print Result:', result);
-      console.log('=== PRINT RECEIPTS DEBUG END ===');
+      if (import.meta.env.DEV) {
+        console.log('Print Result:', result);
+        console.log('=== PRINT RECEIPTS DEBUG END ===');
+      }
 
       if (result.success) {
         toast.success('Both receipts printed successfully');

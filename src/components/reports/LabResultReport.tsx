@@ -82,33 +82,35 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
 
   // Debug: Log pagination results and report data
   useEffect(() => {
-    console.log('🔍 Report Data:', {
-      hasData: !!reportData,
-      orderId,
-      paginatedPages: paginatedPages.length,
-    });
+    if (import.meta.env.DEV) {
+      console.log('Report Data:', {
+        hasData: !!reportData,
+        orderId,
+        paginatedPages: paginatedPages.length,
+      });
 
-    if (paginatedPages.length > 0) {
-      console.log('📄 Paginated Report:', {
-        totalPages: paginatedPages.length,
-        pages: paginatedPages.map(p => ({
-          pageNumber: p.pageNumber,
-          categories: p.categories.map(c => ({
-            name: c.categoryDisplayName,
-            panels: c.panels.length,
-            totalTests: c.panels.reduce((sum, panel) => sum + panel.results.length, 0),
+      if (paginatedPages.length > 0) {
+        console.log('Paginated Report:', {
+          totalPages: paginatedPages.length,
+          pages: paginatedPages.map(p => ({
+            pageNumber: p.pageNumber,
+            categories: p.categories.map(c => ({
+              name: c.categoryDisplayName,
+              panels: c.panels.length,
+              totalTests: c.panels.reduce((sum, panel) => sum + panel.results.length, 0),
+            })),
           })),
-        })),
-      });
-    }
+        });
+      }
 
-    if (reportData) {
-      console.log('📊 Report Content:', {
-        patient: reportData.patientInfo.fullName,
-        orderNumber: reportData.orderInfo.orderNumber,
-        categories: reportData.resultsByCategory.length,
-        totalResults: reportData.resultsByCategory.reduce((sum, cat) => sum + cat.results.length, 0),
-      });
+      if (reportData) {
+        console.log('Report Content:', {
+          patient: reportData.patientInfo.fullName,
+          orderNumber: reportData.orderInfo.orderNumber,
+          categories: reportData.resultsByCategory.length,
+          totalResults: reportData.resultsByCategory.reduce((sum, cat) => sum + cat.results.length, 0),
+        });
+      }
     }
   }, [paginatedPages, reportData, orderId]);
 
@@ -130,10 +132,12 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
   };
 
   const handlePrint = async () => {
-    console.log('🖨️ Print button clicked');
-    console.log('Report ref:', printRef.current ? 'Found' : 'Not found');
-    console.log('Report data:', reportData ? 'Loaded' : 'Not loaded');
-    console.log('Paginated pages:', paginatedPages.length);
+    if (import.meta.env.DEV) {
+      console.log('Print button clicked');
+      console.log('Report ref:', printRef.current ? 'Found' : 'Not found');
+      console.log('Report data:', reportData ? 'Loaded' : 'Not loaded');
+      console.log('Paginated pages:', paginatedPages.length);
+    }
 
     // Apply print styles first
     applyPrintPageRule();
@@ -141,7 +145,9 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
     // Small delay to ensure styles are applied
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    console.log('🖨️ Triggering window.print()');
+    if (import.meta.env.DEV) {
+      console.log('Triggering window.print()');
+    }
 
     // Electron: silent native print with configured settings
     if (window.electronAPI?.printSilent) {

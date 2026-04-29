@@ -137,8 +137,9 @@ export default function PaymentsPage() {
           navigate(`/reception/receipt/${orderId}`);
         }, 500);
       }
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to process payment');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError?.response?.data?.message || 'Failed to process payment');
     } finally {
       setIsProcessingPayment(false);
     }

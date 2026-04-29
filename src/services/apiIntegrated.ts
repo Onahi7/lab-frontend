@@ -131,7 +131,7 @@ class IntegratedApiService {
           const refreshToken = getRefreshToken();
           if (!refreshToken) {
             clearTokens();
-            window.location.href = '/login';
+            window.dispatchEvent(new CustomEvent('auth:unauthorized'));
             return Promise.reject(error);
           }
 
@@ -160,7 +160,7 @@ class IntegratedApiService {
             this.processFailedQueue(refreshError, null);
             this.isRefreshing = false;
             clearTokens();
-            window.location.href = '/login';
+            window.dispatchEvent(new CustomEvent('auth:unauthorized'));
             return Promise.reject(refreshError);
           }
         }

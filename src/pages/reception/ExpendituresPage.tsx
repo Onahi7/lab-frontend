@@ -169,9 +169,10 @@ export default function ExpendituresPage() {
       toast.success('Expenditure recorded successfully');
       setShowAddDialog(false);
       resetForm();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
       toast.error(
-        error?.response?.data?.message || 'Failed to record expenditure'
+        axiosError?.response?.data?.message || 'Failed to record expenditure'
       );
     }
   };
