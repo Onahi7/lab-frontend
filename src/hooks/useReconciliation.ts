@@ -83,9 +83,9 @@ export function useDailyReport(date: string) {
   });
 }
 
-export function useDoctorReferralReport(params: { startDate?: string; endDate?: string; doctor?: string }) {
+export function useDoctorReferralReport(params: { startDate?: string; endDate?: string; doctor?: string; doctorId?: string }) {
   return useQuery({
-    queryKey: ['doctor-referral-report', params.startDate, params.endDate, params.doctor],
+    queryKey: ['doctor-referral-report', params.startDate, params.endDate, params.doctor, params.doctorId],
     queryFn: async () => {
       return await reconciliationAPI.getDoctorReferralReport(params);
     },

@@ -4,6 +4,7 @@ import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useSearchPatients } from '@/hooks/usePatients';
 import { useCreateOrder } from '@/hooks/useOrders';
+import { useCreateDoctor, useDoctors } from '@/hooks/useDoctors';
 import { useActiveTests } from '@/hooks/useTestCatalog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,8 @@ export default function NewOrder() {
   const { profile } = useAuth();
   const { data: patients } = useSearchPatients('');
   const { data: testsFromDB, isLoading: testsLoading } = useActiveTests();
+  const { data: doctors = [] } = useDoctors();
+  const createDoctor = useCreateDoctor();
   const createOrder = useCreateOrder();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -34,6 +37,11 @@ export default function NewOrder() {
   const [testSearch, setTestSearch] = useState('');
   const [priority, setPriority] = useState<'routine' | 'urgent' | 'stat'>('routine');
   const [referredByDoctor, setReferredByDoctor] = useState('');
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>('none');
+  const [showDoctorDialog, setShowDoctorDialog] = useState(false);
+  const [newDoctorName, setNewDoctorName] = useState('');
+  const [newDoctorPhone, setNewDoctorPhone] = useState('');
+  const [newDoctorFacility, setNewDoctorFacility] = useState('');
   const [discountValue, setDiscountValue] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -341,6 +349,7 @@ export default function NewOrder() {
         patientId: patient._id || patient.id,
         priority,
         referredByDoctor: referredByDoctor.trim() || undefined,
+        doctorId: selectedDoctorId !== 'none' ? selectedDoctorId : undefined,
         tests: normalizedOrderTests,
         discount: discount > 0 ? discount : undefined,
         discountType: discount > 0 ? discountType : undefined,
@@ -711,12 +720,40 @@ export default function NewOrder() {
 
             <div className="mt-4 space-y-2">
               <Label htmlFor="referredByDoctor" className="text-sm">Referred by Doctor (Optional)</Label>
-              <Input
-                id="referredByDoctor"
-                value={referredByDoctor}
-                onChange={e => setReferredByDoctor(e.target.value)}
-                placeholder="Type doctor's name"
-              />
+              <div className="flex gap-2">
+                <Select
+                  value={selectedDoctorId}
+                  onValueChange={(value) => {
+                    setSelectedDoctorId(value);
+                    const selected = doctors.find((d: any) => d._id === value);
+                    if (selected) setReferredByDoctor(selected.fullName);
+                    if (value === 'none') setReferredByDoctor('');
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select doctor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No doctor</SelectItem>
+                    {doctors.map((doctor: any) => (
+                      <SelectItem key={doctor._id} value={doctor._id}>
+                        {doctor.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" onClick={() => setShowDoctorDialog(true)}>
+                  Add
+                </Button>
+              </div>
+              {selectedDoctorId === 'none' && (
+                <Input
+                  id="referredByDoctor"
+                  value={referredByDoctor}
+                  onChange={e => setReferredByDoctor(e.target.value)}
+                  placeholder="Or type doctor name"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -911,6 +948,59 @@ export default function NewOrder() {
               {createOrder.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Check className="w-4 h-4 mr-2" />
               Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDoctorDialog} onOpenChange={setShowDoctorDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Doctor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>Name</Label>
+              <Input value={newDoctorName} onChange={(e) => setNewDoctorName(e.target.value)} placeholder="Doctor full name" />
+            </div>
+            <div className="space-y-1">
+              <Label>Phone (optional)</Label>
+              <Input value={newDoctorPhone} onChange={(e) => setNewDoctorPhone(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Facility (optional)</Label>
+              <Input value={newDoctorFacility} onChange={(e) => setNewDoctorFacility(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDoctorDialog(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                if (!newDoctorName.trim()) {
+                  toast.error('Doctor name is required');
+                  return;
+                }
+                try {
+                  const doctor = await createDoctor.mutateAsync({
+                    fullName: newDoctorName.trim(),
+                    phone: newDoctorPhone.trim() || undefined,
+                    facility: newDoctorFacility.trim() || undefined,
+                  });
+                  setSelectedDoctorId(doctor._id);
+                  setReferredByDoctor(doctor.fullName);
+                  setShowDoctorDialog(false);
+                  setNewDoctorName('');
+                  setNewDoctorPhone('');
+                  setNewDoctorFacility('');
+                  toast.success('Doctor added');
+                } catch {
+                  toast.error('Failed to add doctor');
+                }
+              }}
+              disabled={createDoctor.isPending}
+            >
+              {createDoctor.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Doctor
             </Button>
           </DialogFooter>
         </DialogContent>

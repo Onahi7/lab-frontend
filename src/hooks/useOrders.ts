@@ -96,6 +96,8 @@ interface Order {
   paymentStatus?: 'pending' | 'partial' | 'paid';
   paymentMethod?: 'cash' | 'orange_money' | 'afrimoney';
   notes?: string;
+  referredByDoctor?: string;
+  doctorId?: string | { _id: string; fullName: string; phone?: string; facility?: string };
   createdAt: string;
   updatedAt?: string;
 }
@@ -117,6 +119,7 @@ interface OrderCreate {
   patientId: string;
   priority: 'routine' | 'urgent' | 'stat';
   referredByDoctor?: string;
+  doctorId?: string;
   notes?: string;
   tests: Array<{
     testId: string;
@@ -293,6 +296,25 @@ export function useAddPayment() {
       queryClient.invalidateQueries({ queryKey: ['payment-stats'] });
       queryClient.invalidateQueries({ queryKey: ['daily-income'] });
       queryClient.invalidateQueries({ queryKey: ['payment-history'] });
+    },
+  });
+}
+
+export function useAssignDoctor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      data,
+    }: {
+      orderId: string;
+      data: { doctorId?: string; referredByDoctor?: string };
+    }) => {
+      return await ordersAPI.assignDoctor(orderId, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['doctor-referral-report'] });
     },
   });
 }

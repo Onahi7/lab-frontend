@@ -3,10 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useDoctorReferralReport } from '@/hooks/useReconciliation';
+import { useDoctors } from '@/hooks/useDoctors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
@@ -27,23 +29,34 @@ export default function DoctorReferralReport() {
   const reportRef = useRef<HTMLDivElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
+  const thisMonth = new Date().toISOString().slice(0, 7);
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [doctorFilter, setDoctorFilter] = useState('');
+  const [doctorId, setDoctorId] = useState('all');
+  const [monthFilter, setMonthFilter] = useState(thisMonth);
+  const { data: doctors = [] } = useDoctors();
   const [appliedParams, setAppliedParams] = useState<{
     startDate: string;
     endDate: string;
     doctor: string;
-  }>({ startDate: today, endDate: today, doctor: '' });
+    doctorId?: string;
+  }>({ startDate: today, endDate: today, doctor: '', doctorId: undefined });
 
   const { data: report, isLoading } = useDoctorReferralReport({
     startDate: appliedParams.startDate,
     endDate: appliedParams.endDate,
     doctor: appliedParams.doctor || undefined,
+    doctorId: appliedParams.doctorId,
   });
 
   const handleSearch = () => {
-    setAppliedParams({ startDate, endDate, doctor: doctorFilter });
+    setAppliedParams({
+      startDate,
+      endDate,
+      doctor: doctorFilter,
+      doctorId: doctorId !== 'all' ? doctorId : undefined,
+    });
   };
 
   const handleExportPDF = () => {
@@ -170,14 +183,46 @@ export default function DoctorReferralReport() {
           />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Doctor (optional filter)</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">Month</Label>
           <Input
-            placeholder="Search by doctor name…"
-            value={doctorFilter}
-            onChange={(e) => setDoctorFilter(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="w-52"
+            type="month"
+            value={monthFilter}
+            onChange={(e) => {
+              const month = e.target.value;
+              setMonthFilter(month);
+              if (!month) return;
+              const start = new Date(`${month}-01T00:00:00`);
+              const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+              setStartDate(start.toISOString().slice(0, 10));
+              setEndDate(end.toISOString().slice(0, 10));
+            }}
+            className="w-40"
           />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">Doctor (optional filter)</Label>
+          <div className="flex gap-2">
+            <Select value={doctorId} onValueChange={setDoctorId}>
+              <SelectTrigger className="w-52">
+                <SelectValue placeholder="All doctors" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All doctors</SelectItem>
+                {doctors.map((doctor: any) => (
+                  <SelectItem key={doctor._id} value={doctor._id}>
+                    {doctor.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="or name contains…"
+              value={doctorFilter}
+              onChange={(e) => setDoctorFilter(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className="w-40"
+            />
+          </div>
         </div>
         <Button onClick={handleSearch} className="gap-2">
           <Search className="w-4 h-4" /> Search

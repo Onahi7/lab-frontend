@@ -324,8 +324,28 @@ export const ordersAPI = {
     return response.data;
   },
 
+  assignDoctor: async (id: string, data: { doctorId?: string; referredByDoctor?: string }) => {
+    const response = await api.post(`/orders/${id}/assign-doctor`, data);
+    return response.data;
+  },
+
   delete: async (id: string) => {
     await api.delete(`/orders/${id}`);
+  },
+};
+
+export const doctorsAPI = {
+  getAll: async (params?: { search?: string; activeOnly?: boolean }) => {
+    const response = await api.get('/doctors', { params });
+    return response.data;
+  },
+  create: async (data: { fullName: string; phone?: string; facility?: string; isActive?: boolean }) => {
+    const response = await api.post('/doctors', data);
+    return response.data;
+  },
+  update: async (id: string, data: { fullName?: string; phone?: string; facility?: string; isActive?: boolean }) => {
+    const response = await api.patch(`/doctors/${id}`, data);
+    return response.data;
   },
 };
 
@@ -732,7 +752,7 @@ export const reconciliationAPI = {
     return response.data;
   },
 
-  getDoctorReferralReport: async (params?: { startDate?: string; endDate?: string; doctor?: string }) => {
+  getDoctorReferralReport: async (params?: { startDate?: string; endDate?: string; doctor?: string; doctorId?: string }) => {
     const response = await api.get('/reconciliation/doctor-referral-report', { params });
     return response.data;
   },

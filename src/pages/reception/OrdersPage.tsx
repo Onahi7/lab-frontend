@@ -1,13 +1,14 @@
 ﻿import { useState } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useOrders, useDeleteOrder } from '@/hooks/useOrders';
+import { useOrders, useDeleteOrder, useAssignDoctor } from '@/hooks/useOrders';
+import { useDoctors } from '@/hooks/useDoctors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Search, CreditCard, Loader2, Eye, Trash2 } from 'lucide-react';
+import { Search, CreditCard, Loader2, Eye, Trash2, Stethoscope } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
@@ -25,9 +26,14 @@ export default function OrdersPage() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmNum, setDeleteConfirmNum] = useState('');
+  const [assignOrder, setAssignOrder] = useState<OrderWithDetails | null>(null);
+  const [assignDoctorId, setAssignDoctorId] = useState<string>('none');
+  const [assignDoctorText, setAssignDoctorText] = useState('');
   
   const { data: orders, isLoading } = useOrders(statusFilter as any);
+  const { data: doctors = [] } = useDoctors();
   const deleteOrder = useDeleteOrder();
+  const assignDoctor = useAssignDoctor();
 
   const handleDeleteOrder = async () => {
     if (!deleteConfirmId) return;
@@ -199,6 +205,18 @@ export default function OrdersPage() {
                           Pay
                         </Button>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setAssignOrder(order);
+                          const currentDoctorId = typeof order.doctorId === 'string' ? order.doctorId : order.doctorId?._id;
+                          setAssignDoctorId(currentDoctorId || 'none');
+                          setAssignDoctorText(order.referredByDoctor || '');
+                        }}
+                      >
+                        <Stethoscope className="w-4 h-4" />
+                      </Button>
                       {isAdmin && (
                         <Button
                           variant="ghost"
@@ -300,6 +318,70 @@ export default function OrdersPage() {
             >
               {deleteOrder.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Delete Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!assignOrder} onOpenChange={(open) => !open && setAssignOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Doctor</DialogTitle>
+            <DialogDescription>
+              Attach a referring doctor to order <strong>{assignOrder?.orderNumber}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Select
+              value={assignDoctorId}
+              onValueChange={(value) => {
+                setAssignDoctorId(value);
+                if (value === 'none') return;
+                const selected = doctors.find((d: any) => d._id === value);
+                if (selected) setAssignDoctorText(selected.fullName);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select doctor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No doctor</SelectItem>
+                {doctors.map((doctor: any) => (
+                  <SelectItem key={doctor._id} value={doctor._id}>{doctor.fullName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {assignDoctorId === 'none' && (
+              <Input
+                placeholder="Or type doctor name"
+                value={assignDoctorText}
+                onChange={(e) => setAssignDoctorText(e.target.value)}
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOrder(null)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                if (!assignOrder) return;
+                try {
+                  await assignDoctor.mutateAsync({
+                    orderId: assignOrder.id || (assignOrder as any)._id || '',
+                    data: {
+                      doctorId: assignDoctorId !== 'none' ? assignDoctorId : undefined,
+                      referredByDoctor: assignDoctorId === 'none' ? (assignDoctorText.trim() || undefined) : undefined,
+                    },
+                  });
+                  toast.success('Doctor assigned');
+                  setAssignOrder(null);
+                } catch {
+                  toast.error('Failed to assign doctor');
+                }
+              }}
+              disabled={assignDoctor.isPending}
+            >
+              {assignDoctor.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
