@@ -55,6 +55,7 @@ import DoctorReferralReport from "./pages/admin/DoctorReferralReport";
 import AuditLogViewer from "./pages/admin/AuditLogViewer";
 import ReportTemplateEditor from "./pages/admin/ReportTemplateEditor";
 import PrinterSettings from "./pages/admin/PrinterSettings";
+import DoctorsPage from "./pages/admin/DoctorsPage";
 
 import { PrinterProvider } from "./context/PrinterContext";
 
@@ -282,6 +283,12 @@ function AppRoutes() {
       } />
       <Route path="/admin/logs" element={
         <RoleGuard allowedRoles={['admin']}><CommunicationLogs /></RoleGuard>
+      } />
+      <Route path="/admin/doctors" element={
+        <RoleGuard allowedRoles={['admin']}><DoctorsPage /></RoleGuard>
+      } />
+      <Route path="/reception/doctors" element={
+        <RoleGuard allowedRoles={['receptionist', 'admin']}><DoctorsPage /></RoleGuard>
       } />
 
       {/* Default Route - Redirect based on auth state */}

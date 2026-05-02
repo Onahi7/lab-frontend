@@ -23,6 +23,7 @@ import {
   FileBarChart,
   Stethoscope,
   Tag,
+  UserRoundCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -43,6 +44,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/admin/reconciliation', icon: Calculator, label: 'Reconciliation' },
     { to: '/admin/daily-report', icon: FileBarChart, label: 'Daily Report' },
     { to: '/admin/doctor-referral-report', icon: Stethoscope, label: 'Doctor Referrals' },
+    { to: '/admin/doctors', icon: UserRoundCog, label: 'Doctors' },
     { to: '/admin/payments', icon: CreditCard, label: 'Payments' },
     { to: '/admin/report-template', icon: FileEdit, label: 'Report Template' },
     { to: '/admin/test-catalog', icon: FlaskConical, label: 'Test Catalog' },
@@ -63,6 +65,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/reception/completed-orders', icon: FileEdit, label: 'Print Reports' },
     { to: '/reception/payments', icon: CreditCard, label: 'Payments' },
     { to: '/reception/orders', icon: FileText, label: 'Orders' },
+    { to: '/reception/doctor-referral-report', icon: Stethoscope, label: 'Doctor Referrals' },
+    { to: '/reception/doctors', icon: UserRoundCog, label: 'Doctors' },
     { to: '/reception/daily-report', icon: FileBarChart, label: 'Daily Report' },
     { to: '/reception/reconciliation', icon: Calculator, label: 'Reconciliation' },
     { to: '/reception/printer', icon: Printer, label: 'Printer Setup' },
