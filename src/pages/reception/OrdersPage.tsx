@@ -29,6 +29,8 @@ export default function OrdersPage() {
   const [assignOrder, setAssignOrder] = useState<OrderWithDetails | null>(null);
   const [assignDoctorId, setAssignDoctorId] = useState<string>('none');
   const [assignDoctorText, setAssignDoctorText] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   
   const { data: orders, isLoading } = useOrders(statusFilter as any);
   const { data: doctors = [] } = useDoctors();
@@ -60,6 +62,12 @@ export default function OrdersPage() {
       patientId.includes(search)
     );
   }) : [];
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
 
   const statusStyles: Record<string, string> = {
     pending_payment: 'bg-status-warning/10 text-status-warning border-status-warning/20',
@@ -108,6 +116,23 @@ export default function OrdersPage() {
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              setPageSize(Number(value));
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="Rows" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10 / page</SelectItem>
+              <SelectItem value="15">15 / page</SelectItem>
+              <SelectItem value="25">25 / page</SelectItem>
+              <SelectItem value="50">50 / page</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -133,7 +158,7 @@ export default function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders?.map(order => (
+              {paginatedOrders?.map(order => (
                 <tr key={order.id || order._id}>
                   <td className="font-mono text-sm">{order.orderNumber || order.order_number}</td>
                   <td>
@@ -234,7 +259,7 @@ export default function OrdersPage() {
                   </td>
                 </tr>
               ))}
-              {(!filteredOrders || filteredOrders.length === 0) && (
+              {(!paginatedOrders || paginatedOrders.length === 0) && (
                 <tr>
                   <td colSpan={9} className="text-center py-8 text-muted-foreground">
                     No orders found
@@ -245,6 +270,35 @@ export default function OrdersPage() {
           </table>
         )}
       </div>
+
+      {filteredOrders.length > 0 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-muted-foreground">
+            Showing {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length} orders
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground px-2">
+              Page {safePage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Payment Dialog */}
       {selectedOrder && (
