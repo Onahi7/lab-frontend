@@ -6,12 +6,18 @@ interface InterpretationsSectionProps {
 }
 
 export function InterpretationsSection({ panelInterpretations }: InterpretationsSectionProps) {
+  // Debug logging
+  console.log('InterpretationsSection received:', panelInterpretations);
+  
   // Only show interpretations that have AI-generated content
   const aiInterpretations = panelInterpretations.filter(
     (interp) => interp.interpretation && interp.aiProvider
   );
 
+  console.log('Filtered AI interpretations:', aiInterpretations);
+
   if (aiInterpretations.length === 0) {
+    console.log('No AI interpretations to display');
     return null;
   }
 

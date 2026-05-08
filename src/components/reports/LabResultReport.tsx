@@ -110,6 +110,8 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
           orderNumber: reportData.orderInfo.orderNumber,
           categories: reportData.resultsByCategory.length,
           totalResults: reportData.resultsByCategory.reduce((sum, cat) => sum + cat.results.length, 0),
+          panelInterpretations: reportData.panelInterpretations?.length || 0,
+          interpretationsData: reportData.panelInterpretations,
         });
       }
     }
