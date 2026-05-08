@@ -8,9 +8,11 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/dialog';
-import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Loader2, Clock, Sparkles, RotateCcw, Save, Edit3, X } from 'lucide-react';
 import { useOrders } from '../../hooks/useOrders';
 import { useResults, useAmendResult, useUpdateResult } from '../../hooks/useResults';
+import { useLabReport } from '../../hooks/useLabReport';
+import { useGenerateAllAiInterpretations, useAiStatus, useUpdatePanelInterpretation } from '../../hooks/useAiInterpretation';
 import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -30,6 +32,18 @@ export default function LabReportPage() {
   const [newValue, setNewValue] = useState('');
   const [newReferenceRange, setNewReferenceRange] = useState('');
   const [amendReason, setAmendReason] = useState('');
+
+  // AI interpretation state
+  const [showInterpretationDialog, setShowInterpretationDialog] = useState(false);
+  const [editingInterpretation, setEditingInterpretation] = useState<{ panelCode: string; interpretation: string } | null>(null);
+  
+  // Fetch report data for AI interpretation
+  const { reportData } = useLabReport(orderId || '');
+  
+  // AI hooks
+  const { data: aiStatus } = useAiStatus();
+  const generateInterpretations = useGenerateAllAiInterpretations();
+  const updateInterpretation = useUpdatePanelInterpretation();
 
   // Fetch completed orders for pagination
   const { data: completedOrders } = useOrders('completed');
@@ -220,6 +234,21 @@ export default function LabReportPage() {
         </Button>
 
         <div className="flex items-center gap-2">
+          {/* AI Interpretation Button - lab tech and admin */}
+          {canEditResults && currentResults.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 no-print border-purple-500 text-purple-700 hover:bg-purple-50"
+              onClick={() => setShowInterpretationDialog(true)}
+              disabled={!aiStatus?.configured}
+              title={aiStatus?.configured ? 'Generate AI interpretations for all panels' : 'AI not configured'}
+            >
+              <Sparkles className="h-4 w-4" />
+              AI Interpret
+            </Button>
+          )}
+
           {/* Edit Results Button - lab tech, receptionist, and admin */}
           {canEditResults && currentResults.length > 0 && (
             <Button
@@ -379,6 +408,151 @@ export default function LabReportPage() {
               </Button>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Interpretation Dialog */}
+      <Dialog open={showInterpretationDialog} onOpenChange={setShowInterpretationDialog}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              AI Interpretations
+            </DialogTitle>
+            <DialogDescription>
+              Generate AI-powered clinical interpretations for all panels in this order. 
+              {!aiStatus?.configured && <span className="text-red-500 block mt-1">AI is not configured. Please set GROQ_API_KEY in the environment.</span>}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingInterpretation ? (
+            // Edit interpretation mode
+            <div className="space-y-4">
+              <div>
+                <Label>Edit Interpretation</Label>
+                <Textarea
+                  value={editingInterpretation.interpretation}
+                  onChange={(e) => setEditingInterpretation({ ...editingInterpretation, interpretation: e.target.value })}
+                  rows={4}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setEditingInterpretation(null)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (orderId && editingInterpretation.panelCode) {
+                      updateInterpretation.mutate({
+                        orderId,
+                        panelCode: editingInterpretation.panelCode,
+                        interpretation: editingInterpretation.interpretation,
+                      });
+                      setEditingInterpretation(null);
+                    }
+                  }}
+                  disabled={updateInterpretation.isPending}
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  Save
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // List interpretations with generate/edit options
+            <div className="space-y-4">
+              {reportData?.panelInterpretations && reportData.panelInterpretations.length > 0 ? (
+                <div className="space-y-4">
+                  {reportData.panelInterpretations.map((interp: any) => (
+                    <div key={interp.panelCode} className="border rounded-lg p-4 bg-purple-50/50">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-medium">{interp.panelName || interp.panelCode}</h4>
+                          {interp.aiProvider && (
+                            <p className="text-xs text-purple-600 flex items-center gap-1">
+                              <Sparkles className="h-3 w-3" />
+                              Generated by AI ({interp.aiProvider})
+                              {interp.aiGeneratedAt && ` • ${format(new Date(interp.aiGeneratedAt), 'MMM dd, HH:mm')}`}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingInterpretation({ 
+                            panelCode: interp.panelCode, 
+                            interpretation: interp.interpretation || interp.generalMessage || '' 
+                          })}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-gray-700">
+                        {interp.interpretation || interp.generalMessage || <em className="text-gray-400">No interpretation available</em>}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Sparkles className="h-12 w-12 mx-auto mb-3 text-purple-300" />
+                  <p>No interpretations yet</p>
+                  <p className="text-sm">Click "Generate All" to create AI interpretations</p>
+                </div>
+              )}
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowInterpretationDialog(false)}
+                >
+                  Close
+                </Button>
+                {aiStatus?.configured && (
+                  <Button 
+                    onClick={() => {
+                      if (orderId && reportData?.resultsByCategory) {
+                        // Extract panels from results
+                        const panels = reportData.resultsByCategory
+                          .flatMap((cat: any) => cat.results)
+                          .reduce((acc: any[], result: any) => {
+                            if (result.panelCode && !acc.find(p => p.panelCode === result.panelCode)) {
+                              const panelResults = reportData.resultsByCategory
+                                .flatMap((c: any) => c.results)
+                                .filter((r: any) => r.panelCode === result.panelCode);
+                              acc.push({
+                                panelCode: result.panelCode,
+                                panelName: result.panelName,
+                                results: panelResults.map((r: any) => ({
+                                  testCode: r.testCode,
+                                  testName: r.testName,
+                                  value: r.value,
+                                  unit: r.unit,
+                                  referenceRange: r.referenceRange,
+                                  flag: r.flag,
+                                })),
+                              });
+                            }
+                            return acc;
+                          }, []);
+                        
+                        generateInterpretations.mutate({ orderId, panels });
+                      }
+                    }}
+                    disabled={generateInterpretations.isPending}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {generateInterpretations.isPending ? (
+                      <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Generating...</>
+                    ) : (
+                      <><Sparkles className="h-4 w-4 mr-1" /> Generate All</>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </RoleLayout>

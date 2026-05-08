@@ -71,11 +71,24 @@ export interface LaboratoryInfo {
   accreditation?: string;
 }
 
+export interface PanelInterpretationInfo {
+  panelCode: string;
+  panelName: string;
+  wbcMessage?: string;
+  rbcMessage?: string;
+  pltMessage?: string;
+  generalMessage?: string;
+  interpretation?: string;
+  aiProvider?: string;
+  aiGeneratedAt?: string;
+}
+
 export interface LabResultReport {
   reportMetadata: ReportMetadata;
   patientInfo: PatientInfo;
   orderInfo: OrderInfo;
   resultsByCategory: ResultCategory[];
+  panelInterpretations: PanelInterpretationInfo[];
   verificationInfo: VerificationInfo;
   laboratoryInfo: LaboratoryInfo;
 }
