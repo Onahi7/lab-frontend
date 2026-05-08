@@ -6,6 +6,7 @@ import { usePaginatedReport } from './SmartPaginatedReport';
 import { ReportHeader } from './ReportHeader';
 import { PatientInfoSection } from './PatientInfoSection';
 import { PaginatedCategorySection } from './PaginatedCategorySection';
+import { InterpretationsSection } from './InterpretationsSection';
 import { VerificationSection } from './VerificationSection';
 import { ReportFooter } from './ReportFooter';
 import { Button } from '../ui/button';
@@ -286,6 +287,11 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
                     template={template}
                   />
                 ))}
+
+                {/* AI Interpretations section - only on last page */}
+                {page.isLastPage && reportData.panelInterpretations && (
+                  <InterpretationsSection panelInterpretations={reportData.panelInterpretations} />
+                )}
 
               </div>
 
