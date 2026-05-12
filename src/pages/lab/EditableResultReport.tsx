@@ -2,8 +2,6 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Printer, Save, Edit2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -79,7 +77,6 @@ export default function EditableResultReport() {
     },
   ]);
 
-  const [verifiedBy, setVerifiedBy] = useState('');
   const [disclaimer, setDisclaimer] = useState(
     'All tests conducted using calibrated, automated analyzers with high accuracy and precision. For detailed interpretation kindly consult your healthcare provider.'
   );
@@ -424,23 +421,6 @@ export default function EditableResultReport() {
               )}
             </div>
           ))}
-        </div>
-
-        {/* Verification Section */}
-        <div className="px-8 py-6 border-t">
-          <div className="mb-4">
-            <label className="text-sm text-gray-600">Verified By:</label>
-            {isEditing ? (
-              <Input
-                value={verifiedBy}
-                onChange={e => setVerifiedBy(e.target.value)}
-                className="mt-1 max-w-md"
-                placeholder="Enter verifier name"
-              />
-            ) : (
-              <div className="mt-2 border-b border-gray-400 w-64 h-8"></div>
-            )}
-          </div>
         </div>
 
         {/* Footer with Disclaimer */}
