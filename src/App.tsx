@@ -56,6 +56,7 @@ import AuditLogViewer from "./pages/admin/AuditLogViewer";
 import ReportTemplateEditor from "./pages/admin/ReportTemplateEditor";
 import PrinterSettings from "./pages/admin/PrinterSettings";
 import DoctorsPage from "./pages/admin/DoctorsPage";
+import ResultsManagement from "./pages/admin/ResultsManagement";
 
 import { PrinterProvider } from "./context/PrinterContext";
 
@@ -284,8 +285,11 @@ function AppRoutes() {
       <Route path="/admin/logs" element={
         <RoleGuard allowedRoles={['admin']}><CommunicationLogs /></RoleGuard>
       } />
-      <Route path="/admin/doctors" element={
+<Route path="/admin/doctors" element={
         <RoleGuard allowedRoles={['admin']}><DoctorsPage /></RoleGuard>
+      } />
+      <Route path="/admin/results" element={
+        <RoleGuard allowedRoles={['admin']}><ResultsManagement /></RoleGuard>
       } />
       <Route path="/reception/doctors" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><DoctorsPage /></RoleGuard>

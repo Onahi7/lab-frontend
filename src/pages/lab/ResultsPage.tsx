@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useResults, useVerifyResult } from '@/hooks/useResults';
+import { useResults, useVerifyResult, useDeleteResult } from '@/hooks/useResults';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Search, CheckCircle, Loader2, FileText } from 'lucide-react';
+import { Search, CheckCircle, Loader2, FileText, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getPatientName, getPatientId } from '@/utils/orderHelpers';
@@ -41,6 +42,7 @@ export default function ResultsPage() {
   const navigate = useNavigate();
   const { data: results, isLoading } = useResults();
   const verifyResult = useVerifyResult();
+  const deleteResult = useDeleteResult();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -48,6 +50,8 @@ export default function ResultsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [isBatchVerifying, setIsBatchVerifying] = useState(false);
+  // Delete confirmation state
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const filteredResults = results?.filter(result => {
     // Filter by status
@@ -105,6 +109,18 @@ export default function ResultsPage() {
     toast.success(`Verified ${selectedIds.size} results`);
     setSelectedIds(new Set());
     setIsBatchVerifying(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await deleteResult.mutateAsync(deleteConfirmId);
+      toast.success('Result deleted');
+    } catch {
+      toast.error('Failed to delete result');
+    } finally {
+      setDeleteConfirmId(null);
+    }
   };
 
   const toggleSelect = (id: string) => {
@@ -287,8 +303,8 @@ export default function ResultsPage() {
                     <td>
                       <div className="flex gap-1">
                         {(order?.id || order?._id) && (
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => navigate(`/lab/reports/${order?.id || order?._id}`)}
                             title="View Report"
@@ -297,8 +313,8 @@ export default function ResultsPage() {
                           </Button>
                         )}
                         {result.status !== 'verified' && result.status !== 'amended' && (
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleVerify(resultId)}
                             disabled={verifyingId === resultId || isBatchVerifying}
@@ -307,6 +323,17 @@ export default function ResultsPage() {
                             {verifyingId === resultId
                               ? <Loader2 className="w-4 h-4 animate-spin" />
                               : <CheckCircle className="w-4 h-4" />}
+                          </Button>
+                        )}
+                        {primaryRole === 'admin' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => setDeleteConfirmId(resultId)}
+                            title="Delete result"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
                       </div>
@@ -325,6 +352,28 @@ export default function ResultsPage() {
           </table>
         )}
       </div>
+    {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Result</DialogTitle>
+            <DialogDescription>
+              Permanently delete this result? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteResult.isPending}
+            >
+              {deleteResult.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </RoleLayout>
   );
 }

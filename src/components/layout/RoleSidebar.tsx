@@ -50,7 +50,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/admin/test-catalog', icon: FlaskConical, label: 'Test Catalog' },
     { to: '/admin/patients', icon: Users, label: 'All Patients' },
     { to: '/admin/orders', icon: ClipboardList, label: 'All Orders' },
-    { to: '/admin/results', icon: FileText, label: 'All Results' },
+    { to: '/admin/results', icon: FileText, label: 'Results Management' },
     { to: '/admin/machines', icon: Cpu, label: 'Machines' },
     { to: '/admin/printers', icon: Printer, label: 'Printers' },
     { to: '/admin/settings', icon: Settings, label: 'Settings' },

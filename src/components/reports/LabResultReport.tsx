@@ -12,6 +12,7 @@ import { ReportFooter } from './ReportFooter';
 import { Button } from '../ui/button';
 import { Printer, Download, Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
+import { Skeleton } from '../ui/skeleton';
 
 interface LabResultReportProps {
   /** MongoDB ObjectId of the order to generate report for */
@@ -190,10 +191,40 @@ export function LabResultReport({ orderId, onPrintComplete }: LabResultReportPro
 
   if (loading || templateLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading report...</p>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <div className="bg-white border rounded-xl p-6 space-y-6">
+            <div className="flex items-start justify-between gap-6">
+              <div className="space-y-3 flex-1">
+                <Skeleton className="h-6 w-56" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+              <Skeleton className="h-16 w-24" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Skeleton className="h-9 w-28" />
+              <Skeleton className="h-9 w-28" />
+            </div>
+          </div>
         </div>
       </div>
     );

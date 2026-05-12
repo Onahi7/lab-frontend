@@ -120,6 +120,7 @@ export function useLabReport(orderId: string) {
     if (!orderId) {
       setError('Order ID is required');
       setLoading(false);
+      setReportData(null);
       return;
     }
 
@@ -139,8 +140,13 @@ export function useLabReport(orderId: string) {
   };
 
   useEffect(() => {
+    // Clear stale report data immediately when switching orders
+    setReportData(null);
+    setError(null);
     if (orderId) {
       fetchReport();
+    } else {
+      setLoading(false);
     }
   }, [orderId]);
 

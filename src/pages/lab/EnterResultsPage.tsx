@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useProcessingOrders, useUpdateOrder } from '@/hooks/useOrders';
-import { useCreateResult, useCreateBulkResults, useResults } from '@/hooks/useResults';
+import { useCreateResult, useCreateBulkResults, useResults, useDeleteResult } from '@/hooks/useResults';
 import { useAllTests } from '@/hooks/useTestCatalog';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, Check, AlertTriangle, Loader2, Search, Radio, CheckCircle } from 'lucide-react';
+import { FileText, Check, AlertTriangle, Loader2, Search, Radio, CheckCircle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
@@ -87,9 +87,9 @@ const STOOL_MICRO_FIELDS = {
 const STOOL_MICRO_TEST_CODES = new Set(['STOOLMICRO', 'STOOL', 'STOOLEXAM']);
 
 // Hormone tests that have phase-specific ranges
-const HORMONE_TESTS_WITH_PHASES = new Set(['FSH', 'LH', 'PROG', 'PROGESTERONE', 'E2', 'ESTRADIOL']);
+const HORMONE_TESTS_WITH_PHASES = new Set(['FSH', 'LH', 'PROG', 'PROGESTERONE', 'E2', 'ESTRADIOL', 'BHCG']);
 
-// Menstrual phase options for hormone tests
+// Menstrual phase options for cycle-based hormone tests
 const MENSTRUAL_PHASE_OPTIONS = [
   { value: 'follicular', label: 'Follicular Phase (Day 1-14)' },
   { value: 'ovulation', label: 'Ovulation Phase (Day 14-16)' },
@@ -98,8 +98,24 @@ const MENSTRUAL_PHASE_OPTIONS = [
   { value: 'pregnancy', label: 'Pregnancy' },
 ];
 
+// Beta-HCG gestational options
+const BHCG_PHASE_OPTIONS = [
+  { value: 'non-pregnant', label: 'Non-pregnant' },
+  { value: '3 weeks', label: 'Pregnancy - 3 weeks' },
+  { value: '4 weeks', label: 'Pregnancy - 4 weeks' },
+  { value: '5 weeks', label: 'Pregnancy - 5 weeks' },
+  { value: '6 weeks', label: 'Pregnancy - 6 weeks' },
+  { value: '7-8 weeks', label: 'Pregnancy - 7-8 weeks' },
+];
+
 const normalizeTestCode = (value?: string) =>
   (value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
+const getPhaseOptions = (testCode?: string) => {
+  const normalizedCode = normalizeTestCode(testCode);
+  if (normalizedCode === 'BHCG') return BHCG_PHASE_OPTIONS;
+  return MENSTRUAL_PHASE_OPTIONS;
+};
 
 const TEST_CODE_ALIASES: Record<string, string[]> = {
   HSCRP: ['HSCR'],
@@ -239,6 +255,7 @@ interface ResultEntry {
   interpretation?: string; // Add interpretation field
   menstrualPhase?: string; // Add menstrual phase field
   allReferenceRanges?: Array<{ ageGroup: string; range: string; unit: string; gender?: string }>; // All applicable ranges
+  resultId?: string; // Database result ID for delete/edit operations
 }
 
 function includeLinkedInputTests(orderTests: any[]): any[] {
@@ -314,6 +331,7 @@ export default function EnterResultsPage() {
   const updateOrder = useUpdateOrder();
   const createResult = useCreateResult();
   const createBulkResults = useCreateBulkResults();
+  const deleteResult = useDeleteResult();
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -324,6 +342,8 @@ export default function EnterResultsPage() {
   const [showSendToAnalyzer, setShowSendToAnalyzer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
+  // Delete result confirmation
+  const [deleteConfirmTestKey, setDeleteConfirmTestKey] = useState<string | null>(null);
   // Track which entries were synced live from another user (testKey → time string)
   const [liveUpdates, setLiveUpdates] = useState<Record<string, string>>({});
   // FBC panel interpretation message (single line combining WBC, RBC, PLT messages)
@@ -374,6 +394,39 @@ export default function EnterResultsPage() {
       }));
       return { ...prev, [testKey]: updated };
     });
+  };
+
+  // Handle delete result from database
+  const handleDeleteResult = async (testKey: string) => {
+    const entry = resultEntries[testKey];
+    if (!entry?.resultId) return;
+
+    try {
+      await deleteResult.mutateAsync(entry.resultId);
+      toast.success(`Deleted ${entry.testName} result`);
+      // Clear the entry from local state
+      setResultEntries(prev => {
+        const updated = { ...prev };
+        delete updated[testKey];
+        return updated;
+      });
+      // Also clear from localStorage draft
+      if (selectedOrderId) {
+        try {
+          const storageKey = getDraftStorageKey(selectedOrderId);
+          const savedDraft = localStorage.getItem(storageKey);
+          if (savedDraft) {
+            const parsedDraft = JSON.parse(savedDraft);
+            delete parsedDraft[testKey];
+            localStorage.setItem(storageKey, JSON.stringify(parsedDraft));
+          }
+        } catch { /* ignore */ }
+      }
+    } catch (error) {
+      toast.error('Failed to delete result');
+    } finally {
+      setDeleteConfirmTestKey(null);
+    }
   };
 
   // Memoize the selected order ID to prevent infinite loops
@@ -447,6 +500,7 @@ export default function EnterResultsPage() {
             panelCode: matchingTest.panelCode || matchingTest.panel_code,
             panelName: matchingTest.panelName || matchingTest.panel_name,
             category: matchingTest.category,
+            resultId: result.id || result._id, // Store the database result ID
           };
         }
       }
@@ -581,20 +635,13 @@ export default function EnterResultsPage() {
 
       let matchedRange: any;
 
-      // If phase is selected for hormone test, match by phase
+      // If phase is selected for hormone test, match by phase label
       if (isHormoneTest && selectedPhase && patientGender) {
+        const normalizedPhase = selectedPhase.trim().toLowerCase();
         matchedRange = test.referenceRanges.find((r: any) => {
           const ageGroupLower = (r.ageGroup || '').toLowerCase();
           const genderMatch = !r.gender || r.gender === 'all' || r.gender === patientGender;
-          
-          // Match phase in age group name
-          if (selectedPhase === 'follicular' && ageGroupLower.includes('follicular')) return genderMatch;
-          if (selectedPhase === 'ovulation' && ageGroupLower.includes('ovulation')) return genderMatch;
-          if (selectedPhase === 'luteal' && ageGroupLower.includes('luteal')) return genderMatch;
-          if (selectedPhase === 'menopause' && ageGroupLower.includes('menopause')) return genderMatch;
-          if (selectedPhase === 'pregnancy' && ageGroupLower.includes('pregnancy')) return genderMatch;
-          
-          return false;
+          return genderMatch && ageGroupLower.includes(normalizedPhase);
         });
       }
 
@@ -1187,6 +1234,7 @@ export default function EnterResultsPage() {
                     const patientAge = patient?.age;
                     const patientGender = patient?.gender;
                     const testInfo = getTestInfo(testCode, patientAge, patientGender, entry?.menstrualPhase);
+                    const phaseOptions = getPhaseOptions(testCode);
 
                     const qualitativeOptions = QUALITATIVE_OPTIONS[testCode];
                     const isTextarea = TEXTAREA_TESTS.has(testCode);
@@ -1279,7 +1327,7 @@ export default function EnterResultsPage() {
                                     <SelectValue placeholder="Select phase..." />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {MENSTRUAL_PHASE_OPTIONS.map(opt => (
+                                    {phaseOptions.map(opt => (
                                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                     ))}
                                   </SelectContent>
@@ -1338,7 +1386,7 @@ export default function EnterResultsPage() {
                               </div>
                               {entry.menstrualPhase && (
                                 <p className="text-xs text-primary mt-1.5 italic">
-                                  ► Flagged based on {MENSTRUAL_PHASE_OPTIONS.find(p => p.value === entry.menstrualPhase)?.label || entry.menstrualPhase} range
+                                  ► Flagged based on {phaseOptions.find(p => p.value === entry.menstrualPhase)?.label || entry.menstrualPhase} range
                                 </p>
                               )}
                             </div>
@@ -1412,6 +1460,17 @@ export default function EnterResultsPage() {
                                   <Radio className="w-2.5 h-2.5" />
                                   live
                                 </span>
+                              )}
+                              {entry?.resultId && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 mt-1 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setDeleteConfirmTestKey(testKey)}
+                                  title="Delete saved result"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
                               )}
                             </div>
                           </>
@@ -1595,6 +1654,31 @@ export default function EnterResultsPage() {
             <Button variant="destructive" onClick={submitResults} disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Confirm & Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Result Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmTestKey} onOpenChange={(open) => !open && setDeleteConfirmTestKey(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Result</DialogTitle>
+            <DialogDescription>
+              {deleteConfirmTestKey && resultEntries[deleteConfirmTestKey] && (
+                <>Permanently delete <strong>{resultEntries[deleteConfirmTestKey].testName}</strong> result (<strong>{resultEntries[deleteConfirmTestKey].value}</strong>)?</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmTestKey(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirmTestKey && handleDeleteResult(deleteConfirmTestKey)}
+              disabled={deleteResult.isPending}
+            >
+              {deleteResult.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
