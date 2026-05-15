@@ -159,19 +159,19 @@ export default function ResultsPage() {
       userName={profile?.full_name}
     >
       {/* Actions Bar */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
               placeholder="Search results..." 
-              className="pl-10 w-80"
+              className="pl-10 w-full md:w-80"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -182,7 +182,7 @@ export default function ResultsPage() {
             </SelectContent>
           </Select>
           <Select value={flagFilter} onValueChange={setFlagFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Flag" />
             </SelectTrigger>
             <SelectContent>
@@ -325,7 +325,7 @@ export default function ResultsPage() {
                               : <CheckCircle className="w-4 h-4" />}
                           </Button>
                         )}
-                        {primaryRole === 'admin' && (
+                        {(primaryRole === 'admin' || primaryRole === 'lab_tech' || primaryRole === 'receptionist') && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -377,3 +377,4 @@ export default function ResultsPage() {
     </RoleLayout>
   );
 }
+

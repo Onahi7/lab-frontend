@@ -2,10 +2,11 @@ import { Fragment } from 'react';
 import { PageCategory } from './SmartPaginatedReport';
 import { ReportTemplate } from '../../hooks/useReportTemplates';
 
-/** Parse pipe-delimited stool microscopy values like "Color:Brown|Appearance:Formed|Mucus:Nil" */
+/** Parse stool microscopy values like "Color: Brown|Appearance: Formed" or "Color: Brown\nAppearance: Formed" */
 function parseStoolValue(value: string): { label: string; val: string }[] | null {
   if (!value || !value.includes(':')) return null;
-  const parts = value.split('|').map(p => p.trim()).filter(Boolean);
+  // Split by pipe or newline
+  const parts = value.split(/[|\n]/).map(p => p.trim()).filter(Boolean);
   const pairs = parts.map(p => {
     const idx = p.indexOf(':');
     return idx > 0 ? { label: p.slice(0, idx).trim(), val: p.slice(idx + 1).trim() } : null;
@@ -36,7 +37,7 @@ export function PaginatedCategorySection({ pageCategory, template }: PaginatedCa
   // urinalysis/microbiology → 3 cols: Test | Result | Range (reference range only, no unit col)
   // immunoassay/chemistry/hematology → 4 cols: Test | Result | Range | Unit
   const isSerologyLayout = pageCategory.category === 'serology';
-  const isRangeOnlyLayout = pageCategory.category === 'microbiology' || pageCategory.category === 'urinalysis';
+  const isRangeOnlyLayout = pageCategory.category === 'microbiology' || pageCategory.category === 'urinalysis' || pageCategory.category === 'stool_microscopy';
   const useThreeColumns = isSerologyLayout || isRangeOnlyLayout;
   const thirdColumnLabel = isSerologyLayout ? 'Interpretation' : 'Range';
 

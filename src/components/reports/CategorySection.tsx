@@ -44,7 +44,7 @@ export function CategorySection({ category, template, pageBreakBefore = false }:
 
   const hasPanelGrouping = groupedResults.some((group) => group.panelCode || group.panelName);
   const isInterpretationLayout = category.category === 'immunoassay' || category.category === 'serology';
-  const isRangeOnlyLayout = category.category === 'microbiology' || category.category === 'urinalysis';
+  const isRangeOnlyLayout = category.category === 'microbiology' || category.category === 'urinalysis' || category.category === 'stool_microscopy';
   const useThreeColumns = isInterpretationLayout || isRangeOnlyLayout;
 
   const thirdColumnLabel = isInterpretationLayout || isRangeOnlyLayout ? 'Interpretation' : 'R.Range';
