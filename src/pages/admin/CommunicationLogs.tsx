@@ -62,10 +62,10 @@ export default function CommunicationLogs() {
       userName={profile?.full_name}
     >
       {/* Actions Bar */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <Select value={selectedMachine} onValueChange={setSelectedMachine}>
-            <SelectTrigger className="w-64">
+            <SelectTrigger className="w-full sm:w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -266,3 +266,4 @@ export default function CommunicationLogs() {
     </RoleLayout>
   );
 }
+

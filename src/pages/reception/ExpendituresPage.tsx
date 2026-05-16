@@ -244,7 +244,7 @@ export default function ExpendituresPage() {
         <div className="flex items-center gap-3">
           <Calendar className="w-4 h-4 text-muted-foreground" />
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -255,7 +255,7 @@ export default function ExpendituresPage() {
           </Select>
 
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -507,3 +507,4 @@ export default function ExpendituresPage() {
     </RoleLayout>
   );
 }
+

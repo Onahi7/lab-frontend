@@ -92,19 +92,19 @@ export default function OrdersPage() {
       userName={profile?.full_name}
     >
       {/* Filters */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+      <div className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
               placeholder="Search orders..." 
-              className="pl-10 w-80"
+              className="pl-10 w-full"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -123,7 +123,7 @@ export default function OrdersPage() {
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Rows" />
             </SelectTrigger>
             <SelectContent>
@@ -143,6 +143,8 @@ export default function OrdersPage() {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
+          <>
+          <div className="hidden md:block">
           <table className="data-table">
             <thead>
               <tr>
@@ -268,11 +270,103 @@ export default function OrdersPage() {
               )}
             </tbody>
           </table>
+          </div>
+
+          <div className="md:hidden divide-y">
+            {paginatedOrders?.map(order => {
+              const testCount = getPanelTestCount(order);
+              const groupedTests = getGroupedTestsByPanel(order, true);
+              return (
+                <div key={order.id || order._id} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-mono text-xs">{order.orderNumber || order.order_number}</p>
+                    <Badge variant="outline" className={cn('capitalize', statusStyles[order.status])}>
+                      {order.status.replace(/_/g, ' ')}
+                    </Badge>
+                  </div>
+                  <p className="font-medium">{getPatientName(order)}</p>
+                  <p className="text-xs text-muted-foreground">{order.patientId?.patientId || order.patients?.patient_id}</p>
+                  <p className="text-xs text-muted-foreground">{groupedTests}</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Tests</p>
+                      <p className="font-medium">{testCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total</p>
+                      <p className="font-medium">Le {Number(order.total || order.totalAmount).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Priority</p>
+                      <Badge variant="outline" className={cn('capitalize', priorityStyles[order.priority])}>{order.priority}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Payment</p>
+                      <Badge variant="outline" className={cn(
+                        (order.paymentStatus || order.payment_status) === 'paid' ? 'bg-status-normal/10 text-status-normal' :
+                        (order.paymentStatus || order.payment_status) === 'pending' ? 'bg-status-warning/10 text-status-warning' :
+                        'bg-muted text-muted-foreground'
+                      )}>
+                        {order.paymentStatus || order.payment_status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{format(new Date(order.createdAt || order.created_at), 'MMM dd, HH:mm')}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(order.paymentStatus || order.payment_status) !== 'paid' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setShowPaymentDialog(true);
+                        }}
+                      >
+                        <CreditCard className="w-4 h-4 mr-1" />
+                        Pay
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setAssignOrder(order);
+                        const currentDoctorId = typeof order.doctorId === 'string' ? order.doctorId : order.doctorId?._id;
+                        setAssignDoctorId(currentDoctorId || 'none');
+                        setAssignDoctorText(order.referredByDoctor || '');
+                      }}
+                    >
+                      <Stethoscope className="w-4 h-4 mr-1" />
+                      Doctor
+                    </Button>
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-status-critical hover:text-status-critical"
+                        onClick={() => {
+                          setDeleteConfirmId(order.id || (order as any)._id);
+                          setDeleteConfirmNum(order.orderNumber || '');
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {(!paginatedOrders || paginatedOrders.length === 0) && (
+              <div className="text-center py-8 text-muted-foreground">No orders found</div>
+            )}
+          </div>
+          </>
         )}
       </div>
 
       {filteredOrders.length > 0 && (
-        <div className="flex items-center justify-between mt-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mt-4 gap-3">
           <p className="text-sm text-muted-foreground">
             Showing {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length} orders
           </p>

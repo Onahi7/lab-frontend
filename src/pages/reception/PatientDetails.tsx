@@ -366,7 +366,7 @@ export default function PatientDetails() {
 
         <TabsContent value="details" className="mt-6">
           <div className="bg-card border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
               <h3 className="text-lg font-semibold">Patient Information</h3>
               {canEditPatient && !isEditing && (
                 <Button onClick={handleEdit}>
@@ -644,3 +644,4 @@ export default function PatientDetails() {
     </RoleLayout>
   );
 }
+

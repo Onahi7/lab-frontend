@@ -178,11 +178,11 @@ export default function Reports() {
       userName={profile?.full_name}
     >
       {/* Actions */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <Calendar className="w-4 h-4 text-muted-foreground" />
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -395,3 +395,4 @@ export default function Reports() {
     </RoleLayout>
   );
 }
+

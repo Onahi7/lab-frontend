@@ -1,4 +1,4 @@
-﻿import { RoleLayout } from '@/components/layout/RoleLayout';
+import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useTestCatalog, useCreateTest, useUpdateTest, useDeleteTest } from '@/hooks/useTestCatalog';
 import { useMachines } from '@/hooks/useMachines';
@@ -143,19 +143,19 @@ export default function TestCatalog() {
       userName={profile?.full_name}
     >
       {/* Actions Bar */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
               placeholder="Search tests..." 
-              className="pl-10 w-80"
+              className="pl-10 w-full md:w-80"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <Select value={categoryFilter} onValueChange={v => setCategoryFilter(v as TestCategory | 'all')}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
@@ -379,3 +379,4 @@ export default function TestCatalog() {
     </RoleLayout>
   );
 }
+

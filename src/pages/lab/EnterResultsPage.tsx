@@ -894,8 +894,10 @@ export default function EnterResultsPage() {
         return;
       }
 
-      // Prepare all results for bulk insert (only entries with values)
-      const resultsToCreate = entriesWithValues.map(entry => {
+      // Prepare all results for bulk insert (only entries with values AND valid test codes)
+      const resultsToCreate = entriesWithValues
+        .filter(entry => entry.testCode && entry.testCode.trim() !== '')
+        .map(entry => {
         const normalizedValue = normalizeMchcValue(entry.testCode, entry.value);
         const normalizedReferenceRange = normalizeMchcRange(entry.testCode, entry.referenceRange);
         const normalizedUnit = normalizeMchcUnit(entry.testCode, entry.unit);

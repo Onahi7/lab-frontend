@@ -186,6 +186,20 @@
     @apply bg-muted/20;
   }
 
+  @media (max-width: 767px) {
+    .data-table {
+      display: block;
+      width: 100%;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .data-table th,
+    .data-table td {
+      @apply px-3 py-2 text-xs;
+    }
+  }
+
   .metric-card {
     @apply bg-card rounded-lg border p-5 shadow-sm;
   }

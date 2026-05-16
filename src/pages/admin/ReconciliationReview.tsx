@@ -295,7 +295,7 @@ export default function ReconciliationReview() {
 
       <div className="flex items-center justify-between mb-4">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -707,3 +707,4 @@ export default function ReconciliationReview() {
     </RoleLayout>
   );
 }
+

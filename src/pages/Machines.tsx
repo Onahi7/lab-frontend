@@ -170,7 +170,7 @@ export default function Machines() {
       userName={profile?.full_name}
     >
       {/* Actions Bar */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={handleRefreshStatus}>
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -708,3 +708,4 @@ function MachineConfigForm({
     </form>
   );
 }
+

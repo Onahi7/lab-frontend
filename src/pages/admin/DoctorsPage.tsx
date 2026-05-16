@@ -76,7 +76,7 @@ export default function DoctorsPage() {
         </div>
 
         <div className="xl:col-span-2 bg-card border rounded-lg p-4">
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h3 className="font-semibold flex items-center gap-2">
               <Stethoscope className="w-4 h-4" /> Doctors List
             </h3>
@@ -99,7 +99,8 @@ export default function DoctorsPage() {
           ) : doctorCount === 0 ? (
             <div className="py-10 text-center text-muted-foreground">No doctors found.</div>
           ) : (
-            <div className="border rounded-md overflow-hidden">
+            <>
+            <div className="border rounded-md overflow-hidden hidden md:block">
               <table className="w-full text-sm">
                 <thead className="bg-muted">
                   <tr>
@@ -119,6 +120,18 @@ export default function DoctorsPage() {
                 </tbody>
               </table>
             </div>
+            <div className="grid grid-cols-1 gap-3 md:hidden">
+              {doctors.map((doctor: any) => (
+                <div key={doctor._id} className="border rounded-md p-3">
+                  <p className="font-medium">{doctor.fullName}</p>
+                  <div className="mt-2 text-sm">
+                    <p><span className="text-muted-foreground">Phone:</span> {doctor.phone || '-'}</p>
+                    <p><span className="text-muted-foreground">Facility:</span> {doctor.facility || '-'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </div>
       </div>

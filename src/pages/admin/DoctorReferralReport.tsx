@@ -158,14 +158,14 @@ export default function DoctorReferralReport() {
       role={role as any}
       userName={profile?.full_name}
     >
-      <div className="flex flex-wrap items-end gap-3 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">From</Label>
-          <Input type="date" value={startDate} max={today} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
+          <Input type="date" value={startDate} max={today} onChange={(e) => setStartDate(e.target.value)} className="w-full" />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">To</Label>
-          <Input type="date" value={endDate} max={today} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
+          <Input type="date" value={endDate} max={today} onChange={(e) => setEndDate(e.target.value)} className="w-full" />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Month</Label>
@@ -181,14 +181,14 @@ export default function DoctorReferralReport() {
               setStartDate(start.toISOString().slice(0, 10));
               setEndDate(end.toISOString().slice(0, 10));
             }}
-            className="w-40"
+            className="w-full"
           />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Doctor (optional filter)</Label>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <Select value={doctorId} onValueChange={setDoctorId}>
-              <SelectTrigger className="w-52">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="All doctors" />
               </SelectTrigger>
               <SelectContent>
@@ -203,18 +203,20 @@ export default function DoctorReferralReport() {
               value={doctorFilter}
               onChange={(e) => setDoctorFilter(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-40"
+              className="w-full"
             />
           </div>
         </div>
-        <Button onClick={handleSearch} className="gap-2">
-          <Search className="w-4 h-4" /> Search
-        </Button>
-        {report && report.rows.length > 0 && (
-          <Button variant="outline" onClick={handleExportPDF} className="gap-2 ml-auto">
-            <FileDown className="w-4 h-4" /> Export PDF
+        <div className="flex flex-col sm:flex-row gap-2 md:col-span-2 xl:col-span-1">
+          <Button onClick={handleSearch} className="gap-2 flex-1">
+            <Search className="w-4 h-4" /> Search
           </Button>
-        )}
+          {report && report.rows.length > 0 && (
+            <Button variant="outline" onClick={handleExportPDF} className="gap-2 flex-1">
+              <FileDown className="w-4 h-4" /> Export PDF
+            </Button>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
@@ -238,7 +240,7 @@ export default function DoctorReferralReport() {
           {report.summary.doctors.length > 0 && (
             <div className="bg-card border rounded-lg p-5">
               <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3"><Stethoscope className="w-4 h-4" /> Summary by Doctor</h3>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto hidden md:block">
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
                     <tr>
@@ -264,12 +266,39 @@ export default function DoctorReferralReport() {
                   </tbody>
                 </table>
               </div>
+              <div className="grid grid-cols-1 gap-3 md:hidden">
+                {report.summary.doctors.map((d: any) => (
+                  <div key={d.name} className="border rounded-md p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold">{d.name}</p>
+                      <Badge variant="secondary">{d.orders} orders</Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Billed</p>
+                        <p className="font-medium">Le {d.billed.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Discount</p>
+                        <p className="font-medium text-status-critical">Le {d.discount.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Paid</p>
+                        <p className="font-medium text-status-normal">Le {d.paid.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => handleExportDoctor(d.name)}>
+                      Export
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           <div className="bg-card border rounded-lg p-5">
             <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3"><Users className="w-4 h-4" /> Patient Detail</h3>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto hidden md:block">
               <table className="w-full text-sm">
                 <thead className="bg-muted">
                   <tr>
@@ -305,6 +334,39 @@ export default function DoctorReferralReport() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:hidden">
+              {report.rows.map((row: any, i: number) => (
+                <div key={i} className="border rounded-md p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-mono text-xs">{row.orderNumber}</p>
+                    <Badge variant="outline" className={cn('text-xs capitalize', {
+                      'bg-status-normal/10 text-status-normal': row.paymentStatus === 'paid',
+                      'bg-status-warning/10 text-status-warning': row.paymentStatus === 'pending' || row.paymentStatus === 'partial',
+                    })}>
+                      {row.paymentStatus}
+                    </Badge>
+                  </div>
+                  <p className="text-sm font-medium mt-1">{row.patientName}</p>
+                  <p className="text-xs text-muted-foreground">{row.doctor}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{row.date ? format(new Date(row.date), 'dd/MM/yy') : '-'}</p>
+                  <p className="text-xs mt-2">{row.tests}</p>
+                  <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Billed</p>
+                      <p className="font-medium">Le {row.total.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Discount</p>
+                      <p className="font-medium text-status-critical">Le {row.discount.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Paid</p>
+                      <p className="font-medium text-status-normal">Le {row.amountPaid.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

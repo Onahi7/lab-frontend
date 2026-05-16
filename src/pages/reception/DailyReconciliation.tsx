@@ -261,7 +261,7 @@ export default function DailyReconciliation() {
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             max={new Date().toISOString().split('T')[0]}
-            className="w-40"
+            className="w-full sm:w-40"
           />
         </div>
       </div>
@@ -662,3 +662,4 @@ export default function DailyReconciliation() {
     </RoleLayout>
   );
 }
+

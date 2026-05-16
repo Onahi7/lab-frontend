@@ -156,7 +156,7 @@ export default function PaymentsPage() {
       <div className="flex items-center gap-3 mb-4">
         <Calendar className="w-4 h-4 text-muted-foreground" />
         <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -306,7 +306,7 @@ export default function PaymentsPage() {
           />
         </div>
         <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -586,3 +586,4 @@ export default function PaymentsPage() {
     </RoleLayout>
   );
 }
+

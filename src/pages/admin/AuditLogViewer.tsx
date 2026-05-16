@@ -70,7 +70,7 @@ export default function AuditLogViewer() {
           />
         </div>
         <Select value={tableFilter} onValueChange={setTableFilter}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -83,7 +83,7 @@ export default function AuditLogViewer() {
           </SelectContent>
         </Select>
         <Select value={actionFilter} onValueChange={setActionFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -259,3 +259,4 @@ export default function AuditLogViewer() {
     </RoleLayout>
   );
 }
+

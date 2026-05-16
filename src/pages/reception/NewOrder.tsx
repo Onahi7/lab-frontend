@@ -634,10 +634,10 @@ export default function NewOrder() {
 
           {/* Test Selection */}
           <div className="bg-card border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="font-semibold">Select Tests</h3>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
@@ -701,7 +701,7 @@ export default function NewOrder() {
           {/* Priority */}
           <div className="bg-card border rounded-lg p-4">
             <h3 className="font-semibold mb-4">Priority</h3>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {(['routine', 'urgent', 'stat'] as const).map(p => (
                 <Button
                   key={p}
@@ -720,7 +720,7 @@ export default function NewOrder() {
 
             <div className="mt-4 space-y-2">
               <Label htmlFor="referredByDoctor" className="text-sm">Referred by Doctor (Optional)</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select
                   value={selectedDoctorId}
                   onValueChange={(value) => {
@@ -742,7 +742,7 @@ export default function NewOrder() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="outline" onClick={() => setShowDoctorDialog(true)}>
+                <Button type="button" variant="outline" onClick={() => setShowDoctorDialog(true)} className="sm:w-auto">
                   Add
                 </Button>
               </div>
@@ -760,7 +760,7 @@ export default function NewOrder() {
 
         {/* Order Summary */}
         <div className="lg:col-span-1">
-          <div className="bg-card border rounded-lg p-4 sticky top-6">
+          <div className="bg-card border rounded-lg p-4 lg:sticky lg:top-6">
             <h3 className="font-semibold mb-4">Order Summary</h3>
             
             {selectedTests.length > 0 ? (

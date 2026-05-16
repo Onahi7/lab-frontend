@@ -98,7 +98,7 @@ export default function DailyReport() {
       role={role as any}
       userName={profile?.full_name}
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <Label className="text-muted-foreground">Date</Label>
           <Input
@@ -106,7 +106,7 @@ export default function DailyReport() {
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             max={new Date().toISOString().split('T')[0]}
-            className="w-44"
+            className="w-full sm:w-44"
           />
         </div>
         {report && (
@@ -516,3 +516,4 @@ function buildPrintHTML(report: any): string {
     </div>
   `;
 }
+

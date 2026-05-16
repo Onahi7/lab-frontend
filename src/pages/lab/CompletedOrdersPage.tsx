@@ -145,13 +145,13 @@ export default function CompletedOrdersPage() {
       userName={profile?.full_name}
     >
       {/* Search Bar and Bulk Actions */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
               placeholder="Search by patient name, order number..." 
-              className="pl-10 w-96"
+              className="pl-10 w-full md:w-96"
               value={searchTerm}
               onChange={e => handleSearchChange(e.target.value)}
             />
@@ -417,3 +417,4 @@ export default function CompletedOrdersPage() {
     </RoleLayout>
   );
 }
+
