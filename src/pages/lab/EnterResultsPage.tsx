@@ -377,19 +377,27 @@ export default function EnterResultsPage() {
     return fields;
   };
 
-  const handleStoolMicroChange = (testKey: string, field: string, value: string) => {
+  const handleStoolMicroChange = (testKey: string, field: string, value: string, test?: any) => {
     setStoolMicroFields(prev => {
       const current = prev[testKey] || parseStoolMicroValue(resultEntries[testKey]?.value || '');
       const updated = { ...current, [field]: value };
       // Also update the combined resultEntries value
       const combinedValue = buildStoolMicroValue(updated);
+      const existing = resultEntries[testKey];
+      const testCode = test?.testCode || test?.test_code || existing?.testCode || '';
+      const testName = test?.testName || test?.test_name || existing?.testName || testCode;
       setResultEntries(prevEntries => ({
         ...prevEntries,
         [testKey]: {
-          ...prevEntries[testKey],
           testId: testKey,
+          orderTestId: testKey,
+          testCode,
+          testName,
           value: combinedValue,
           flag: 'normal' as const,
+          panelCode: test?.panelCode || test?.panel_code || existing?.panelCode,
+          panelName: test?.panelName || test?.panel_name || existing?.panelName,
+          category: test?.category || existing?.category,
         },
       }));
       return { ...prev, [testKey]: updated };
@@ -1262,13 +1270,13 @@ export default function EnterResultsPage() {
                                         <textarea
                                           placeholder="Enter microscopy findings (e.g. ova, cysts, parasites, cells)..."
                                           value={smf[fieldKey as keyof typeof smf] || ''}
-                                          onChange={e => handleStoolMicroChange(testKey, fieldKey, e.target.value)}
+                                          onChange={e => handleStoolMicroChange(testKey, fieldKey, e.target.value, test)}
                                           className="w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring"
                                         />
                                       ) : (
                                         <Select
                                           value={smf[fieldKey as keyof typeof smf] || ''}
-                                          onValueChange={val => handleStoolMicroChange(testKey, fieldKey, val)}
+                                          onValueChange={val => handleStoolMicroChange(testKey, fieldKey, val, test)}
                                         >
                                           <SelectTrigger className="h-8 text-sm">
                                             <SelectValue placeholder={`Select ${fieldDef.label.toLowerCase()}...`} />
