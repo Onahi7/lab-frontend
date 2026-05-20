@@ -18,10 +18,40 @@ import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
 import { SendToAnalyzerDialog } from '@/components/machines/SendToAnalyzerDialog';
+import { useSearchParams } from 'react-router-dom';
 
 type ResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high' | 'no_range';
 
 const MONGO_OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
+
+const getEntityId = (value: any): string | undefined => {
+  if (!value) return undefined;
+  if (typeof value === 'string') return value;
+  return value.id || value._id || value.toString?.();
+};
+
+const getOrderTestKey = (test: any): string => {
+  return test?.id || test?._id || test?.testId || test?.test_id || test?.testCode || test?.test_code || '';
+};
+
+const findMatchingOrderTest = (orderTests: any[], result: any) => {
+  const resultOrderTestId = getEntityId(result?.orderTestId);
+  if (resultOrderTestId) {
+    const directMatch = orderTests.find((test: any) => getOrderTestKey(test) === resultOrderTestId);
+    if (directMatch) {
+      return directMatch;
+    }
+  }
+
+  const resultCode = normalizeTestCode(result?.testCode || result?.test_code);
+  if (!resultCode) return undefined;
+
+  const matches = orderTests.filter(
+    (test: any) => normalizeTestCode(test?.testCode || test?.test_code) === resultCode,
+  );
+
+  return matches.length === 1 ? matches[0] : undefined;
+};
 
 // Standard options for qualitative/semi-quantitative tests
 const QUALITATIVE_OPTIONS: Record<string, string[]> = {
@@ -325,6 +355,7 @@ function includeLinkedInputTests(orderTests: any[]): any[] {
 
 export default function EnterResultsPage() {
   const { profile, user, primaryRole } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: processingOrders, isLoading } = useProcessingOrders();
   const { data: testCatalog } = useAllTests(); // Use ALL tests, not just active ones
   const { socket } = useWebSocket();
@@ -443,6 +474,8 @@ export default function EnterResultsPage() {
     return selectedOrder.id || (selectedOrder as any)._id;
   }, [selectedOrder?.id, (selectedOrder as any)?._id]);
 
+  const requestedOrderId = searchParams.get('order');
+
   // Fetch saved results from database for the selected order
   const { data: savedResults } = useResults(selectedOrderId || undefined);
 
@@ -455,10 +488,30 @@ export default function EnterResultsPage() {
 
   const totalTests = selectedOrderTests.length;
   const completedTests = selectedOrderTests.filter((test: any) => {
-    const testKey = test.id || test._id || test.testCode || test.test_code;
+    const testKey = getOrderTestKey(test);
     return Boolean(resultEntries[testKey]?.value?.toString().trim());
   }).length;
   const progressPercent = totalTests > 0 ? Math.round((completedTests / totalTests) * 100) : 0;
+
+  useEffect(() => {
+    if (!requestedOrderId || !Array.isArray(processingOrders) || processingOrders.length === 0) {
+      return;
+    }
+
+    const matchingOrder = processingOrders.find((order) => {
+      const orderId = getEntityId(order);
+      return orderId === requestedOrderId;
+    });
+
+    if (!matchingOrder) return;
+
+    const currentSelectedId = getEntityId(selectedOrder);
+    if (currentSelectedId !== requestedOrderId) {
+      setSelectedOrder(matchingOrder);
+      setResultEntries({});
+      setStoolMicroFields({});
+    }
+  }, [requestedOrderId, processingOrders, selectedOrder]);
 
   useEffect(() => {
     if (!selectedOrder) {
@@ -478,14 +531,12 @@ export default function EnterResultsPage() {
     if (savedResults && Array.isArray(savedResults) && savedResults.length > 0) {
       for (const result of savedResults) {
         const testCode = result.testCode || result.test_code;
-        
-        // Find the matching order test to get the testKey
-        const matchingTest = selectedOrderTests.find(
-          (t: any) => (t.testCode || t.test_code) === testCode
-        );
-        
+
+        // Match saved results back to the exact order-test row whenever possible.
+        const matchingTest = findMatchingOrderTest(selectedOrderTests, result);
+
         if (matchingTest) {
-          const testKey = matchingTest.id || matchingTest._id || testCode;
+          const testKey = getOrderTestKey(matchingTest) || testCode;
           const patient = typeof selectedOrder?.patient === 'object' ? selectedOrder.patient : null;
           const patientAge = patient?.age;
           const patientGender = patient?.gender;
@@ -558,6 +609,7 @@ export default function EnterResultsPage() {
   useEffect(() => {
     setLiveUpdates({});
     setFbcMessage('');
+    setStoolMicroFields({});
   }, [selectedOrderId]);
 
   // Real-time collaboration: listen for results saved by other users
@@ -566,15 +618,13 @@ export default function EnterResultsPage() {
 
     const handleResultCreated = (result: any) => {
       // Only react if it belongs to the currently selected order
-      if (result.orderId !== selectedOrderId) return;
+      if (getEntityId(result.orderId) !== selectedOrderId) return;
 
-      // Find the matching orderTest entry
-      const matchingTest = selectedOrderTests.find(
-        (t: any) => (t.testCode || t.test_code) === result.testCode,
-      );
+      // Match live updates to the exact order-test row whenever possible.
+      const matchingTest = findMatchingOrderTest(selectedOrderTests, result);
       if (!matchingTest) return;
 
-      const testKey = matchingTest.id || matchingTest._id || result.testCode;
+      const testKey = getOrderTestKey(matchingTest) || result.testCode;
       const enteredBy: string = result.enteredBy || 'another user';
 
       setResultEntries(prev => ({
@@ -974,8 +1024,14 @@ export default function EnterResultsPage() {
       localStorage.removeItem(getDraftStorageKey(orderId));
       setShowConfirmModal(false);
       setResultEntries({});
+      setStoolMicroFields({});
       setFbcMessage('');
       setSelectedOrder(null);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('order');
+        return next;
+      });
     } catch (error: unknown) {
       console.error('Failed to submit results:', error);
       const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
@@ -1001,6 +1057,12 @@ export default function EnterResultsPage() {
       if (selectedOrder?.id === orderId || (selectedOrder as any)?._id === orderId) {
         setSelectedOrder(null);
         setResultEntries({});
+        setStoolMicroFields({});
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('order');
+          return next;
+        });
       }
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
@@ -1075,6 +1137,13 @@ export default function EnterResultsPage() {
                     )}
                     onClick={() => {
                       setSelectedOrder(order);
+                      setResultEntries({});
+                      setStoolMicroFields({});
+                      setSearchParams((prev) => {
+                        const next = new URLSearchParams(prev);
+                        next.set('order', getEntityId(order) || order.id);
+                        return next;
+                      });
                     }}
                   >
                     <div className="flex items-center justify-between mb-1">
@@ -1600,7 +1669,19 @@ export default function EnterResultsPage() {
                 })()}
 
                 <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-                  <Button variant="outline" onClick={() => setSelectedOrder(null)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedOrder(null);
+                      setResultEntries({});
+                      setStoolMicroFields({});
+                      setSearchParams((prev) => {
+                        const next = new URLSearchParams(prev);
+                        next.delete('order');
+                        return next;
+                      });
+                    }}
+                  >
                     Cancel
                   </Button>
                   <Button onClick={handleSubmitResults} disabled={isSubmitting}>
