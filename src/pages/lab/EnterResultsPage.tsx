@@ -13,11 +13,12 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, Check, AlertTriangle, Loader2, Search, Radio, CheckCircle, Trash2 } from 'lucide-react';
+import { FileText, Check, AlertTriangle, Loader2, Search, Radio, CheckCircle, Trash2, RotateCcw, Eraser } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
 import { getPatientName, getOrderNumber } from '@/utils/orderHelpers';
 import { SendToAnalyzerDialog } from '@/components/machines/SendToAnalyzerDialog';
+import { clearBrowserAppCache, clearResultDraft, countResultDraftKeys, getResultDraft } from '@/utils/cacheHelpers';
 import { useSearchParams } from 'react-router-dom';
 
 type ResultFlag = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high' | 'no_range';
@@ -407,6 +408,8 @@ export default function EnterResultsPage() {
   const [liveUpdates, setLiveUpdates] = useState<Record<string, string>>({});
   // FBC panel interpretation message (single line combining WBC, RBC, PLT messages)
   const [fbcMessage, setFbcMessage] = useState('');
+  const [draftEntryCount, setDraftEntryCount] = useState(0);
+  const [isClearingCache, setIsClearingCache] = useState(false);
 
   const getDraftStorageKey = (orderId?: string) => `result-draft:${orderId || 'unknown'}`;
 
@@ -486,6 +489,7 @@ export default function EnterResultsPage() {
             const parsedDraft = JSON.parse(savedDraft);
             delete parsedDraft[testKey];
             localStorage.setItem(storageKey, JSON.stringify(parsedDraft));
+            setDraftEntryCount(Object.keys(parsedDraft).length);
           }
         } catch { /* ignore */ }
       }
@@ -493,6 +497,49 @@ export default function EnterResultsPage() {
       toast.error('Failed to delete result');
     } finally {
       setDeleteConfirmTestKey(null);
+    }
+  };
+
+  const handleRestoreDraft = () => {
+    if (!selectedOrderId) return;
+
+    const draft = getResultDraft(selectedOrderId);
+    if (!draft) {
+      setDraftEntryCount(0);
+      toast.info('No local draft found for this order');
+      return;
+    }
+
+    setResultEntries((prev) => ({
+      ...prev,
+      ...(draft as Record<string, ResultEntry>),
+    }));
+    setDraftEntryCount(Object.keys(draft).length);
+    toast.success('Local draft restored for this order');
+  };
+
+  const handleClearLocalDraft = () => {
+    if (!selectedOrderId) return;
+
+    clearResultDraft(selectedOrderId);
+    setDraftEntryCount(0);
+    toast.success('Local draft cleared for this order');
+  };
+
+  const handleClearAllLocalCache = async () => {
+    setIsClearingCache(true);
+    try {
+      if (selectedOrderId) {
+        clearResultDraft(selectedOrderId);
+      }
+      await clearBrowserAppCache();
+      setDraftEntryCount(0);
+      toast.success('Local browser cache cleared. Refreshing the page...');
+      window.location.reload();
+    } catch {
+      toast.error('Failed to clear local cache');
+    } finally {
+      setIsClearingCache(false);
     }
   };
 
@@ -544,12 +591,14 @@ export default function EnterResultsPage() {
   useEffect(() => {
     if (!selectedOrder) {
       setResultEntries({});
+      setDraftEntryCount(0);
       return;
     }
 
     const orderId = selectedOrder.id || (selectedOrder as any)._id;
     if (!orderId) {
       setResultEntries({});
+      setDraftEntryCount(0);
       return;
     }
 
@@ -593,21 +642,10 @@ export default function EnterResultsPage() {
       }
     }
 
-    // Try to load draft from localStorage
-    try {
-      const savedDraft = localStorage.getItem(getDraftStorageKey(orderId));
-      if (savedDraft) {
-        const parsedDraft = JSON.parse(savedDraft);
-        // Merge: database results first, then override with draft (draft takes precedence)
-        setResultEntries({ ...savedResultsMap, ...parsedDraft });
-      } else {
-        // No draft, just use database results
-        setResultEntries(savedResultsMap);
-      }
-    } catch {
-      // If draft parsing fails, just use database results
-      setResultEntries(savedResultsMap);
-    }
+    // Never silently apply local drafts over server results.
+    // Local drafts are now restored explicitly by the user.
+    setResultEntries(savedResultsMap);
+    setDraftEntryCount(countResultDraftKeys(orderId));
   }, [selectedOrder, savedResults, selectedOrderTests]);
 
   useEffect(() => {
@@ -1049,6 +1087,7 @@ export default function EnterResultsPage() {
 
       toast.success('Results submitted successfully');
       localStorage.removeItem(getDraftStorageKey(orderId));
+      setDraftEntryCount(0);
       setShowConfirmModal(false);
       setResultEntries({});
       setStoolMicroFields({});
@@ -1085,6 +1124,7 @@ export default function EnterResultsPage() {
         setSelectedOrder(null);
         setResultEntries({});
         setStoolMicroFields({});
+        setDraftEntryCount(0);
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
           next.delete('order');
@@ -1278,6 +1318,41 @@ export default function EnterResultsPage() {
                         style={{ width: `${progressPercent}%` }}
                       />
                     </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {draftEntryCount > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span>
+                          This machine has a local unsaved draft for this order: {draftEntryCount} cached entr{draftEntryCount === 1 ? 'y' : 'ies'}.
+                        </span>
+                        <Button type="button" variant="outline" size="sm" className="h-7" onClick={handleRestoreDraft}>
+                          <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                          Restore Draft
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" className="h-7" onClick={handleClearLocalDraft}>
+                          <Trash2 className="w-3.5 h-3.5 mr-1" />
+                          Clear Draft
+                        </Button>
+                      </div>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={handleClearAllLocalCache}
+                      disabled={isClearingCache}
+                    >
+                      {isClearingCache ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Eraser className="w-4 h-4 mr-2" />
+                      )}
+                      Clear Local Cache
+                    </Button>
                   </div>
                 </div>
 
