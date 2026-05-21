@@ -649,6 +649,31 @@ export default function EnterResultsPage() {
   }, [selectedOrder, savedResults, selectedOrderTests]);
 
   useEffect(() => {
+    if (!selectedOrder || !selectedOrderId) return;
+    if (savedResults === undefined) return;
+
+    const savedCount = Array.isArray(savedResults) ? savedResults.length : 0;
+    if (savedCount > 0) return;
+
+    const createdAtRaw = selectedOrder.createdAt || (selectedOrder as any).created_at;
+    const createdAt = createdAtRaw ? new Date(createdAtRaw) : null;
+    if (!createdAt || Number.isNaN(createdAt.getTime())) return;
+
+    const now = Date.now();
+    const ageMs = now - createdAt.getTime();
+    const isFreshAcceptedOrder = ageMs >= 0 && ageMs <= 24 * 60 * 60 * 1000;
+    if (!isFreshAcceptedOrder) return;
+
+    const existingDraftCount = countResultDraftKeys(selectedOrderId);
+    if (existingDraftCount === 0) return;
+
+    clearResultDraft(selectedOrderId);
+    setDraftEntryCount(0);
+    setResultEntries({});
+    setStoolMicroFields({});
+  }, [selectedOrder, selectedOrderId, savedResults]);
+
+  useEffect(() => {
     if (!selectedOrder) return;
 
     const orderId = selectedOrder.id || (selectedOrder as any)._id;
