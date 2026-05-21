@@ -116,8 +116,17 @@ const STOOL_MICRO_FIELDS = {
 };
 const STOOL_MICRO_TEST_CODES = new Set(['STOOLMICRO', 'STOOL', 'STOOLEXAM']);
 
-// Hormone tests that have phase-specific ranges
-const HORMONE_TESTS_WITH_PHASES = new Set(['FSH', 'LH', 'PROG', 'PROGESTERONE', 'E2', 'ESTRADIOL', 'BHCG']);
+// Tests that require the user to choose a conditional range before flagging.
+const HORMONE_TESTS_WITH_PHASES = new Set([
+  'FSH',
+  'LH',
+  'PROG',
+  'PROGESTERONE',
+  'E2',
+  'ESTRADIOL',
+  'BHCG',
+  'CORTISOL',
+]);
 
 // Menstrual phase options for cycle-based hormone tests
 const MENSTRUAL_PHASE_OPTIONS = [
@@ -138,12 +147,18 @@ const BHCG_PHASE_OPTIONS = [
   { value: '7-8 weeks', label: 'Pregnancy - 7-8 weeks' },
 ];
 
+const CORTISOL_PHASE_OPTIONS = [
+  { value: '7am-10am', label: '7am to 10am' },
+  { value: '4pm-8pm', label: '4pm to 8pm' },
+];
+
 const normalizeTestCode = (value?: string) =>
   (value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
 const getPhaseOptions = (testCode?: string) => {
   const normalizedCode = normalizeTestCode(testCode);
   if (normalizedCode === 'BHCG') return BHCG_PHASE_OPTIONS;
+  if (normalizedCode === 'CORTISOL') return CORTISOL_PHASE_OPTIONS;
   return MENSTRUAL_PHASE_OPTIONS;
 };
 
@@ -284,9 +299,22 @@ interface ResultEntry {
   category?: string;
   interpretation?: string; // Add interpretation field
   menstrualPhase?: string; // Add menstrual phase field
-  allReferenceRanges?: Array<{ ageGroup: string; range: string; unit: string; gender?: string }>; // All applicable ranges
+  allReferenceRanges?: Array<{ ageGroup: string; range: string; unit: string; gender?: string; condition?: string }>; // All applicable ranges
   resultId?: string; // Database result ID for delete/edit operations
 }
+
+const doesConditionalRangeMatch = (
+  range: { ageGroup?: string; condition?: string },
+  selectedCondition?: string,
+) => {
+  if (!selectedCondition) return false;
+
+  const normalizedSelection = selectedCondition.trim().toLowerCase();
+  const normalizedCondition = (range.condition || '').trim().toLowerCase();
+  const normalizedAgeGroup = (range.ageGroup || '').trim().toLowerCase();
+
+  return normalizedCondition === normalizedSelection || normalizedAgeGroup.includes(normalizedSelection);
+};
 
 function includeLinkedInputTests(orderTests: any[]): any[] {
   const tests = Array.isArray(orderTests) ? [...orderTests] : [];
@@ -670,7 +698,7 @@ export default function EnterResultsPage() {
     let matchedAgeGroup = '';
     let criticalLow = '';
     let criticalHigh = '';
-    let allRanges: Array<{ ageGroup: string; range: string; unit: string; gender?: string }> = [];
+    let allRanges: Array<{ ageGroup: string; range: string; unit: string; gender?: string; condition?: string }> = [];
 
     // Check if this is a hormone test with phase-specific ranges
     const isHormoneTest = HORMONE_TESTS_WITH_PHASES.has(normalizeTestCode(testCode));
@@ -688,6 +716,7 @@ export default function EnterResultsPage() {
             range: r.range || '',
             unit: r.unit || test.unit || '',
             gender: r.gender,
+            condition: r.condition,
           }));
       }
 
@@ -695,11 +724,9 @@ export default function EnterResultsPage() {
 
       // If phase is selected for hormone test, match by phase label
       if (isHormoneTest && selectedPhase && patientGender) {
-        const normalizedPhase = selectedPhase.trim().toLowerCase();
         matchedRange = test.referenceRanges.find((r: any) => {
-          const ageGroupLower = (r.ageGroup || '').toLowerCase();
           const genderMatch = !r.gender || r.gender === 'all' || r.gender === patientGender;
-          return genderMatch && ageGroupLower.includes(normalizedPhase);
+          return genderMatch && doesConditionalRangeMatch(r, selectedPhase);
         });
       }
 
@@ -1450,7 +1477,7 @@ export default function EnterResultsPage() {
                               <p className="text-xs font-semibold text-muted-foreground mb-1">Reference Ranges ({patientGender === 'F' ? 'Female' : 'Male'}):</p>
                               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                                 {entry.allReferenceRanges?.map((range, idx) => {
-                                  const isSelected = entry.menstrualPhase && (range.ageGroup || '').toLowerCase().includes(entry.menstrualPhase);
+                                  const isSelected = doesConditionalRangeMatch(range, entry.menstrualPhase);
                                   return (
                                     <div key={idx} className={cn(
                                       'text-xs flex items-center gap-1',
