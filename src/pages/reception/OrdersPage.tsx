@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Search, CreditCard, Loader2, Eye, Trash2, Stethoscope } from 'lucide-react';
+import { Search, CreditCard, Loader2, Eye, Trash2, Stethoscope, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { OrderWithDetails } from '@/hooks/useOrders';
@@ -54,12 +54,16 @@ export default function OrdersPage() {
     const firstName = (order.patientId?.firstName || order.patients?.first_name || '').toLowerCase();
     const lastName = (order.patientId?.lastName || order.patients?.last_name || '').toLowerCase();
     const patientId = (order.patientId?.patientId || order.patients?.patient_id || '').toLowerCase();
+    const facility = (order.externalFacilityName || '').toLowerCase();
+    const externalRequestId = (order.externalRequestId || '').toLowerCase();
     
     return (
       orderNum.includes(search) ||
       firstName.includes(search) ||
       lastName.includes(search) ||
-      patientId.includes(search)
+      patientId.includes(search) ||
+      facility.includes(search) ||
+      externalRequestId.includes(search)
     );
   }) : [];
 
@@ -150,6 +154,7 @@ export default function OrdersPage() {
               <tr>
                 <th>Order #</th>
                 <th>Patient</th>
+                <th>Source</th>
                 <th>Tests</th>
                 <th>Total</th>
                 <th>Priority</th>
@@ -172,6 +177,24 @@ export default function OrdersPage() {
                         {order.patientId?.patientId || order.patients?.patient_id}
                       </p>
                     </div>
+                  </td>
+                  <td>
+                    {order.externalFacilityName ? (
+                      <div className="min-w-0">
+                        <Badge variant="outline" className="gap-1 bg-primary/10 text-primary border-primary/20">
+                          <Building2 className="w-3 h-3" />
+                          API
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1 max-w-[140px] truncate">
+                          {order.externalFacilityName}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground max-w-[140px] truncate">
+                          {order.externalRequestId}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Walk-in</span>
+                    )}
                   </td>
                   <td>
                     {(() => {
@@ -263,7 +286,7 @@ export default function OrdersPage() {
               ))}
               {(!paginatedOrders || paginatedOrders.length === 0) && (
                 <tr>
-                  <td colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <td colSpan={10} className="text-center py-8 text-muted-foreground">
                     No orders found
                   </td>
                 </tr>
@@ -286,6 +309,15 @@ export default function OrdersPage() {
                   </div>
                   <p className="font-medium">{getPatientName(order)}</p>
                   <p className="text-xs text-muted-foreground">{order.patientId?.patientId || order.patients?.patient_id}</p>
+                  {order.externalFacilityName && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="gap-1 bg-primary/10 text-primary border-primary/20">
+                        <Building2 className="w-3 h-3" />
+                        API
+                      </Badge>
+                      <span className="truncate">{order.externalFacilityName}</span>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">{groupedTests}</p>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
