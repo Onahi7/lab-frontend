@@ -17,8 +17,9 @@ function parseStoolValue(value: string): { label: string; val: string }[] | null
 const PANEL_RESULT_ORDER: Record<string, string[]> = {
   FBC: [
     'WBC', 'NEUTA', 'LYMPHA', 'MONOA', 'EOSA', 'BASOA',
+    'NEUT', 'LYMPH', 'MONO', 'EOS', 'BASO',
     'RBC', 'HB', 'HCT', 'MCV', 'MCH', 'MCHC', 'RDWCV', 'RDWSD',
-    'PLT', 'MPV', 'PDW', 'PLTCT', 'PLCC', 'PLCR',
+    'PLT', 'MPV', 'PDW', 'PLTCT', 'PLCR', 'PLCC',
   ],
   ELEC: ['K', 'NA', 'CL', 'ICA', 'NCA', 'TCA', 'TCO2', 'PH'],
 };
