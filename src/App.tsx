@@ -60,6 +60,12 @@ import ResultsManagement from "./pages/admin/ResultsManagement";
 
 import { PrinterProvider } from "./context/PrinterContext";
 
+// Pharmacy Pages
+import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
+import PharmacyInventory from "./pages/pharmacy/PharmacyInventory";
+import PharmacyPOS from "./pages/pharmacy/PharmacyPOS";
+import PharmacySales from "./pages/pharmacy/PharmacySales";
+
 // Shared Pages
 import Machines from "./pages/Machines";
 import Settings from "./pages/Settings";
@@ -290,6 +296,20 @@ function AppRoutes() {
       } />
       <Route path="/admin/results" element={
         <RoleGuard allowedRoles={['admin']}><ResultsManagement /></RoleGuard>
+      } />
+
+      {/* Pharmacy Routes */}
+      <Route path="/pharmacy" element={
+        <RoleGuard allowedRoles={['admin', 'lab_tech', 'receptionist']}><PharmacyDashboard /></RoleGuard>
+      } />
+      <Route path="/pharmacy/pos" element={
+        <RoleGuard allowedRoles={['admin', 'lab_tech', 'receptionist']}><PharmacyPOS /></RoleGuard>
+      } />
+      <Route path="/pharmacy/inventory" element={
+        <RoleGuard allowedRoles={['admin', 'lab_tech', 'receptionist']}><PharmacyInventory /></RoleGuard>
+      } />
+      <Route path="/pharmacy/sales" element={
+        <RoleGuard allowedRoles={['admin', 'lab_tech', 'receptionist']}><PharmacySales /></RoleGuard>
       } />
       <Route path="/reception/doctors" element={
         <RoleGuard allowedRoles={['receptionist', 'admin']}><DoctorsPage /></RoleGuard>

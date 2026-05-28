@@ -24,6 +24,9 @@ import {
   Stethoscope,
   Tag,
   UserRoundCog,
+  ShoppingCart,
+  Pill,
+  Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -53,6 +56,10 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/admin/results', icon: FileText, label: 'Results Management' },
     { to: '/admin/machines', icon: Cpu, label: 'Machines' },
     { to: '/admin/printers', icon: Printer, label: 'Printers' },
+    { to: '/pharmacy', icon: Pill, label: 'Pharmacy' },
+    { to: '/pharmacy/pos', icon: ShoppingCart, label: 'Pharmacy POS' },
+    { to: '/pharmacy/inventory', icon: Package, label: 'Pharmacy Stock' },
+    { to: '/pharmacy/sales', icon: CreditCard, label: 'Pharmacy Sales' },
     { to: '/admin/settings', icon: Settings, label: 'Settings' },
   ],
   receptionist: [
@@ -69,6 +76,10 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/reception/doctors', icon: UserRoundCog, label: 'Doctors' },
     { to: '/reception/daily-report', icon: FileBarChart, label: 'Daily Report' },
     { to: '/reception/reconciliation', icon: Calculator, label: 'Reconciliation' },
+    { to: '/pharmacy', icon: Pill, label: 'Pharmacy' },
+    { to: '/pharmacy/pos', icon: ShoppingCart, label: 'Pharmacy POS' },
+    { to: '/pharmacy/inventory', icon: Package, label: 'Pharmacy Stock' },
+    { to: '/pharmacy/sales', icon: CreditCard, label: 'Pharmacy Sales' },
     { to: '/reception/printer', icon: Printer, label: 'Printer Setup' },
   ],
   lab_tech: [
@@ -81,6 +92,10 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/lab/patients', icon: Users, label: 'Patients' },
     { to: '/lab/machines', icon: Cpu, label: 'Machines' },
     { to: '/lab/test-catalog', icon: BookOpen, label: 'Test Catalog' },
+    { to: '/pharmacy', icon: Pill, label: 'Pharmacy' },
+    { to: '/pharmacy/pos', icon: ShoppingCart, label: 'Pharmacy POS' },
+    { to: '/pharmacy/inventory', icon: Package, label: 'Pharmacy Stock' },
+    { to: '/pharmacy/sales', icon: CreditCard, label: 'Pharmacy Sales' },
   ],
 };
 
