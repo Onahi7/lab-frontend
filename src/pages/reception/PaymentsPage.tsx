@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders, useAddPayment, usePaymentHistory, usePaymentStats, useDailyIncome } from '@/hooks/useOrders';
+import { pharmacyService, SaleRecord } from '@/services/pharmacyService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,8 @@ export default function PaymentsPage() {
   const [historyOrderId, setHistoryOrderId] = useState<string>('');
   const [dateRange, setDateRange] = useState<string>('today');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [pharmacySales, setPharmacySales] = useState<SaleRecord[]>([]);
+  const [pharmacyLoading, setPharmacyLoading] = useState(false);
   
   const { data: orders, isLoading } = useOrders('all');
   const addPayment = useAddPayment();
@@ -59,6 +62,15 @@ export default function PaymentsPage() {
   const { start, end } = getDateRange();
   const { data: paymentStats } = usePaymentStats(start, end);
   const { data: dailyIncome } = useDailyIncome(start, end);
+
+  // Fetch pharmacy sales
+  useEffect(() => {
+    setPharmacyLoading(true);
+    pharmacyService.getSales(start, end)
+      .then(sales => setPharmacySales(sales || []))
+      .catch(() => setPharmacySales([]))
+      .finally(() => setPharmacyLoading(false));
+  }, [start, end]);
 
   const filteredOrders = Array.isArray(orders) ? orders.filter(order => {
     // Filter by payment status
@@ -91,7 +103,14 @@ export default function PaymentsPage() {
       today.setHours(0, 0, 0, 0);
       return new Date(o.createdAt || o.created_at) >= today;
     })
-    .reduce((sum, o) => sum + Number(o.amountPaid || o.total || o.totalAmount || 0), 0) : 0;
+    .reduce((sum, o) => sum + Number(o.amountPaid || o.total || o.totalAmount || 0), 0)
+    + pharmacySales
+    .filter(s => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return new Date(s.createdAt) >= today;
+    })
+    .reduce((sum, s) => sum + Number(s.total || 0), 0) : 0;
 
   const handleProcessPayment = async () => {
     if (!selectedOrder || isProcessingPayment || addPayment.isPending) return;
@@ -420,13 +439,39 @@ export default function PaymentsPage() {
                   </tr>
                 );
               })}
-              {(!filteredOrders || filteredOrders.length === 0) && (
+              {(!filteredOrders || filteredOrders.length === 0) && pharmacySales.length === 0 && (
                 <tr>
                   <td colSpan={9} className="text-center py-8 text-muted-foreground">
                     No payments found
                   </td>
                 </tr>
               )}
+              {pharmacySales.map(sale => (
+                <tr key={`pharmacy-${sale._id}`}>
+                  <td className="font-mono text-sm">
+                    <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200 text-xs mb-1">PHARMACY</Badge>
+                    <br />{sale.receiptNumber || '-'}
+                  </td>
+                  <td>
+                    <div>
+                      <p className="font-medium">{sale.customerName || 'Walk-in'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(sale.createdAt), 'MMM dd, HH:mm')}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="font-bold">Le {Number(sale.total).toLocaleString()}</td>
+                  <td className="text-status-normal font-medium">Le {Number(sale.total).toLocaleString()}</td>
+                  <td className="text-muted-foreground">-</td>
+                  <td className="capitalize text-muted-foreground">
+                    {sale.paymentMethod?.replace(/_/g, ' ') || '-'}
+                  </td>
+                  <td>
+                    <Badge variant="outline" className="bg-status-normal/10 text-status-normal">Paid</Badge>
+                  </td>
+                  <td></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
