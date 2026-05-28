@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
-import { pharmacyService, CafProduct, CartItem } from '@/services/pharmacyService';
+import { pharmacyService, CafProduct, CartItem, PackSize } from '@/services/pharmacyService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, Barcode, CheckCircle, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, Barcode, CheckCircle, X, Package } from 'lucide-react';
 
 export default function PharmacyPOS() {
   const { profile, primaryRole } = useAuth();
@@ -22,6 +24,10 @@ export default function PharmacyPOS() {
   const [customerName, setCustomerName] = useState('');
   const [error, setError] = useState('');
   const barcodeRef = useRef<HTMLInputElement>(null);
+
+  // Pack size selector state
+  const [packSizeProduct, setPackSizeProduct] = useState<CafProduct | null>(null);
+  const [showPackSizeModal, setShowPackSizeModal] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -46,7 +52,7 @@ export default function PharmacyPOS() {
     try {
       const product = await pharmacyService.getProductByBarcode(barcode.trim());
       if (product) {
-        addToCart(product);
+        handleProductAdd(product);
         setBarcode('');
       }
     } catch {
@@ -57,34 +63,57 @@ export default function PharmacyPOS() {
     }
   }
 
-  function addToCart(product: CafProduct) {
+  function handleProductAdd(product: CafProduct) {
     if (product.quantityAvailable <= 0) {
       setError(`${product.name} is out of stock`);
       return;
     }
+    if (product.packSizes && product.packSizes.length > 0) {
+      setPackSizeProduct(product);
+      setShowPackSizeModal(true);
+    } else {
+      addToCart(product);
+    }
+  }
+
+  function addToCart(product: CafProduct, packSize?: PackSize) {
+    if (product.quantityAvailable <= 0) {
+      setError(`${product.name} is out of stock`);
+      return;
+    }
+
+    const unitPrice = packSize?.sellingPrice ?? product.suggestedRetailPrice ?? product.basePrice;
+    const itemKey = `${product._id}-${packSize?.unit || 'base'}`;
+
     setCart((prev) => {
-      const existing = prev.find((item) => item.product._id === product._id);
+      const existing = prev.find((item) => {
+        const existingKey = `${item.product._id}-${item.packSize?.unit || 'base'}`;
+        return existingKey === itemKey;
+      });
       if (existing) {
         if (existing.quantity >= product.quantityAvailable) {
           setError(`Only ${product.quantityAvailable} in stock`);
           return prev;
         }
-        return prev.map((item) =>
-          item.product._id === product._id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        );
+        return prev.map((item) => {
+          const existingKey = `${item.product._id}-${item.packSize?.unit || 'base'}`;
+          return existingKey === itemKey ? { ...item, quantity: item.quantity + 1 } : item;
+        });
       }
-      return [...prev, { product, quantity: 1, unitPrice: product.suggestedRetailPrice || product.basePrice }];
+      return [...prev, { product, quantity: 1, unitPrice, packSize }];
     });
     setError('');
   }
 
-  function updateQuantity(productId: string, delta: number) {
+  function getItemKey(item: CartItem) {
+    return `${item.product._id}-${item.packSize?.unit || 'base'}`;
+  }
+
+  function updateQuantity(itemKey: string, delta: number) {
     setCart((prev) =>
       prev
         .map((item) => {
-          if (item.product._id !== productId) return item;
+          if (getItemKey(item) !== itemKey) return item;
           const newQty = item.quantity + delta;
           if (newQty <= 0) return null;
           if (newQty > item.product.quantityAvailable) {
@@ -97,8 +126,8 @@ export default function PharmacyPOS() {
     );
   }
 
-  function removeFromCart(productId: string) {
-    setCart((prev) => prev.filter((item) => item.product._id !== productId));
+  function removeFromCart(itemKey: string) {
+    setCart((prev) => prev.filter((item) => getItemKey(item) !== itemKey));
   }
 
   function getSubtotal(): number {
@@ -119,6 +148,7 @@ export default function PharmacyPOS() {
           productId: item.product._id,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          packSize: item.packSize,
         })),
         paymentMethod,
         customerName: customerName || undefined,
@@ -126,11 +156,18 @@ export default function PharmacyPOS() {
       setSaleResult({ receiptNumber: result.receiptNumber, total: result.total });
       setCart([]);
       setCustomerName('');
+      toast.success('Sale completed');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Checkout failed');
     } finally {
       setChecking(false);
     }
+  }
+
+  function handleSelectPackSize(product: CafProduct, packSize: PackSize | null) {
+    setShowPackSizeModal(false);
+    setPackSizeProduct(null);
+    addToCart(product, packSize ?? undefined);
   }
 
   if (saleResult) {
@@ -223,8 +260,13 @@ export default function PharmacyPOS() {
                     </TableHeader>
                     <TableBody>
                       {products.map((product) => (
-                        <TableRow key={product._id} className="cursor-pointer hover:bg-muted/50" onClick={() => addToCart(product)}>
-                          <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableRow key={product._id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleProductAdd(product)}>
+                          <TableCell className="font-medium">
+                            {product.name}
+                            {product.packSizes && product.packSizes.length > 0 && (
+                              <Package className="inline h-3 w-3 ml-1 text-muted-foreground" />
+                            )}
+                          </TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{product.category}</Badge></TableCell>
                           <TableCell className="text-right">
                             <span className={product.quantityAvailable <= 0 ? 'text-red-500' : product.quantityAvailable <= (product.reorderLevel || 10) ? 'text-amber-600' : ''}>
@@ -266,28 +308,34 @@ export default function PharmacyPOS() {
               ) : (
                 <>
                   <div className="space-y-2 max-h-[30vh] overflow-y-auto">
-                    {cart.map((item) => (
-                      <div key={item.product._id} className="flex items-center gap-2 text-sm border-b pb-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{item.product.name}</div>
-                          <div className="text-muted-foreground text-xs">
-                            {(item.unitPrice || 0).toLocaleString()} x {item.quantity}
+                    {cart.map((item) => {
+                      const key = getItemKey(item);
+                      return (
+                        <div key={key} className="flex items-center gap-2 text-sm border-b pb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{item.product.name}</div>
+                            {item.packSize && (
+                              <Badge variant="outline" className="text-[10px] mt-0.5">{item.packSize.name}</Badge>
+                            )}
+                            <div className="text-muted-foreground text-xs">
+                              {(item.unitPrice || 0).toLocaleString()} x {item.quantity}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => updateQuantity(key, -1)}>
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-6 text-center text-xs font-mono">{item.quantity}</span>
+                            <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => updateQuantity(key, 1)}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500" onClick={() => removeFromCart(key)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.product._id, -1)}>
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-6 text-center text-xs font-mono">{item.quantity}</span>
-                          <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.product._id, 1)}>
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500" onClick={() => removeFromCart(item.product._id)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="border-t pt-3 space-y-3">
@@ -342,6 +390,51 @@ export default function PharmacyPOS() {
           </Card>
         </div>
       </div>
+
+      {/* Pack Size Selector Modal */}
+      <Dialog open={showPackSizeModal} onOpenChange={(open) => { setShowPackSizeModal(open); if (!open) setPackSizeProduct(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Select Pack Size
+            </DialogTitle>
+          </DialogHeader>
+          {packSizeProduct && (
+            <div className="space-y-2 py-2">
+              <p className="text-sm text-muted-foreground">{packSizeProduct.name}</p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => handleSelectPackSize(packSizeProduct, null)}
+                  className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 text-left"
+                >
+                  <div>
+                    <p className="font-medium">Base Unit ({packSizeProduct.unit})</p>
+                    <p className="text-xs text-muted-foreground">Stock: {packSizeProduct.quantityAvailable}</p>
+                  </div>
+                  <span className="font-bold">{(packSizeProduct.suggestedRetailPrice || packSizeProduct.basePrice || 0).toLocaleString()}</span>
+                </button>
+                {packSizeProduct.packSizes?.map((pack) => (
+                  <button
+                    key={pack.unit}
+                    onClick={() => handleSelectPackSize(packSizeProduct, pack)}
+                    className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 text-left"
+                  >
+                    <div>
+                      <p className="font-medium">{pack.name}</p>
+                      <p className="text-xs text-muted-foreground">{pack.quantityPerPack} {packSizeProduct.unit}s per {pack.unit}</p>
+                    </div>
+                    <span className="font-bold">{pack.sellingPrice.toLocaleString()}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowPackSizeModal(false); setPackSizeProduct(null); }}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </RoleLayout>
   );
 }

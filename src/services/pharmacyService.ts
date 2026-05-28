@@ -1,5 +1,14 @@
 import api from './api';
 
+export interface PackSize {
+  code?: string;
+  name: string;
+  unit: string;
+  quantityPerPack: number;
+  sellingPrice: number;
+  barcode?: string;
+}
+
 export interface CafProduct {
   _id: string;
   name: string;
@@ -14,12 +23,14 @@ export interface CafProduct {
   suggestedRetailPrice: number;
   requiresPrescription: boolean;
   isActive: boolean;
+  packSizes?: PackSize[];
 }
 
 export interface CartItem {
   product: CafProduct;
   quantity: number;
   unitPrice: number;
+  packSize?: PackSize;
 }
 
 export interface CheckoutResult {
@@ -69,7 +80,7 @@ export const pharmacyService = {
   },
 
   async checkout(params: {
-    items: Array<{ productId: string; quantity: number; unitPrice: number }>;
+    items: Array<{ productId: string; quantity: number; unitPrice: number; packSize?: PackSize }>;
     paymentMethod: string;
     customerName?: string;
     customerPhone?: string;
