@@ -303,6 +303,48 @@ export default function DailyReconciliation() {
         </div>
       </div>
 
+      {/* Lab vs Pharmacy Breakdown */}
+      {expected?.labIncome && expected?.pharmacyIncome && (
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-card border rounded-lg p-4 border-l-4 border-l-blue-500">
+            <p className="text-xs font-semibold text-blue-700 mb-2">Lab Income</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-sm font-bold">Le {(expected.labIncome.cash || 0).toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Cash</p>
+              </div>
+              <div>
+                <p className="text-sm font-bold">Le {(expected.labIncome.orangeMoney || 0).toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Orange</p>
+              </div>
+              <div>
+                <p className="text-sm font-bold">Le {(expected.labIncome.afrimoney || 0).toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Afrimoney</p>
+              </div>
+            </div>
+            <p className="text-center text-sm font-bold text-blue-800 mt-2">Total: Le {(expected.labIncome.total || 0).toLocaleString()}</p>
+          </div>
+          <div className="bg-card border rounded-lg p-4 border-l-4 border-l-purple-500">
+            <p className="text-xs font-semibold text-purple-700 mb-2">Pharmacy Income</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-sm font-bold">Le {(expected.pharmacyIncome.cash || 0).toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Cash</p>
+              </div>
+              <div>
+                <p className="text-sm font-bold">Le {(expected.pharmacyIncome.orangeMoney || 0).toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Orange</p>
+              </div>
+              <div>
+                <p className="text-sm font-bold">Le {(expected.pharmacyIncome.afrimoney || 0).toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Afrimoney</p>
+              </div>
+            </div>
+            <p className="text-center text-sm font-bold text-purple-800 mt-2">Total: Le {(expected.pharmacyIncome.total || 0).toLocaleString()}</p>
+          </div>
+        </div>
+      )}
+
       {/* Secondary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-card border rounded-lg p-4">

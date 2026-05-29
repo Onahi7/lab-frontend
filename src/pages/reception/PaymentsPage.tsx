@@ -368,10 +368,17 @@ export default function PaymentsPage() {
                 const paymentStatus = order.paymentStatus || order.payment_status;
                 const amountPaid = Number(order.amountPaid || 0);
                 const balance = Number(order.balance ?? (Number(total) - amountPaid));
+                const isExternal = !!(order.externalFacilityId || order.sourceSystem);
+                const externalSource = order.sourceSystem || order.externalFacilityName || 'EMR';
                 
                 return (
                   <tr key={order.id || order._id}>
-                    <td className="font-mono text-sm">{orderNum}</td>
+                    <td className="font-mono text-sm">
+                      {orderNum}
+                      {isExternal && (
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-[10px] ml-1">{externalSource}</Badge>
+                      )}
+                    </td>
                     <td>
                       <div>
                         <p className="font-medium">{firstName} {lastName}</p>
@@ -399,7 +406,7 @@ export default function PaymentsPage() {
                     </td>
                     <td>
                       <div className="flex gap-1">
-                        {paymentStatus !== 'paid' && (
+                        {paymentStatus !== 'paid' && !isExternal && (
                           <Button
                             size="sm"
                             onClick={() => {
@@ -411,6 +418,9 @@ export default function PaymentsPage() {
                             <Plus className="w-3 h-3 mr-1" />
                             Pay
                           </Button>
+                        )}
+                        {isExternal && paymentStatus !== 'paid' && (
+                          <span className="text-xs text-muted-foreground italic">Paid in {externalSource}</span>
                         )}
                         {paymentStatus === 'paid' && (
                           <Button

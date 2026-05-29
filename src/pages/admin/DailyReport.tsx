@@ -200,7 +200,7 @@ export default function DailyReport() {
             <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-3">
               <Banknote className="w-4 h-4" /> Income Collected
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="bg-muted rounded-lg p-4 text-center">
                 <Banknote className="w-5 h-5 mx-auto text-status-normal mb-1" />
                 <p className="text-xl font-bold">Le {report.income.cash.toLocaleString()}</p>
@@ -222,6 +222,47 @@ export default function DailyReport() {
                 <p className="text-xs text-muted-foreground">Total Collected</p>
               </div>
             </div>
+            {/* Lab vs Pharmacy breakdown */}
+            {report.income.lab && report.income.pharmacy && (
+              <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t">
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">Lab Income</p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-sm font-bold">Le {(report.income.lab.cash || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">Cash</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Le {(report.income.lab.orangeMoney || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">Orange</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Le {(report.income.lab.afrimoney || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">Afrimoney</p>
+                    </div>
+                  </div>
+                  <p className="text-center text-sm font-bold text-blue-800 dark:text-blue-200 mt-2">Total: Le {(report.income.lab.total || 0).toLocaleString()}</p>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2">Pharmacy Income</p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-sm font-bold">Le {(report.income.pharmacy.cash || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">Cash</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Le {(report.income.pharmacy.orangeMoney || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">Orange</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Le {(report.income.pharmacy.afrimoney || 0).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">Afrimoney</p>
+                    </div>
+                  </div>
+                  <p className="text-center text-sm font-bold text-purple-800 dark:text-purple-200 mt-2">Total: Le {(report.income.pharmacy.total || 0).toLocaleString()}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Row 3: Expenditures */}
