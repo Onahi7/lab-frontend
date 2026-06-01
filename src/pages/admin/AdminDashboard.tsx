@@ -9,7 +9,7 @@ import { useRealtimeResults } from '@/hooks/useRealtimeResults';
 import { useRealtimePatients } from '@/hooks/useRealtimePatients';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { Button } from '@/components/ui/button';
-import { getPatientName, getTestCodes, getOrderNumber, getPanelTestCount } from '@/utils/orderHelpers';
+import { getPatientName, getTestCodes, getOrderNumber, getPanelTestCount, getGroupedTestsByPanel } from '@/utils/orderHelpers';
 import { 
   Users, 
   ClipboardList, 
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
                   <tr key={order.id || order._id}>
                     <td className="font-mono text-xs">{getOrderNumber(order)}</td>
                     <td className="text-sm">{getPatientName(order)}</td>
-                    <td className="text-sm hidden md:table-cell">{getTestCodes(order)}</td>
+                    <td className="text-sm hidden md:table-cell">{getGroupedTestsByPanel(order, true)}</td>
                     <td className="font-medium text-sm">Le {(order.total || order.totalAmount || 0).toLocaleString()}</td>
                     <td className="text-sm">
                       <div>Le {Number(order.amountPaid || 0).toLocaleString()}</div>
