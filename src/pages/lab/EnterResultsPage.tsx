@@ -848,8 +848,8 @@ export default function EnterResultsPage() {
     if (isNaN(numValue)) return 'normal';
     if (!rangeStr) return 'no_range';
 
-    // Handle threshold-style ranges: "< 5.0", "> 10", "<= 5", ">= 10"
-    const thresholdMatch = rangeStr.trim().match(/^([<>]=?|≤|≥)\s*(\d+\.?\d*)$/);
+    // Handle threshold-style ranges: "< 5.0", "> 10", "<= 5", ">= 10", "< 6.0 %", "> 10 mg/L"
+    const thresholdMatch = rangeStr.trim().match(/^([<>]=?|≤|≥)\s*(\d+\.?\d*).*/);
     if (thresholdMatch) {
       const op = thresholdMatch[1];
       const threshold = parseFloat(thresholdMatch[2]);
