@@ -189,16 +189,23 @@ export default function AdminDashboard() {
                   <th>Patient</th>
                   <th className="hidden md:table-cell">Tests</th>
                   <th>Total</th>
+                  <th>Paid</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {orders.slice(-5).reverse().map(order => (
+                {orders.slice(-5).reverse().map(order => {
+                  const bal = order.balance ?? Number(order.total || order.totalAmount || 0) - Number(order.amountPaid || 0);
+                  return (
                   <tr key={order.id || order._id}>
                     <td className="font-mono text-xs">{getOrderNumber(order)}</td>
                     <td className="text-sm">{getPatientName(order)}</td>
                     <td className="text-sm hidden md:table-cell">{getTestCodes(order)}</td>
                     <td className="font-medium text-sm">Le {(order.total || order.totalAmount || 0).toLocaleString()}</td>
+                    <td className="text-sm">
+                      <div>Le {Number(order.amountPaid || 0).toLocaleString()}</div>
+                      {bal > 0 && <div className="text-xs text-red-600">Bal: Le {bal.toLocaleString()}</div>}
+                    </td>
                     <td>
                       <span className={cn(
                         'status-badge capitalize',
@@ -210,10 +217,11 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {orders.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="text-center py-10 text-muted-foreground text-sm">
+                    <td colSpan={6} className="text-center py-10 text-muted-foreground text-sm">
                       No orders yet
                     </td>
                   </tr>

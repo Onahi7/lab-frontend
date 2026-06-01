@@ -25,6 +25,7 @@ export interface ReceiptData {
   discountType: 'percentage' | 'fixed';
   total: number;
   amountPaid: number;
+  balance?: number;
   paymentMethod: 'cash' | 'card' | 'mobile-money';
   paymentDate: string;
   cashier: string;
@@ -204,6 +205,11 @@ export function buildReceiptESCPOS(
   // ── Payment ──────────────────────────────────────────────────────────────
   b.line(padLine('Payment Method:', data.paymentMethod.replace('-', ' ').toUpperCase()));
   b.line(padLine('Amount Paid:', formatCurrency(data.amountPaid)));
+  if (data.balance && data.balance > 0) {
+    b.bold(true);
+    b.line(padLine('Balance Due:', formatCurrency(data.balance)));
+    b.bold(false);
+  }
   if (data.amountPaid > data.total) {
     b.line(padLine('Change:', formatCurrency(data.amountPaid - data.total)));
   }

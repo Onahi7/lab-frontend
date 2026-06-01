@@ -71,7 +71,8 @@ export default function PaymentReceipt() {
     discount: order.discount || 0,
     discountType: order.discountType || 'fixed',
     total: order.total || 0,
-    amountPaid: order.total || 0,
+    amountPaid: order.amountPaid || order.total || 0,
+    balance: order.balance || Math.round((order.total - (order.amountPaid || 0)) * 100) / 100,
     paymentMethod: (order.payment_method === 'orange_money' || order.payment_method === 'afrimoney') ? 'mobile-money' : (order.payment_method || 'cash') as 'cash' | 'card' | 'mobile-money',
     paymentDate: (() => { const d = new Date(order.created_at || order.createdAt || ''); return isValid(d) ? d.toISOString() : new Date().toISOString(); })(),
     cashier: profile?.full_name || 'Cashier',
@@ -261,6 +262,12 @@ export default function PaymentReceipt() {
           <span className="info-label">Amount Paid:</span>
           <span className="info-value">{formatCurrency(receiptData.amountPaid)}</span>
         </div>
+        {receiptData.balance > 0 && (
+          <div className="info-row">
+            <span className="info-label">Balance Due:</span>
+            <span className="info-value" style={{ color: '#dc2626', fontWeight: 'bold' }}>{formatCurrency(receiptData.balance)}</span>
+          </div>
+        )}
         {receiptData.amountPaid > receiptData.total && (
           <div className="info-row">
             <span className="info-label">Change:</span>

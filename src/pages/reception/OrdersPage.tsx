@@ -157,6 +157,8 @@ export default function OrdersPage() {
                 <th>Source</th>
                 <th>Tests</th>
                 <th>Total</th>
+                <th>Paid</th>
+                <th>Balance</th>
                 <th>Priority</th>
                 <th>Payment</th>
                 <th>Status</th>
@@ -215,6 +217,15 @@ export default function OrdersPage() {
                     })()}
                   </td>
                   <td className="font-medium">Le {Number(order.total || order.totalAmount).toLocaleString()}</td>
+                  <td className="text-sm">Le {Number(order.amountPaid || 0).toLocaleString()}</td>
+                  <td className="text-sm">
+                    {(() => {
+                      const bal = order.balance ?? Number(order.total || order.totalAmount || 0) - Number(order.amountPaid || 0);
+                      return bal > 0
+                        ? <span className="text-red-600 font-medium">Le {bal.toLocaleString()}</span>
+                        : <span className="text-green-600">-</span>;
+                    })()}
+                  </td>
                   <td>
                     <Badge variant="outline" className={cn('capitalize', priorityStyles[order.priority])}>
                       {order.priority}
@@ -319,7 +330,7 @@ export default function OrdersPage() {
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground">{groupedTests}</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <p className="text-muted-foreground">Tests</p>
                       <p className="font-medium">{testCount}</p>
@@ -327,6 +338,10 @@ export default function OrdersPage() {
                     <div>
                       <p className="text-muted-foreground">Total</p>
                       <p className="font-medium">Le {Number(order.total || order.totalAmount).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Paid</p>
+                      <p className="font-medium">Le {Number(order.amountPaid || 0).toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Priority</p>

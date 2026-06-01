@@ -528,6 +528,8 @@ export default function PatientDetails() {
                   <th>Tests</th>
                   <th>Status</th>
                   <th>Total</th>
+                  <th>Paid</th>
+                  <th>Balance</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -535,6 +537,7 @@ export default function PatientDetails() {
                 {patientOrders.map((order) => {
                   const orderId = getOrderId(order);
                   const orderTests = order.tests || order.order_tests || [];
+                  const bal = order.balance ?? Number(order.total || order.totalAmount || 0) - Number(order.amountPaid || 0);
 
                   return (
                     <tr key={orderId || getOrderNumber(order)}>
@@ -545,6 +548,12 @@ export default function PatientDetails() {
                         <Badge variant="outline">{String(order.status || '-').replace(/_/g, ' ')}</Badge>
                       </td>
                       <td className="font-semibold">Le {Number(order.total || order.totalAmount || 0).toLocaleString()}</td>
+                      <td className="text-sm">Le {Number(order.amountPaid || 0).toLocaleString()}</td>
+                      <td className="text-sm">
+                        {bal > 0
+                          ? <span className="text-red-600 font-medium">Le {bal.toLocaleString()}</span>
+                          : <span className="text-green-600">-</span>}
+                      </td>
                       <td>
                         <Button variant="ghost" size="sm" onClick={() => openOrderReport(orderId)}>
                           <Eye className="w-4 h-4 mr-1" />
@@ -556,7 +565,7 @@ export default function PatientDetails() {
                 })}
                 {patientOrders.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <td colSpan={8} className="text-center py-8 text-muted-foreground">
                       No orders found for this patient
                     </td>
                   </tr>

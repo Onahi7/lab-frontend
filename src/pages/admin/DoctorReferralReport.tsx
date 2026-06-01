@@ -230,11 +230,12 @@ export default function DoctorReferralReport() {
         </div>
       ) : (
         <div ref={reportRef} className="space-y-5">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div className="bg-card border rounded-lg p-4 text-center"><ClipboardList className="w-5 h-5 mx-auto text-primary mb-1" /><p className="text-2xl font-bold">{report.summary.totalOrders}</p><p className="text-xs text-muted-foreground">Total Orders</p></div>
             <div className="bg-card border rounded-lg p-4 text-center"><Banknote className="w-5 h-5 mx-auto text-status-normal mb-1" /><p className="text-2xl font-bold">Le {report.summary.totalBilled.toLocaleString()}</p><p className="text-xs text-muted-foreground">Total Billed</p></div>
             <div className="bg-card border rounded-lg p-4 text-center"><Tag className="w-5 h-5 mx-auto text-status-warning mb-1" /><p className="text-2xl font-bold text-status-critical">Le {report.summary.totalDiscount.toLocaleString()}</p><p className="text-xs text-muted-foreground">Total Discount</p></div>
             <div className="bg-card border rounded-lg p-4 text-center"><Banknote className="w-5 h-5 mx-auto text-status-normal mb-1" /><p className="text-2xl font-bold text-status-normal">Le {report.summary.totalPaid.toLocaleString()}</p><p className="text-xs text-muted-foreground">Total Paid</p></div>
+            <div className="bg-card border rounded-lg p-4 text-center"><Banknote className="w-5 h-5 mx-auto text-red-500 mb-1" /><p className="text-2xl font-bold text-red-600">Le {(report.summary.totalBilled - report.summary.totalPaid).toLocaleString()}</p><p className="text-xs text-muted-foreground">Outstanding</p></div>
           </div>
 
           {report.summary.doctors.length > 0 && (
@@ -310,6 +311,7 @@ export default function DoctorReferralReport() {
                     <th className="text-right px-3 py-2 font-medium">Billed</th>
                     <th className="text-right px-3 py-2 font-medium">Discount</th>
                     <th className="text-right px-3 py-2 font-medium">Paid</th>
+                    <th className="text-right px-3 py-2 font-medium">Balance</th>
                     <th className="text-center px-3 py-2 font-medium">Status</th>
                   </tr>
                 </thead>
@@ -324,6 +326,14 @@ export default function DoctorReferralReport() {
                       <td className="px-3 py-2 text-right">Le {row.total.toLocaleString()}</td>
                       <td className="px-3 py-2 text-right text-status-critical">{row.discount > 0 ? `- Le ${row.discount.toLocaleString()}` : '-'}</td>
                       <td className="px-3 py-2 text-right text-status-normal font-medium">Le {row.amountPaid.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-sm">
+                        {(() => {
+                          const bal = (row.total || 0) - (row.amountPaid || 0);
+                          return bal > 0
+                            ? <span className="text-red-600 font-medium">Le {bal.toLocaleString()}</span>
+                            : <span className="text-green-600">-</span>;
+                        })()}
+                      </td>
                       <td className="px-3 py-2 text-center">
                         <Badge variant="outline" className={cn('text-xs capitalize', {
                           'bg-status-normal/10 text-status-normal': row.paymentStatus === 'paid',

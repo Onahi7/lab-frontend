@@ -116,7 +116,19 @@ export default function PharmacySales() {
                       <TableRow key={sale._id}>
                         <TableCell className="font-mono text-sm">{sale.receiptNumber}</TableCell>
                         <TableCell>{sale.customerName || '—'}</TableCell>
-                        <TableCell>{sale.items?.length || 0}</TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {sale.items?.length || 0} item{(sale.items?.length || 0) !== 1 ? 's' : ''}
+                            {sale.items && sale.items.length > 0 && (
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {sale.items.slice(0, 2).map((item: any, i: number) => (
+                                  <div key={i}>{item.productName || item.name || 'Item'} x{item.quantity}</div>
+                                ))}
+                                {sale.items.length > 2 && <div>+{sale.items.length - 2} more</div>}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs capitalize">
                             {(sale.paymentMethod || 'cash').replace('_', ' ')}
