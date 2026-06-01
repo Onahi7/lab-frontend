@@ -111,25 +111,52 @@ export default function Reports() {
     }));
   }, [allOrders]);
 
-  // Tests by category chart data
+  // Top tests by volume — panels count as 1 per order, standalone tests count individually
   const categoryData = useMemo(() => {
     if (!allOrders) return [];
     
-    const categoryCounts: Record<string, number> = {};
+    // Count unique (panelCode, orderId) for panels, and individual testCode for standalone
+    const panelOrderCounts: Record<string, Set<string>> = {};
+    const standaloneCounts: Record<string, number> = {};
+    
     allOrders.forEach(order => {
+      const orderId = order._id || order.id || '';
       const orderTests = order.tests || order.order_tests || [];
-      orderTests.forEach(test => {
-        // Use test code prefix as category approximation
-        const testCode = test.testCode || '';
-        const category = testCode.substring(0, 3);
-        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      
+      // De-duplicate within this order: only count each panelCode once per order
+      const seenPanels = new Set<string>();
+      const seenStandalone = new Set<string>();
+      
+      orderTests.forEach((test: any) => {
+        const panelCode = test.panelCode || test.panel_code;
+        const testCode = test.testCode || test.test_code || '';
+        
+        if (panelCode) {
+          const key = `${panelCode}_${orderId}`;
+          if (!seenPanels.has(key)) {
+            seenPanels.add(key);
+            if (!panelOrderCounts[panelCode]) panelOrderCounts[panelCode] = new Set();
+            panelOrderCounts[panelCode].add(orderId);
+          }
+        } else {
+          const key = `${testCode}_${orderId}`;
+          if (!seenStandalone.has(key)) {
+            seenStandalone.add(key);
+            standaloneCounts[testCode] = (standaloneCounts[testCode] || 0) + 1;
+          }
+        }
       });
     });
-
-    return Object.entries(categoryCounts)
-      .map(([category, count]) => ({ name: category, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+    
+    const results: Array<{ name: string; count: number }> = [];
+    Object.entries(panelOrderCounts).forEach(([code, orderIds]) => {
+      results.push({ name: code, count: orderIds.size });
+    });
+    Object.entries(standaloneCounts).forEach(([code, count]) => {
+      results.push({ name: code, count });
+    });
+    
+    return results.sort((a, b) => b.count - a.count).slice(0, 10);
   }, [allOrders]);
 
   // Daily revenue trend (last 7 days)
