@@ -9,7 +9,7 @@ import { useRealtimeResults } from '@/hooks/useRealtimeResults';
 import { useRealtimePatients } from '@/hooks/useRealtimePatients';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { Button } from '@/components/ui/button';
-import { getPatientName, getTestCodes, getOrderNumber } from '@/utils/orderHelpers';
+import { getPatientName, getTestCodes, getOrderNumber, getPanelTestCount } from '@/utils/orderHelpers';
 import { 
   Users, 
   ClipboardList, 
@@ -278,7 +278,7 @@ export default function AdminDashboard() {
               <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total Tests</span>
-                  <span className="font-semibold">{orders.reduce((sum, o) => sum + (o.order_tests?.length || 0), 0)}</span>
+                  <span className="font-semibold">{orders.reduce((sum, o) => sum + getPanelTestCount(o), 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Revenue</span>

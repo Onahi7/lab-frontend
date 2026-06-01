@@ -2,6 +2,7 @@ import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders, useTodayOrders, usePaymentStats, useDailyIncome } from '@/hooks/useOrders';
 import { useMachines } from '@/hooks/useMachines';
+import { getPanelTestCount } from '@/utils/orderHelpers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -75,7 +76,7 @@ export default function Reports() {
       .reduce((sum, o) => sum + Number(o.total || o.totalAmount || 0), 0) || 0;
     const totalRevenue = paidOrders.reduce((sum, o) => sum + Number(o.total || o.totalAmount || 0), 0);
     const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
-    const totalTests = allOrders.reduce((sum, o) => sum + (o.order_tests?.length || o.tests?.length || 0), 0);
+    const totalTests = allOrders.reduce((sum, o) => sum + getPanelTestCount(o), 0);
 
     return {
       todayRevenue,
