@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Save, X, Copy, ChevronDown, ChevronRight, FlaskConical, Layers, Info } from 'lucide-react';
+import { 
+  Plus, Edit, Trash2, Save, X, Copy, ChevronDown, ChevronRight, 
+  FlaskConical, Layers, Info, History, Undo2, DollarSign, Search,
+  ArrowUp, ArrowDown
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +49,32 @@ interface Test {
   machineId?: string;
   isActive: boolean;
   description?: string;
+  isPanel?: boolean;
+}
+
+interface TestPanelItem {
+  testId: string;
+  testCode: string;
+  testName: string;
+}
+
+interface TestPanel extends Test {
+  tests: TestPanelItem[];
+}
+
+interface PriceHistoryEntry {
+  _id: string;
+  entityType: 'test' | 'panel';
+  testId?: string;
+  panelId?: string;
+  code: string;
+  name: string;
+  oldPrice: number;
+  newPrice: number;
+  changedBy: string;
+  changedByName: string;
+  reason?: string;
+  createdAt: string;
 }
 
 const CATEGORIES = [
@@ -76,6 +106,20 @@ export default function TestCatalogManagement() {
   const [formData, setFormData] = useState<Partial<Test>>({});
   const [referenceRanges, setReferenceRanges] = useState<ReferenceRange[]>([]);
 
+  // Panel dialog state
+  const [isPanelDialogOpen, setIsPanelDialogOpen] = useState(false);
+  const [editingPanel, setEditingPanel] = useState<TestPanel | null>(null);
+  const [panelFormData, setPanelFormData] = useState<Partial<TestPanel>>({});
+
+  // Price history dialog state
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+  const [historyEntity, setHistoryEntity] = useState<{ id: string; code: string; name: string; type: 'test' | 'panel' } | null>(null);
+
+  // Inline price edit state
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+  const [editingPriceValue, setEditingPriceValue] = useState<string>('');
+  const [editingPriceType, setEditingPriceType] = useState<'test' | 'panel'>('test');
+
   // Fetch all tests
   const { data: tests = [], isLoading } = useQuery({
     queryKey: ['tests'],
@@ -83,6 +127,29 @@ export default function TestCatalogManagement() {
       const response = await api.get('/test-catalog');
       return response.data;
     },
+  });
+
+  // Fetch all panels
+  const { data: panels = [], isLoading: panelsLoading } = useQuery({
+    queryKey: ['test-panels'],
+    queryFn: async () => {
+      const response = await api.get('/test-panels');
+      return response.data;
+    },
+  });
+
+  // Price history query
+  const { data: priceHistory = [], isLoading: historyLoading } = useQuery({
+    queryKey: ['price-history', historyEntity?.id, historyEntity?.type],
+    queryFn: async () => {
+      if (!historyEntity) return [];
+      const params: any = { limit: 50 };
+      if (historyEntity.type === 'test') params.testId = historyEntity.id;
+      if (historyEntity.type === 'panel') params.panelId = historyEntity.id;
+      const response = await api.get('/price-history', { params });
+      return response.data;
+    },
+    enabled: !!historyEntity,
   });
 
   // Create test mutation
@@ -112,6 +179,7 @@ export default function TestCatalogManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tests'] });
+      queryClient.invalidateQueries({ queryKey: ['price-history'] });
       toast.success('Test updated successfully');
       handleCloseDialog();
     },
@@ -137,6 +205,70 @@ export default function TestCatalogManagement() {
     },
   });
 
+  // Update panel mutation
+  const updatePanel = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<TestPanel> }) => {
+      const response = await api.patch(`/test-panels/${id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['test-panels'] });
+      queryClient.invalidateQueries({ queryKey: ['price-history'] });
+      toast.success('Panel updated successfully');
+      handleClosePanelDialog();
+    },
+    onError: (error: any) => {
+      const msg = Array.isArray(error.response?.data?.message)
+        ? error.response.data.message.join(', ')
+        : error.response?.data?.message || 'Failed to update panel';
+      toast.error(msg);
+    },
+  });
+
+  // Revert price mutation
+  const revertPrice = useMutation({
+    mutationFn: async (historyId: string) => {
+      const response = await api.post(`/price-history/${historyId}/revert`);
+      return response.data;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['tests'] });
+      queryClient.invalidateQueries({ queryKey: ['test-panels'] });
+      queryClient.invalidateQueries({ queryKey: ['price-history'] });
+      toast.success(`Price reverted to Le ${data.price?.toLocaleString()}`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to revert price');
+    },
+  });
+
+  // Inline price edit handlers
+  const handleStartPriceEdit = (id: string, currentPrice: number, type: 'test' | 'panel') => {
+    setEditingPriceId(id);
+    setEditingPriceValue(String(currentPrice));
+    setEditingPriceType(type);
+  };
+
+  const handleCancelPriceEdit = () => {
+    setEditingPriceId(null);
+    setEditingPriceValue('');
+  };
+
+  const handleSavePriceEdit = () => {
+    const newPrice = parseFloat(editingPriceValue);
+    if (isNaN(newPrice) || newPrice < 0) {
+      toast.error('Invalid price');
+      return;
+    }
+    if (editingPriceType === 'test') {
+      updateTest.mutate({ id: editingPriceId!, data: { price: newPrice } });
+    } else {
+      updatePanel.mutate({ id: editingPriceId!, data: { price: newPrice } });
+    }
+    setEditingPriceId(null);
+    setEditingPriceValue('');
+  };
+
   const handleOpenDialog = (test?: Test) => {
     if (test) {
       setEditingTest(test);
@@ -155,6 +287,42 @@ export default function TestCatalogManagement() {
     setEditingTest(null);
     setFormData({});
     setReferenceRanges([]);
+  };
+
+  // Panel dialog handlers
+  const handleOpenPanelDialog = (panel: TestPanel) => {
+    setEditingPanel(panel);
+    setPanelFormData(panel);
+    setIsPanelDialogOpen(true);
+  };
+
+  const handleClosePanelDialog = () => {
+    setIsPanelDialogOpen(false);
+    setEditingPanel(null);
+    setPanelFormData({});
+  };
+
+  const handlePanelSubmit = () => {
+    if (!editingPanel) return;
+    const data: any = {
+      code: panelFormData.code,
+      name: panelFormData.name,
+      description: panelFormData.description,
+      price: panelFormData.price !== undefined ? Number(panelFormData.price) : undefined,
+      isActive: panelFormData.isActive,
+    };
+    updatePanel.mutate({ id: editingPanel._id, data });
+  };
+
+  // History dialog handlers
+  const handleOpenHistory = (id: string, code: string, name: string, type: 'test' | 'panel') => {
+    setHistoryEntity({ id, code, name, type });
+    setIsHistoryDialogOpen(true);
+  };
+
+  const handleCloseHistory = () => {
+    setIsHistoryDialogOpen(false);
+    setHistoryEntity(null);
   };
 
   const handleSubmit = () => {
@@ -242,6 +410,7 @@ export default function TestCatalogManagement() {
       setPanelForm({ name: '', code: '', description: '', price: '' });
       setPanelTestCodes('');
       queryClient.invalidateQueries({ queryKey: ['tests'] });
+      queryClient.invalidateQueries({ queryKey: ['test-panels'] });
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } };
       toast.error(axiosError?.response?.data?.message || 'Failed to create panel');
@@ -265,6 +434,7 @@ export default function TestCatalogManagement() {
   })).filter(g => g.tests.length > 0);
 
   const activeCount = tests.filter((t: Test) => t.isActive).length;
+  const activePanelCount = panels.filter((p: TestPanel) => p.isActive).length;
 
   return (
     <RoleLayout 
@@ -285,7 +455,7 @@ export default function TestCatalogManagement() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
@@ -300,12 +470,10 @@ export default function TestCatalogManagement() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                <span className="text-green-700 font-bold text-sm">{activeCount}</span>
-              </div>
+              <Layers className="h-8 w-8 text-purple-500" />
               <div>
-                <p className="text-2xl font-bold text-green-600">{activeCount}</p>
-                <p className="text-xs text-muted-foreground">Active</p>
+                <p className="text-2xl font-bold">{panels.length}</p>
+                <p className="text-xs text-muted-foreground">Panels ({activePanelCount} active)</p>
               </div>
             </div>
           </CardContent>
@@ -313,7 +481,20 @@ export default function TestCatalogManagement() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <Layers className="h-8 w-8 text-purple-500" />
+              <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                <span className="text-green-700 font-bold text-sm">{activeCount}</span>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-green-600">{activeCount}</p>
+                <p className="text-xs text-muted-foreground">Active Tests</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <DollarSign className="h-8 w-8 text-emerald-500" />
               <div>
                 <p className="text-2xl font-bold">{CATEGORIES.length}</p>
                 <p className="text-xs text-muted-foreground">Categories</p>
@@ -323,116 +504,306 @@ export default function TestCatalogManagement() {
         </Card>
       </div>
 
-      {/* Search + filter */}
-      <div className="flex gap-3 items-center">
-        <div className="flex-1">
-          <Input
-            placeholder="Search by name or code..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full sm:w-52">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {CATEGORIES.map(cat => (
-              <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Main tabs */}
+      <Tabs defaultValue="tests" className="w-full">
+        <TabsList>
+          <TabsTrigger value="tests">
+            <FlaskConical className="h-4 w-4 mr-1.5" /> Tests
+          </TabsTrigger>
+          <TabsTrigger value="panels">
+            <Layers className="h-4 w-4 mr-1.5" /> Panels
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tests grouped by category */}
-      {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading tests...</div>
-      ) : testsByCategory.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">No tests found</div>
-      ) : (
-        <div className="space-y-3">
-          {testsByCategory.map(group => (
-            <Collapsible
-              key={group.value}
-              open={openCategories[group.value] !== false}
-              onOpenChange={() => toggleCategory(group.value)}
-            >
-              <Card>
-                <CollapsibleTrigger asChild>
-                  <div className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-muted/40 rounded-t-lg select-none">
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${group.color}`}>{group.label}</span>
-                      <span className="text-sm text-muted-foreground">{group.tests.length} test{group.tests.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    {openCategories[group.value] === false ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="border-t">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-muted/30 text-xs text-muted-foreground uppercase tracking-wide">
-                          <th className="text-left px-5 py-2">Code</th>
-                          <th className="text-left px-5 py-2">Name</th>
-                          <th className="text-left px-5 py-2">Unit</th>
-                          <th className="text-left px-5 py-2">Reference Range</th>
-                          <th className="text-left px-5 py-2">Price</th>
-                          <th className="text-left px-5 py-2">Status</th>
-                          <th className="text-right px-5 py-2">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {group.tests.map((test: Test) => (
-                          <tr key={test._id} className="hover:bg-muted/20 transition-colors">
-                            <td className="px-5 py-2.5 font-mono font-semibold text-xs">{test.code}</td>
-                            <td className="px-5 py-2.5 font-medium">
-                              {test.name}
-                              {test.panelName && (
-                                <span className="ml-2 text-xs text-muted-foreground">({test.panelName})</span>
-                              )}
-                            </td>
-                            <td className="px-5 py-2.5 text-muted-foreground">{test.unit || '�'}</td>
-                            <td className="px-5 py-2.5 text-muted-foreground">
-                              {test.referenceRanges && test.referenceRanges.length > 0
-                                ? test.referenceRanges.map((r, i) => (
-                                    <span key={i} className="block text-xs">{r.range} {r.unit}</span>
-                                  ))
-                                : test.referenceRange || '�'
-                              }
-                            </td>
-                            <td className="px-5 py-2.5">Le {test.price?.toLocaleString()}</td>
-                            <td className="px-5 py-2.5">
-                              <Badge variant={test.isActive ? 'default' : 'secondary'} className="text-xs">
-                                {test.isActive ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </td>
-                            <td className="px-5 py-2.5">
-                              <div className="flex justify-end gap-1">
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDuplicate(test)}>
-                                  <Copy className="h-3.5 w-3.5" />
+        {/* ─── TESTS TAB ─── */}
+        <TabsContent value="tests" className="space-y-4 mt-4">
+          {/* Search + filter */}
+          <div className="flex gap-3 items-center">
+            <div className="flex-1 relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-52">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {CATEGORIES.map(cat => (
+                  <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tests grouped by category */}
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading tests...</div>
+          ) : testsByCategory.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">No tests found</div>
+          ) : (
+            <div className="space-y-3">
+              {testsByCategory.map(group => (
+                <Collapsible
+                  key={group.value}
+                  open={openCategories[group.value] !== false}
+                  onOpenChange={() => toggleCategory(group.value)}
+                >
+                  <Card>
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-muted/40 rounded-t-lg select-none">
+                        <div className="flex items-center gap-3">
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${group.color}`}>{group.label}</span>
+                          <span className="text-sm text-muted-foreground">{group.tests.length} test{group.tests.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        {openCategories[group.value] === false ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="border-t overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-muted/30 text-xs text-muted-foreground uppercase tracking-wide">
+                              <th className="text-left px-5 py-2">Code</th>
+                              <th className="text-left px-5 py-2">Name</th>
+                              <th className="text-left px-5 py-2">Unit</th>
+                              <th className="text-left px-5 py-2">Reference Range</th>
+                              <th className="text-left px-5 py-2">Price</th>
+                              <th className="text-left px-5 py-2">Status</th>
+                              <th className="text-right px-5 py-2">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {group.tests.map((test: Test) => (
+                              <tr key={test._id} className="hover:bg-muted/20 transition-colors group">
+                                <td className="px-5 py-2.5 font-mono font-semibold text-xs">{test.code}</td>
+                                <td className="px-5 py-2.5 font-medium">
+                                  {test.name}
+                                  {test.panelName && (
+                                    <span className="ml-2 text-xs text-muted-foreground">({test.panelName})</span>
+                                  )}
+                                </td>
+                                <td className="px-5 py-2.5 text-muted-foreground">{test.unit || '—'}</td>
+                                <td className="px-5 py-2.5 text-muted-foreground">
+                                  {test.referenceRanges && test.referenceRanges.length > 0
+                                    ? test.referenceRanges.map((r, i) => (
+                                        <span key={i} className="block text-xs">{r.range} {r.unit}</span>
+                                      ))
+                                    : test.referenceRange || '—'
+                                  }
+                                </td>
+                                <td className="px-5 py-2.5">
+                                  {editingPriceId === test._id && editingPriceType === 'test' ? (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs">Le</span>
+                                      <Input
+                                        type="number"
+                                        value={editingPriceValue}
+                                        onChange={(e) => setEditingPriceValue(e.target.value)}
+                                        className="h-7 w-20 text-sm"
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleSavePriceEdit();
+                                          if (e.key === 'Escape') handleCancelPriceEdit();
+                                        }}
+                                      />
+                                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleSavePriceEdit}>
+                                        <Save className="h-3 w-3" />
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleCancelPriceEdit}>
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleStartPriceEdit(test._id, test.price, 'test')}
+                                      className="font-semibold hover:bg-muted px-2 py-1 rounded transition-colors inline-flex items-center gap-1"
+                                      title="Click to edit price"
+                                    >
+                                      Le {test.price?.toLocaleString()}
+                                      <Edit className="h-3 w-3 opacity-0 group-hover:opacity-100" />
+                                    </button>
+                                  )}
+                                </td>
+                                <td className="px-5 py-2.5">
+                                  <Badge variant={test.isActive ? 'default' : 'secondary'} className="text-xs">
+                                    {test.isActive ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                </td>
+                                <td className="px-5 py-2.5">
+                                  <div className="flex justify-end gap-1">
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleOpenHistory(test._id, test.code, test.name, 'test')} title="Price history">
+                                      <History className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDuplicate(test)}>
+                                      <Copy className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleOpenDialog(test)}>
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    {isAdmin && (
+                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDelete(test._id)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ─── PANELS TAB ─── */}
+        <TabsContent value="panels" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Test Panels</CardTitle>
+                  <CardDescription>Orderable groups of related tests (FBC, LFT, RFT, etc.)</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {panelsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading panels...</div>
+              ) : panels.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No panels created yet</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/30 text-xs text-muted-foreground uppercase tracking-wide">
+                        <th className="text-left px-4 py-2">Code</th>
+                        <th className="text-left px-4 py-2">Name</th>
+                        <th className="text-left px-4 py-2">Tests</th>
+                        <th className="text-left px-4 py-2">Price</th>
+                        <th className="text-left px-4 py-2">Status</th>
+                        <th className="text-right px-4 py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {panels.map((panel: TestPanel) => (
+                        <tr key={panel._id} className="hover:bg-muted/20 transition-colors group">
+                          <td className="px-4 py-2.5 font-mono font-semibold text-xs">{panel.code}</td>
+                          <td className="px-4 py-2.5">
+                            <p className="font-medium">{panel.name}</p>
+                            {panel.description && <p className="text-xs text-muted-foreground">{panel.description}</p>}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <Badge variant="secondary" className="text-xs">
+                              {panel.tests?.length || 0} tests
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {editingPriceId === panel._id && editingPriceType === 'panel' ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs">Le</span>
+                                <Input
+                                  type="number"
+                                  value={editingPriceValue}
+                                  onChange={(e) => setEditingPriceValue(e.target.value)}
+                                  className="h-7 w-20 text-sm"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSavePriceEdit();
+                                    if (e.key === 'Escape') handleCancelPriceEdit();
+                                  }}
+                                />
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleSavePriceEdit}>
+                                  <Save className="h-3 w-3" />
                                 </Button>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleOpenDialog(test)}>
-                                  <Edit className="h-3.5 w-3.5" />
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleCancelPriceEdit}>
+                                  <X className="h-3 w-3" />
                                 </Button>
-                                {isAdmin && (
-                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDelete(test._id)}>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          ))}
-        </div>
-      )}
+                            ) : (
+                              <button
+                                onClick={() => handleStartPriceEdit(panel._id, panel.price, 'panel')}
+                                className="font-semibold hover:bg-muted px-2 py-1 rounded transition-colors inline-flex items-center gap-1"
+                                title="Click to edit price"
+                              >
+                                Le {panel.price?.toLocaleString()}
+                                <Edit className="h-3 w-3 opacity-0 group-hover:opacity-100" />
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <Badge variant={panel.isActive ? 'default' : 'secondary'} className="text-xs">
+                              {panel.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex justify-end gap-1">
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleOpenHistory(panel._id, panel.code, panel.name, 'panel')} title="Price history">
+                                <History className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleOpenPanelDialog(panel)} title="Edit panel">
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Create new panel */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Create New Panel</CardTitle>
+              <CardDescription>Group multiple tests into a single orderable item</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Panel Code *</Label>
+                  <Input value={panelForm.code} onChange={e => setPanelForm({...panelForm, code: e.target.value.toUpperCase()})} placeholder="e.g., LIPID, THYROID" />
+                </div>
+                <div>
+                  <Label>Panel Name *</Label>
+                  <Input value={panelForm.name} onChange={e => setPanelForm({...panelForm, name: e.target.value})} placeholder="e.g., Lipid Profile" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <Label>Price (Le)</Label>
+                  <Input type="number" value={panelForm.price} onChange={e => setPanelForm({...panelForm, price: e.target.value})} placeholder="0" />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Input value={panelForm.description} onChange={e => setPanelForm({...panelForm, description: e.target.value})} placeholder="Optional" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <Label>Test Codes (comma-separated) *</Label>
+                <Input value={panelTestCodes} onChange={e => setPanelTestCodes(e.target.value)} placeholder="e.g., CHOL, HDL, LDL, TG, VLDL" />
+                <p className="text-xs text-muted-foreground mt-1">These tests must already exist in the catalog above.</p>
+              </div>
+              <Button onClick={handleCreatePanel} disabled={panelSaving} className="w-full mt-4">
+                {panelSaving ? 'Creating...' : 'Create Panel'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit/Create Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -444,10 +815,9 @@ export default function TestCatalogManagement() {
           </DialogHeader>
 
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="ranges">Ref. Ranges</TabsTrigger>
-              <TabsTrigger value="advanced">Create Panel</TabsTrigger>
               <TabsTrigger value="preview">Report Preview</TabsTrigger>
             </TabsList>
 
@@ -791,45 +1161,6 @@ export default function TestCatalogManagement() {
               </div>
             </TabsContent>
 
-            {/* Panel Tab */}
-            <TabsContent value="advanced" className="space-y-4">
-              <div className="rounded-lg border bg-amber-50 border-amber-200 p-4 space-y-4">
-                <div className="font-semibold text-amber-900 flex items-center gap-2">
-                  <Layers className="h-4 w-4" />
-                  Create a New Orderable Panel
-                </div>
-                <p className="text-xs text-amber-700">A panel groups multiple individual tests so they can be ordered as one item. Enter the test codes that belong in the panel (must already exist in the catalog).</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Panel Code *</Label>
-                    <Input value={panelForm.code} onChange={e => setPanelForm({...panelForm, code: e.target.value.toUpperCase()})} placeholder="e.g., LIPID, THYROID" />
-                  </div>
-                  <div>
-                    <Label>Panel Name *</Label>
-                    <Input value={panelForm.name} onChange={e => setPanelForm({...panelForm, name: e.target.value})} placeholder="e.g., Lipid Profile" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Price (Le)</Label>
-                    <Input type="number" value={panelForm.price} onChange={e => setPanelForm({...panelForm, price: e.target.value})} placeholder="0" />
-                  </div>
-                  <div>
-                    <Label>Description</Label>
-                    <Input value={panelForm.description} onChange={e => setPanelForm({...panelForm, description: e.target.value})} placeholder="Optional" />
-                  </div>
-                </div>
-                <div>
-                  <Label>Test Codes (comma-separated) *</Label>
-                  <Input value={panelTestCodes} onChange={e => setPanelTestCodes(e.target.value)} placeholder="e.g., CHOL, HDL, LDL, TG, VLDL" />
-                  <p className="text-xs text-muted-foreground mt-1">These tests must already exist in the catalog above.</p>
-                </div>
-                <Button onClick={handleCreatePanel} disabled={panelSaving} className="w-full">
-                  {panelSaving ? 'Creating...' : 'Create Panel'}
-                </Button>
-              </div>
-            </TabsContent>
-
           </Tabs>
 
           <DialogFooter>
@@ -843,6 +1174,144 @@ export default function TestCatalogManagement() {
             </Button>
           </DialogFooter>
 
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── PANEL EDIT DIALOG ─── */}
+      <Dialog open={isPanelDialogOpen} onOpenChange={setIsPanelDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Panel — {editingPanel?.code}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Panel Name *</Label>
+              <Input
+                value={panelFormData.name || ''}
+                onChange={(e) => setPanelFormData({ ...panelFormData, name: e.target.value })}
+                placeholder="e.g., Lipid Profile"
+              />
+            </div>
+            <div>
+              <Label>Price (Le) *</Label>
+              <Input
+                type="number"
+                value={panelFormData.price !== undefined ? panelFormData.price : ''}
+                onChange={(e) => setPanelFormData({ ...panelFormData, price: parseFloat(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Input
+                value={panelFormData.description || ''}
+                onChange={(e) => setPanelFormData({ ...panelFormData, description: e.target.value })}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="panelIsActive"
+                checked={panelFormData.isActive !== false}
+                onChange={(e) => setPanelFormData({ ...panelFormData, isActive: e.target.checked })}
+                className="rounded"
+              />
+              <Label htmlFor="panelIsActive">Active</Label>
+            </div>
+
+            {editingPanel?.tests && editingPanel.tests.length > 0 && (
+              <div className="border rounded p-3 bg-muted/30">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Tests in this panel ({editingPanel.tests.length})</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {editingPanel.tests.map((t) => (
+                    <Badge key={t.testId} variant="secondary" className="text-xs">
+                      {t.testCode} — {t.testName}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Test membership cannot be changed here yet — use the API to modify panel composition.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClosePanelDialog}>Cancel</Button>
+            <Button onClick={handlePanelSubmit} disabled={!panelFormData.name || panelFormData.price === undefined}>
+              <Save className="h-4 w-4 mr-2" />
+              Update Panel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── PRICE HISTORY DIALOG ─── */}
+      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Price History — {historyEntity?.code} ({historyEntity?.name})
+            </DialogTitle>
+          </DialogHeader>
+
+          {historyLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading history...</div>
+          ) : !priceHistory || priceHistory.length === 0 ? (
+            <div className="text-center py-8">
+              <History className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No price changes recorded yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Price changes are automatically tracked from this point forward.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {priceHistory.map((entry: PriceHistoryEntry) => {
+                const increased = entry.newPrice > entry.oldPrice;
+                const diff = entry.newPrice - entry.oldPrice;
+                const pct = entry.oldPrice > 0 ? ((diff / entry.oldPrice) * 100).toFixed(1) : '0';
+                return (
+                  <div key={entry._id} className="border rounded-lg p-3 hover:bg-muted/30">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          {increased ? (
+                            <ArrowUp className="h-4 w-4 text-status-warning" />
+                          ) : (
+                            <ArrowDown className="h-4 w-4 text-status-normal" />
+                          )}
+                          <span className="text-sm font-semibold">
+                            Le {entry.oldPrice.toLocaleString()} → Le {entry.newPrice.toLocaleString()}
+                          </span>
+                          <Badge variant={increased ? 'outline' : 'secondary'} className="text-xs">
+                            {increased ? '+' : ''}{diff.toLocaleString()} ({pct}%)
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          by {entry.changedByName} on {new Date(entry.createdAt).toLocaleString()}
+                        </p>
+                        {entry.reason && (
+                          <p className="text-xs text-muted-foreground mt-0.5 italic">"{entry.reason}"</p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7"
+                        onClick={() => revertPrice.mutate(entry._id)}
+                        disabled={revertPrice.isPending}
+                        title={`Revert to Le ${entry.oldPrice.toLocaleString()}`}
+                      >
+                        <Undo2 className="h-3 w-3 mr-1" />
+                        Revert
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseHistory}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
