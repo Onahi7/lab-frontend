@@ -57,6 +57,7 @@ import ReportTemplateEditor from "./pages/admin/ReportTemplateEditor";
 import PrinterSettings from "./pages/admin/PrinterSettings";
 import DoctorsPage from "./pages/admin/DoctorsPage";
 import ResultsManagement from "./pages/admin/ResultsManagement";
+import BackupManagement from "./pages/admin/BackupManagement";
 
 import { PrinterProvider } from "./context/PrinterContext";
 
@@ -245,6 +246,9 @@ function AppRoutes() {
       } />
       <Route path="/admin/test-catalog" element={
         <RoleGuard allowedRoles={['admin']}><TestCatalogManagement /></RoleGuard>
+      } />
+      <Route path="/admin/backups" element={
+        <RoleGuard allowedRoles={['admin', 'lab_tech']}><BackupManagement /></RoleGuard>
       } />
       <Route path="/admin/communication-logs" element={
         <RoleGuard allowedRoles={['admin']}><CommunicationLogs /></RoleGuard>

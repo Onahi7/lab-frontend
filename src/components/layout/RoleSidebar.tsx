@@ -27,6 +27,7 @@ import {
   ShoppingCart,
   Pill,
   Package,
+  Database,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -51,6 +52,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/admin/payments', icon: CreditCard, label: 'Payments' },
     { to: '/admin/report-template', icon: FileEdit, label: 'Report Template' },
     { to: '/admin/test-catalog', icon: FlaskConical, label: 'Test Catalog' },
+    { to: '/admin/backups', icon: Database, label: 'Backups' },
     { to: '/admin/patients', icon: Users, label: 'All Patients' },
     { to: '/admin/orders', icon: ClipboardList, label: 'All Orders' },
     { to: '/admin/results', icon: FileText, label: 'Results Management' },
