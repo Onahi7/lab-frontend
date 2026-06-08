@@ -79,6 +79,10 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'MALARIA': ['Negative', 'Positive (P. falciparum)', 'Positive (P. vivax)', 'Positive (Mixed)'],
   'RVS': ['Non-Reactive', 'Reactive'],
   'HBSAG': ['Non-Reactive', 'Reactive'],
+  'HBSAB': ['Non-Reactive', 'Reactive'],
+  'HBEAG': ['Non-Reactive', 'Reactive'],
+  'HBEAB': ['Non-Reactive', 'Reactive'],
+  'HBCAB': ['Non-Reactive', 'Reactive'],
   'HCV': ['Non-Reactive', 'Reactive'],
   'RVSP24': ['Non-Reactive', 'Reactive'],
   'HPYLORI': ['Non-Reactive', 'Reactive'],
@@ -925,7 +929,7 @@ export default function EnterResultsPage() {
     }
 
     // Generate automatic interpretation for all serology Reactive/Non-Reactive tests
-    const SEROLOGY_REACTIVE_TESTS = new Set(['RVS', 'HBSAG', 'HCV', 'RVSP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
+    const SEROLOGY_REACTIVE_TESTS = new Set(['RVS', 'HBSAG', 'HBSAB', 'HBEAG', 'HBEAB', 'HBCAB', 'HCV', 'RVSP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
     if (SEROLOGY_REACTIVE_TESTS.has(testCode) && value) {
       if (value === 'Non-Reactive') {
         interpretation = 'Negative';
@@ -1080,7 +1084,7 @@ export default function EnterResultsPage() {
         }
 
         // Add automatic interpretation for all serology Reactive/Non-Reactive tests
-    const SEROLOGY_REACTIVE_TESTS = new Set(['RVS', 'HBSAG', 'HCV', 'RVSP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
+    const SEROLOGY_REACTIVE_TESTS = new Set(['RVS', 'HBSAG', 'HBSAB', 'HBEAG', 'HBEAB', 'HBCAB', 'HCV', 'RVSP24', 'HPYLORI', 'HPYLORI_IA', 'HSV', 'VDRL']);
         if (SEROLOGY_REACTIVE_TESTS.has(entry.testCode) && entry.interpretation) {
           payload.comments = entry.interpretation;
         }
