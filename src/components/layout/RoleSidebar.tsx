@@ -28,6 +28,7 @@ import {
   Pill,
   Package,
   Database,
+  Plug,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types/lis';
@@ -57,6 +58,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { to: '/admin/orders', icon: ClipboardList, label: 'All Orders' },
     { to: '/admin/results', icon: FileText, label: 'Results Management' },
     { to: '/admin/machines', icon: Cpu, label: 'Machines' },
+    { to: '/admin/integrations', icon: Plug, label: 'Integrations' },
     { to: '/admin/printers', icon: Printer, label: 'Printers' },
     { to: '/pharmacy', icon: Pill, label: 'Pharmacy' },
     { to: '/pharmacy/pos', icon: ShoppingCart, label: 'Pharmacy POS' },

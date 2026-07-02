@@ -58,6 +58,7 @@ import PrinterSettings from "./pages/admin/PrinterSettings";
 import DoctorsPage from "./pages/admin/DoctorsPage";
 import ResultsManagement from "./pages/admin/ResultsManagement";
 import BackupManagement from "./pages/admin/BackupManagement";
+import IntegrationClientsPage from "./pages/admin/IntegrationClientsPage";
 
 import { PrinterProvider } from "./context/PrinterContext";
 
@@ -300,6 +301,9 @@ function AppRoutes() {
       } />
       <Route path="/admin/results" element={
         <RoleGuard allowedRoles={['admin']}><ResultsManagement /></RoleGuard>
+      } />
+      <Route path="/admin/integrations" element={
+        <RoleGuard allowedRoles={['admin']}><IntegrationClientsPage /></RoleGuard>
       } />
 
       {/* Pharmacy Routes */}

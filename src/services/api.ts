@@ -349,6 +349,40 @@ export const doctorsAPI = {
   },
 };
 
+export const externalApiClientsAPI = {
+  getAll: async () => {
+    const response = await api.get('/external-api/clients');
+    return response.data;
+  },
+
+  create: async (data: {
+    facilityName: string;
+    contactName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    isActive?: boolean;
+    priceMarkupPercentage?: number;
+  }) => {
+    const response = await api.post('/external-api/clients', data);
+    return response.data;
+  },
+
+  update: async (
+    id: string,
+    data: {
+      facilityName?: string;
+      contactName?: string;
+      contactPhone?: string;
+      contactEmail?: string;
+      isActive?: boolean;
+      priceMarkupPercentage?: number;
+    },
+  ) => {
+    const response = await api.patch(`/external-api/clients/${id}`, data);
+    return response.data;
+  },
+};
+
 export const samplesAPI = {
   getAll: async (params?: any) => {
     const response = await api.get('/samples', { params });
