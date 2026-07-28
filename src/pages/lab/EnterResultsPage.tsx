@@ -88,6 +88,7 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'HPYLORI': ['Non-Reactive', 'Reactive'],
   'HPYLORI_IA': ['Non-Reactive', 'Reactive'],
   'IFOB': ['Negative', 'Positive'],
+  'G6PD': ['Normal', 'Deficient', 'Invalid'],
   'GONORRHEA': ['Negative', 'Positive'],
   'CHLAMYDIA': ['Negative', 'Positive'],
   'HSV': ['Non-Reactive', 'Reactive (HSV-1)', 'Reactive (HSV-2)', 'Reactive (HSV-1 & 2)'],
