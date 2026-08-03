@@ -18,7 +18,7 @@ export interface TestCatalogItem {
   _id?: string; // MongoDB ID
   code: string;
   name: string;
-  category: 'hematology' | 'chemistry' | 'immunoassay' | 'serology' | 'urinalysis' | 'microbiology' | 'other' | 'panel';
+  category: 'hematology' | 'chemistry' | 'immunoassay' | 'serology' | 'urinalysis' | 'microbiology' | 'clinical_pathology' | 'other' | 'panel';
   price: number;
   turnaroundTime: number; // in minutes
   sampleType: 'blood' | 'urine' | 'stool' | 'swab' | 'other';

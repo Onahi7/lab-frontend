@@ -110,7 +110,7 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
 };
 
 // Tests that need a free-text area (complex/descriptive results)
-const TEXTAREA_TESTS = new Set(['STOOLMICRO']);
+const TEXTAREA_TESTS = new Set(['STOOLMICRO', 'SFA']);
 
 // Structured fields for Stool Microscopy (replaces plain textarea)
 const STOOL_MICRO_FIELDS = {

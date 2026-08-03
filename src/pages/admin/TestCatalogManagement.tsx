@@ -84,6 +84,7 @@ const CATEGORIES = [
   { value: 'serology', label: 'Serology', color: 'bg-pink-100 text-pink-800 border-pink-200' },
   { value: 'urinalysis', label: 'Urinalysis', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
   { value: 'microbiology', label: 'Microbiology', color: 'bg-green-100 text-green-800 border-green-200' },
+  { value: 'clinical_pathology', label: 'Clinical Pathology', color: 'bg-teal-100 text-teal-800 border-teal-200' },
   { value: 'other', label: 'Other', color: 'bg-gray-100 text-gray-800 border-gray-200' },
 ];
 
