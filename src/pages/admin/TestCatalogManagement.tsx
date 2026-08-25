@@ -226,6 +226,28 @@ export default function TestCatalogManagement() {
     },
   });
 
+  // Inline price mutation for lab staff and admins
+  const updatePrice = useMutation({
+    mutationFn: async ({ id, price, type }: { id: string; price: number; type: 'test' | 'panel' }) => {
+      const path = type === 'test' ? 'test-catalog' : 'test-panels';
+      const response = await api.patch(`/${path}/${id}/price`, { price });
+      return response.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['price-history'] });
+      queryClient.invalidateQueries({ queryKey: [variables.type === 'test' ? 'tests' : 'test-panels'] });
+      toast.success('Price updated successfully');
+      setEditingPriceId(null);
+      setEditingPriceValue('');
+    },
+    onError: (error: any) => {
+      const msg = Array.isArray(error.response?.data?.message)
+        ? error.response.data.message.join(', ')
+        : error.response?.data?.message || 'Failed to update price';
+      toast.error(msg);
+    },
+  });
+
   // Revert price mutation
   const revertPrice = useMutation({
     mutationFn: async (historyId: string) => {
@@ -261,13 +283,7 @@ export default function TestCatalogManagement() {
       toast.error('Invalid price');
       return;
     }
-    if (editingPriceType === 'test') {
-      updateTest.mutate({ id: editingPriceId!, data: { price: newPrice } });
-    } else {
-      updatePanel.mutate({ id: editingPriceId!, data: { price: newPrice } });
-    }
-    setEditingPriceId(null);
-    setEditingPriceValue('');
+    updatePrice.mutate({ id: editingPriceId!, price: newPrice, type: editingPriceType });
   };
 
   const handleOpenDialog = (test?: Test) => {

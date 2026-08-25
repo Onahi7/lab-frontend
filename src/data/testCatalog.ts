@@ -20,7 +20,7 @@ export const testCatalog: TestCatalogItem[] = [
   { id: 'electrolytes', code: 'ELEC', name: 'Electrolytes (Na, K, Cl)', category: 'chemistry', price: 3500, turnaroundTime: 30, sampleType: 'blood', machineId: '2' },
   { id: 'glucose-fasting', code: 'FBS', name: 'Fasting Blood Sugar', category: 'chemistry', price: 1000, turnaroundTime: 20, sampleType: 'blood', machineId: '2' },
   { id: 'glucose-random', code: 'RBS', name: 'Random Blood Sugar', category: 'chemistry', price: 1000, turnaroundTime: 20, sampleType: 'blood', machineId: '2' },
-  { id: 'ogtt', code: 'OGTT', name: 'Oral Glucose Tolerance Test', category: 'chemistry', price: 250, turnaroundTime: 180, sampleType: 'blood', machineId: '2' },
+  { id: 'ogtt', code: 'OGTT', name: 'Oral Glucose Tolerance Test', category: 'chemistry', price: 300, turnaroundTime: 180, sampleType: 'blood', machineId: '2' },
   { id: 'uric-acid', code: 'UA', name: 'Uric Acid', category: 'chemistry', price: 1500, turnaroundTime: 30, sampleType: 'blood', machineId: '2' },
   { id: 'creatinine', code: 'CREAT', name: 'Creatinine', category: 'chemistry', price: 1200, turnaroundTime: 30, sampleType: 'blood', machineId: '2' },
   { id: 'bun', code: 'BUN', name: 'Blood Urea Nitrogen', category: 'chemistry', price: 1200, turnaroundTime: 30, sampleType: 'blood', machineId: '2' },
