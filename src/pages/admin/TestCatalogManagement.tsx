@@ -867,24 +867,27 @@ export default function TestCatalogManagement() {
 
       {/* Edit/Create Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="w-[95vw] sm:max-w-3xl md:max-w-4xl h-[92vh] sm:h-[88vh] flex flex-col p-0 gap-0 overflow-hidden rounded-xl shadow-2xl">
+          <DialogHeader className="px-6 py-4 border-b bg-muted/20 shrink-0">
+            <DialogTitle className="text-lg font-bold">
               {editingTest ? 'Edit Test' : 'Create New Test'}
             </DialogTitle>
           </DialogHeader>
 
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="rules">Clinical Rules</TabsTrigger>
-              <TabsTrigger value="ranges">Ref. Ranges</TabsTrigger>
-              <TabsTrigger value="preview">Report Preview</TabsTrigger>
-            </TabsList>
+          <Tabs defaultValue="basic" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="px-6 pt-3 pb-2 border-b bg-background shrink-0">
+              <TabsList className="grid w-full grid-cols-4 h-9">
+                <TabsTrigger value="basic" className="text-xs sm:text-sm">Basic Info</TabsTrigger>
+                <TabsTrigger value="rules" className="text-xs sm:text-sm">Clinical Rules</TabsTrigger>
+                <TabsTrigger value="ranges" className="text-xs sm:text-sm">Ref. Ranges</TabsTrigger>
+                <TabsTrigger value="preview" className="text-xs sm:text-sm">Report Preview</TabsTrigger>
+              </TabsList>
+            </div>
 
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {/* Basic Info Tab */}
-            <TabsContent value="basic" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <TabsContent value="basic" className="space-y-4 m-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label>Test Code *</Label>
                   <Input
@@ -903,7 +906,7 @@ export default function TestCatalogManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label>Category *</Label>
                   <Select
@@ -938,7 +941,7 @@ export default function TestCatalogManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <Label>Price *</Label>
                   <Input
@@ -967,7 +970,7 @@ export default function TestCatalogManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label>Panel Code</Label>
                   <Input
@@ -998,7 +1001,7 @@ export default function TestCatalogManagement() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label>Report Archetype (Layout)</Label>
                   <Select
@@ -1078,7 +1081,7 @@ export default function TestCatalogManagement() {
                           <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
                         <div>
                           <Label className="text-xs">Condition Type</Label>
                           <Select
@@ -1383,9 +1386,10 @@ export default function TestCatalogManagement() {
               </div>
             </TabsContent>
 
+            </div>
           </Tabs>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-3 border-t bg-muted/20 shrink-0 gap-2 sm:gap-0">
             <Button variant="outline" onClick={handleCloseDialog}>
               <X className="h-4 w-4 mr-2" />
               Cancel
@@ -1401,7 +1405,7 @@ export default function TestCatalogManagement() {
 
       {/* ─── PANEL EDIT DIALOG ─── */}
       <Dialog open={isPanelDialogOpen} onOpenChange={setIsPanelDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-xl">
           <DialogHeader>
             <DialogTitle>Edit Panel — {editingPanel?.code}</DialogTitle>
           </DialogHeader>
@@ -1456,7 +1460,7 @@ export default function TestCatalogManagement() {
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={handleClosePanelDialog}>Cancel</Button>
             <Button onClick={handlePanelSubmit} disabled={!panelFormData.name || panelFormData.price === undefined}>
               <Save className="h-4 w-4 mr-2" />
@@ -1468,7 +1472,7 @@ export default function TestCatalogManagement() {
 
       {/* ─── PRICE HISTORY DIALOG ─── */}
       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl">
           <DialogHeader>
             <DialogTitle>
               Price History — {historyEntity?.code} ({historyEntity?.name})
