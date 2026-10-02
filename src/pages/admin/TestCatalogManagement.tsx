@@ -32,6 +32,17 @@ interface ReferenceRange {
   criticalHigh?: string;
 }
 
+interface InterpretationRuleItem {
+  conditionType: 'numeric_range' | 'text_match';
+  operator?: '<' | '<=' | '>' | '>=' | 'between' | 'equals' | 'in';
+  minValue?: number;
+  maxValue?: number;
+  matchValue?: string;
+  interpretation: string;
+  clinicalRemark?: string;
+  flag?: 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+}
+
 interface Test {
   _id: string;
   code: string;
@@ -50,6 +61,11 @@ interface Test {
   isActive: boolean;
   description?: string;
   isPanel?: boolean;
+  reportArchetype?: string;
+  interpretationRules?: InterpretationRuleItem[];
+  displayOrder?: number;
+  calculationFormula?: string;
+  dependentTestCodes?: string[];
 }
 
 interface TestPanelItem {
@@ -106,6 +122,7 @@ export default function TestCatalogManagement() {
   const [editingTest, setEditingTest] = useState<Test | null>(null);
   const [formData, setFormData] = useState<Partial<Test>>({});
   const [referenceRanges, setReferenceRanges] = useState<ReferenceRange[]>([]);
+  const [interpretationRules, setInterpretationRules] = useState<InterpretationRuleItem[]>([]);
 
   // Panel dialog state
   const [isPanelDialogOpen, setIsPanelDialogOpen] = useState(false);
@@ -291,10 +308,12 @@ export default function TestCatalogManagement() {
       setEditingTest(test);
       setFormData(test);
       setReferenceRanges(test.referenceRanges || []);
+      setInterpretationRules(test.interpretationRules || []);
     } else {
       setEditingTest(null);
-      setFormData({ isActive: true });
+      setFormData({ isActive: true, reportArchetype: 'tabular_standard' });
       setReferenceRanges([]);
+      setInterpretationRules([]);
     }
     setIsDialogOpen(true);
   };
@@ -304,6 +323,7 @@ export default function TestCatalogManagement() {
     setEditingTest(null);
     setFormData({});
     setReferenceRanges([]);
+    setInterpretationRules([]);
   };
 
   // Panel dialog handlers
@@ -347,6 +367,7 @@ export default function TestCatalogManagement() {
     const data: any = {
       ...cleanFormData,
       referenceRanges: referenceRanges.length > 0 ? referenceRanges : undefined,
+      interpretationRules: interpretationRules.length > 0 ? interpretationRules : undefined,
     };
 
     if (editingTest) {
@@ -387,6 +408,28 @@ export default function TestCatalogManagement() {
 
   const removeReferenceRange = (index: number) => {
     setReferenceRanges(referenceRanges.filter((_, i) => i !== index));
+  };
+
+  const addInterpretationRule = () => {
+    setInterpretationRules([
+      ...interpretationRules,
+      {
+        conditionType: 'text_match',
+        matchValue: '',
+        interpretation: '',
+        flag: 'normal',
+      },
+    ]);
+  };
+
+  const updateInterpretationRule = (index: number, field: keyof InterpretationRuleItem, value: any) => {
+    const updated = [...interpretationRules];
+    updated[index] = { ...updated[index], [field]: value };
+    setInterpretationRules(updated);
+  };
+
+  const removeInterpretationRule = (index: number) => {
+    setInterpretationRules(interpretationRules.filter((_, i) => i !== index));
   };
 
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
@@ -832,8 +875,9 @@ export default function TestCatalogManagement() {
           </DialogHeader>
 
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="rules">Clinical Rules</TabsTrigger>
               <TabsTrigger value="ranges">Ref. Ranges</TabsTrigger>
               <TabsTrigger value="preview">Report Preview</TabsTrigger>
             </TabsList>
@@ -954,6 +998,36 @@ export default function TestCatalogManagement() {
                 </p>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Report Archetype (Layout)</Label>
+                  <Select
+                    value={formData.reportArchetype || 'tabular_standard'}
+                    onValueChange={(val) => setFormData({ ...formData, reportArchetype: val })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select report style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tabular_standard">Standard Tabular (Routine Chemistry/Hematology)</SelectItem>
+                      <SelectItem value="serology_qualitative">Qualitative / Serology (Reactive/Non-Reactive)</SelectItem>
+                      <SelectItem value="multi_section">Multi-Section (Urinalysis / Stool / Semen)</SelectItem>
+                      <SelectItem value="culture_sensitivity">Microbiology / Antibiogram</SelectItem>
+                      <SelectItem value="narrative">Narrative / Impression</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Display Order (In Panel / Report)</Label>
+                  <Input
+                    type="number"
+                    value={formData.displayOrder ?? 0}
+                    onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
               <div>
                 <Label>Description</Label>
                 <Input
@@ -973,6 +1047,137 @@ export default function TestCatalogManagement() {
                 />
                 <Label htmlFor="isActive">Active (available for ordering)</Label>
               </div>
+            </TabsContent>
+
+            {/* Dynamic Interpretation Rules Tab */}
+            <TabsContent value="rules" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-medium text-sm">Dynamic Clinical Interpretation Rules</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Define condition thresholds or text matches to auto-generate reports without hardcoded code
+                  </p>
+                </div>
+                <Button size="sm" onClick={addInterpretationRule}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Rule
+                </Button>
+              </div>
+
+              {interpretationRules.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 border border-dashed rounded-lg">
+                  No interpretation rules configured. This test will use standard reference range comparison.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {interpretationRules.map((rule, idx) => (
+                    <Card key={idx} className="p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-muted-foreground">Rule #{idx + 1}</span>
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => removeInterpretationRule(idx)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <Label className="text-xs">Condition Type</Label>
+                          <Select
+                            value={rule.conditionType}
+                            onValueChange={(val: any) => updateInterpretationRule(idx, 'conditionType', val)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="text_match">Text Match (e.g. Reactive)</SelectItem>
+                              <SelectItem value="numeric_range">Numeric Threshold</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {rule.conditionType === 'text_match' ? (
+                          <div>
+                            <Label className="text-xs">Match Value</Label>
+                            <Input
+                              value={rule.matchValue || ''}
+                              onChange={(e) => updateInterpretationRule(idx, 'matchValue', e.target.value)}
+                              placeholder="e.g. Reactive"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <div>
+                              <Label className="text-xs">Operator</Label>
+                              <Select
+                                value={rule.operator || '<='}
+                                onValueChange={(val: any) => updateInterpretationRule(idx, 'operator', val)}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="<">&lt; Less Than</SelectItem>
+                                  <SelectItem value="<=">&lt;= Less/Equal</SelectItem>
+                                  <SelectItem value=">">&gt; Greater Than</SelectItem>
+                                  <SelectItem value=">=">&gt;= Greater/Equal</SelectItem>
+                                  <SelectItem value="between">Between</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Value / Threshold</Label>
+                              <Input
+                                type="number"
+                                step="any"
+                                value={rule.operator === '>' || rule.operator === '>=' ? rule.minValue ?? '' : rule.maxValue ?? ''}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (rule.operator === '>' || rule.operator === '>=') {
+                                    updateInterpretationRule(idx, 'minValue', isNaN(val) ? undefined : val);
+                                  } else {
+                                    updateInterpretationRule(idx, 'maxValue', isNaN(val) ? undefined : val);
+                                  }
+                                }}
+                                placeholder="0.00"
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        <div>
+                          <Label className="text-xs">Flag</Label>
+                          <Select
+                            value={rule.flag || 'normal'}
+                            onValueChange={(val: any) => updateInterpretationRule(idx, 'flag', val)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="normal">Normal</SelectItem>
+                              <SelectItem value="high">Abnormal / High</SelectItem>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="critical_high">Critical High</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="mt-2">
+                        <Label className="text-xs">Interpretation Text (printed on report)</Label>
+                        <Input
+                          value={rule.interpretation || ''}
+                          onChange={(e) => updateInterpretationRule(idx, 'interpretation', e.target.value)}
+                          placeholder="e.g. Elevated – Consistent with Myocardial Injury"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </TabsContent>
 
             {/* Reference Ranges Tab */}
