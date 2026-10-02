@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useCreatePatient } from '@/hooks/usePatients';
+import { getApiErrorMessage } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,9 +60,16 @@ export default function RegisterPatient() {
   });
 
   const [createdPatient, setCreatedPatient] = useState<{ id: string; patientId: string } | null>(null);
+  const isSubmittingRef = useRef(false);
+  const [patientIdempotencyKey, setPatientIdempotencyKey] = useState<string>(() => {
+    return typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `pat_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || createPatient.isPending) return;
     
     if (!formData.firstName || !formData.lastName || !formData.age || !formData.gender) {
       toast.error('Please fill in all required fields');
@@ -80,6 +88,7 @@ export default function RegisterPatient() {
       return;
     }
 
+    isSubmittingRef.current = true;
     try {
       const normalizedPhone = normalizeSierraLeonePhone(formData.phone);
 
@@ -93,13 +102,18 @@ export default function RegisterPatient() {
         phone: normalizedPhone || undefined,
         email: formData.email.trim() || undefined,
         address: formData.address.trim() || undefined,
+        idempotencyKey: patientIdempotencyKey,
       });
 
       setCreatedPatient(newPatient);
       toast.success(`Patient registered: ${newPatient.patientId}`);
+      // Refresh key for subsequent registrations
+      setPatientIdempotencyKey(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `pat_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`);
     } catch (error) {
       console.error('Failed to register patient:', error);
-      toast.error('Failed to register patient. Please try again.');
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -294,7 +308,7 @@ export default function RegisterPatient() {
           </div>
 
           <div className="flex justify-end gap-3 mt-6 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={() => navigate('/reception')}>
+            <Button type="button" variant="outline" disabled={createPatient.isPending || isSubmittingRef.current} onClick={() => navigate('/reception')}>
               Cancel
             </Button>
             <Button type="submit" disabled={createPatient.isPending}>

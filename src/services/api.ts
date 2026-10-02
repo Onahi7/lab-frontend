@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 45000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,6 +26,26 @@ export const getRefreshToken = (): string | null => {
 export const setTokens = (accessToken: string, refreshToken: string): void => {
   localStorage.setItem(TOKEN_KEY, accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+};
+
+
+export const getApiErrorMessage = (error: any): string => {
+  if (!error) return 'An unexpected error occurred. Please try again.';
+  if (typeof error === 'string') return error;
+
+  const responseData = error.response?.data;
+  if (responseData) {
+    if (typeof responseData.message === 'string') return responseData.message;
+    if (Array.isArray(responseData.message)) return responseData.message.join(', ');
+    if (typeof responseData.error === 'string') return responseData.error;
+  }
+
+  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+    return 'The server took too long to respond due to a slow network. Please check the list before resubmitting.';
+  }
+
+  if (error.message) return error.message;
+  return 'Network request failed. Please check your connection.';
 };
 
 export const clearTokens = (): void => {
@@ -144,12 +164,25 @@ function getRequestKey(config: InternalAxiosRequestConfig): string {
   return `${config.method}:${config.url}:${JSON.stringify(config.params || {})}:${JSON.stringify(config.data || {})}`;
 }
 
-// Retry interceptor
+// Retry interceptor - protects against duplicate mutations on slow networks
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError & { config: InternalAxiosRequestConfig & { _retryCount?: number } }) => {
     const config = error.config;
     if (!config) return Promise.reject(error);
+
+    const method = (config.method || 'GET').toUpperCase();
+    const hasIdempotencyKey = Boolean(
+      config.headers?.['X-Idempotency-Key'] ||
+      (config.headers as any)?.['x-idempotency-key']
+    );
+    const isIdempotentMethod = ['GET', 'HEAD', 'OPTIONS'].includes(method);
+
+    // CRITICAL: Only automatically retry safe methods (GET/HEAD) or mutations that carry an explicit idempotency key.
+    // Non-idempotent POST/PATCH/DELETE mutations must NEVER be blindly retried on slow networks!
+    if (!isIdempotentMethod && !hasIdempotencyKey) {
+      return Promise.reject(error);
+    }
 
     const retryCount = config._retryCount || 0;
     const isRetryable =

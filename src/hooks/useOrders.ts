@@ -138,6 +138,7 @@ interface OrderCreate {
   paymentMethod?: 'cash' | 'orange_money' | 'afrimoney';
   initialPaymentAmount?: number;
   initialPayments?: Array<{ amount: number; paymentMethod: string }>;
+  idempotencyKey?: string;
 }
 
 interface OrderUpdate {

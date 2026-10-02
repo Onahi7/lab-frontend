@@ -4,6 +4,7 @@ import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useSearchPatients } from '@/hooks/usePatients';
 import { useCreateOrder } from '@/hooks/useOrders';
+import { getApiErrorMessage } from '@/services/api';
 import { useCreateDoctor, useDoctors } from '@/hooks/useDoctors';
 import { useActiveTests } from '@/hooks/useTestCatalog';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,12 @@ export default function NewOrder() {
   const [paymentSummary, setPaymentSummary] = useState<Array<{ method: string; amount: number }>>([]);
   const [orderComplete, setOrderComplete] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<any | null>(null);
+  const isSubmittingRef = useRef(false);
+  const [orderIdempotencyKey, setOrderIdempotencyKey] = useState<string>(() => {
+    return typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `ord_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  });
 
   const normalizeId = (value: unknown): string => {
     if (!value) return '';
@@ -286,6 +293,8 @@ export default function NewOrder() {
   };
 
   const handleConfirmPayment = async () => {
+    if (isSubmittingRef.current || createOrder.isPending) return;
+
     const validRows = splitRows.filter(r => r.method && parseFloat(r.amount) > 0);
     if (validRows.length === 0) {
       toast.error('Please enter at least one payment amount');
@@ -343,8 +352,8 @@ export default function NewOrder() {
 
     const normalizedOrderTests = Array.from(deduplicatedOrderTests.values());
 
+    isSubmittingRef.current = true;
     try {
-      const validRows = splitRows.filter(r => r.method && parseFloat(r.amount) > 0);
       const newOrder = await createOrder.mutateAsync({
         patientId: patient._id || patient.id,
         priority,
@@ -355,21 +364,21 @@ export default function NewOrder() {
         discountType: discount > 0 ? discountType : undefined,
         initialPayments: validRows.map(r => ({ amount: parseFloat(r.amount), paymentMethod: r.method })),
         notes: undefined,
+        idempotencyKey: orderIdempotencyKey,
       });
 
       setPaymentSummary(validRows.map(r => ({ method: r.method, amount: parseFloat(r.amount) })));
       setCreatedOrder(newOrder);
       setShowPaymentModal(false);
       setOrderComplete(true);
-      toast.success(`Order created successfully`);
+      toast.success(`Order created successfully: ${newOrder.orderNumber || ''}`);
       
-      // Navigate to receipt page for automatic printing
-      setTimeout(() => {
-        navigate(`/reception/receipt/${newOrder.id || newOrder._id}`);
-      }, 500);
+      navigate(`/reception/receipt/${newOrder.id || newOrder._id}`);
     } catch (error) {
       console.error('Failed to create order:', error);
-      toast.error('Failed to create order. Please try again.');
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -857,8 +866,20 @@ export default function NewOrder() {
       </div>
 
       {/* Payment Modal */}
-      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={showPaymentModal} onOpenChange={(open) => {
+        if (!createOrder.isPending && !isSubmittingRef.current) {
+          setShowPaymentModal(open);
+        }
+      }}>
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => {
+            if (createOrder.isPending || isSubmittingRef.current) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (createOrder.isPending || isSubmittingRef.current) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Confirm Payment</DialogTitle>
           </DialogHeader>

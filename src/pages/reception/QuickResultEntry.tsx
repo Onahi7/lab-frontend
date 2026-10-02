@@ -2,9 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { RoleLayout } from '@/components/layout/RoleLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders, useUpdateOrder } from '@/hooks/useOrders';
-import { useCreateResult } from '@/hooks/useResults';
+import { useCreateResult, useCreateBulkResults } from '@/hooks/useResults';
 import { useAllTests } from '@/hooks/useTestCatalog';
-import { ordersAPI } from '@/services/api';
+import { ordersAPI, getApiErrorMessage } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,7 @@ export default function QuickResultEntry() {
   const { data: allOrders, isLoading: ordersLoading } = useOrders('all');
   const { data: testCatalog } = useAllTests(); // Use ALL tests, not just active ones
   const createResult = useCreateResult();
+  const createBulkResults = useCreateBulkResults();
   const updateOrder = useUpdateOrder();
 
   const searchRef = useRef<HTMLInputElement>(null);

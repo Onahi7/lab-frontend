@@ -19,7 +19,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const pendingRequests = new Map<string, Promise<any>>();
 
 // Network timeout for poor connections
-const NETWORK_TIMEOUT = 15000; // 15 seconds
+const NETWORK_TIMEOUT = 45000; // 15 seconds
 
 interface OfflineFirstOptions extends AxiosRequestConfig {
   /** Skip offline queue and fail immediately if offline */
