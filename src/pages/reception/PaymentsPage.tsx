@@ -531,7 +531,7 @@ export default function PaymentsPage() {
                     <select
                       value={row.method}
                       onChange={e => setSplitRows(rows => rows.map((r, i) => i === idx ? { ...r, method: e.target.value } : r))}
-                      className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      className="flex h-9 w-32 sm:w-36 shrink-0 rounded-md border border-input bg-transparent px-2 sm:px-3 py-1 text-xs sm:text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     >
                       <option value="cash">Cash</option>
                       <option value="orange_money">Orange Money</option>
@@ -544,7 +544,7 @@ export default function PaymentsPage() {
                       placeholder="Amount"
                       value={row.amount}
                       onChange={e => setSplitRows(rows => rows.map((r, i) => i === idx ? { ...r, amount: e.target.value } : r))}
-                      className="flex-1"
+                      className="flex-1 min-w-0"
                     />
                     {splitRows.length > 1 && (
                       <button

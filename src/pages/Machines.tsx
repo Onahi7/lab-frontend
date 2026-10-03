@@ -470,7 +470,7 @@ function AddMachineForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="add-name">Name *</Label>
           <Input id="add-name" required value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} />
@@ -503,11 +503,11 @@ function AddMachineForm({
           <Label htmlFor="add-port">Port</Label>
           <Input id="add-port" type="number" value={formData.port} onChange={(e) => setFormData(prev => ({ ...prev, port: parseInt(e.target.value) || 5000 }))} />
         </div>
-        <div className="col-span-2 space-y-2">
+        <div className="col-span-1 sm:col-span-2 space-y-2">
           <Label htmlFor="add-ip">IP Address</Label>
           <Input id="add-ip" placeholder="192.168.1.100" value={formData.ipAddress || ''} onChange={(e) => setFormData(prev => ({ ...prev, ipAddress: e.target.value }))} />
         </div>
-        <div className="col-span-2 space-y-2">
+        <div className="col-span-1 sm:col-span-2 space-y-2">
           <Label htmlFor="add-tests">Supported Test Codes</Label>
           <Input id="add-tests" placeholder="CBC, WBC, RBC, HGB" value={testsInput} onChange={(e) => setTestsInput(e.target.value)} />
           <p className="text-xs text-muted-foreground">Comma-separated test codes matching your test catalog.</p>
@@ -571,7 +571,7 @@ function MachineConfigForm({
         </TabsList>
         
         <TabsContent value="general" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -608,7 +608,7 @@ function MachineConfigForm({
         </TabsContent>
         
         <TabsContent value="network" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="protocol">Protocol</Label>
               <Select 

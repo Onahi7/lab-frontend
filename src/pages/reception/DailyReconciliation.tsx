@@ -653,7 +653,7 @@ export default function DailyReconciliation() {
               <Label>Description</Label>
               <Input placeholder="What was purchased/paid for?" value={desc} onChange={e => setDesc(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Amount (Le)</Label>
                 <Input type="number" min="0" value={amt} onChange={e => setAmt(e.target.value)} placeholder="0" />
@@ -668,7 +668,7 @@ export default function DailyReconciliation() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Payment Method</Label>
                 <Select value={payMethod} onValueChange={setPayMethod}>

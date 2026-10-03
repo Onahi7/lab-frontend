@@ -205,7 +205,7 @@ export default function ResultVerification() {
           {selectedResult && (
             <div className="space-y-4">
               {/* Patient Info */}
-              <div className="bg-muted rounded-lg p-4 grid grid-cols-2 gap-4">
+              <div className="bg-muted rounded-lg p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Patient</p>
                   <p className="font-medium">
@@ -223,7 +223,7 @@ export default function ResultVerification() {
 
               {/* Result Details */}
               <div className="border rounded-lg p-4">
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Test</p>
                     <p className="font-semibold">{selectedResult.testCode || selectedResult.test_code}</p>
@@ -237,7 +237,7 @@ export default function ResultVerification() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Reference Range</p>
                     <p>{selectedResult.referenceRange || selectedResult.reference_range || 'Not specified'} {selectedResult.unit}</p>

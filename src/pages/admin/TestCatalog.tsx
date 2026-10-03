@@ -267,7 +267,7 @@ export default function TestCatalog() {
             <DialogTitle>{editingId ? 'Edit Test' : 'Add New Test'}</DialogTitle>
           </DialogHeader>
           
-          <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>Test Code *</Label>
               <Input 
@@ -352,7 +352,7 @@ export default function TestCatalog() {
                 placeholder="60"
               />
             </div>
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2 col-span-1 sm:col-span-2">
               <Label>Analyzer</Label>
               <Select value={formData.machine_id} onValueChange={v => setFormData(prev => ({ ...prev, machine_id: v }))}>
                 <SelectTrigger>

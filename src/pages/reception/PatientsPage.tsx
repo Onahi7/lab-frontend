@@ -253,7 +253,7 @@ export default function PatientsPage() {
             <DialogTitle>Register New Patient</DialogTitle>
           </DialogHeader>
           
-          <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>First Name *</Label>
               <Input 
@@ -324,7 +324,7 @@ export default function PatientsPage() {
                 placeholder="patient@email.com"
               />
             </div>
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2 col-span-1 sm:col-span-2">
               <Label>Address</Label>
               <Input 
                 value={formData.address}
