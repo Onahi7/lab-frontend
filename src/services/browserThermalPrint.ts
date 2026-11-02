@@ -38,6 +38,27 @@ export async function printThermalReceipt(
         throw new Error('Failed to access iframe document');
       }
 
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+              resolve();
+            }, 1000);
+          } catch (error) {
+            document.body.removeChild(iframe);
+            reject(error);
+          }
+        }, 250);
+      };
+
+      iframe.onerror = () => {
+        document.body.removeChild(iframe);
+        reject(new Error('Failed to load print iframe'));
+      };
+
       // Write receipt HTML with thermal print styles
       iframeDoc.open();
       iframeDoc.write(`
@@ -63,30 +84,6 @@ export async function printThermalReceipt(
       `);
       iframeDoc.close();
 
-      // Wait for content to load
-      iframe.onload = () => {
-        setTimeout(() => {
-          try {
-            // Trigger print dialog
-            iframe.contentWindow?.focus();
-            iframe.contentWindow?.print();
-
-            // Clean up after print
-            setTimeout(() => {
-              document.body.removeChild(iframe);
-              resolve();
-            }, 1000);
-          } catch (error) {
-            document.body.removeChild(iframe);
-            reject(error);
-          }
-        }, 250);
-      };
-
-      iframe.onerror = () => {
-        document.body.removeChild(iframe);
-        reject(new Error('Failed to load print iframe'));
-      };
     } catch (error) {
       reject(error);
     }
@@ -134,9 +131,10 @@ export function generateReceiptHTML(element: HTMLElement): string {
  */
 export async function printBothReceiptCopies(
   patientCopyElement: HTMLElement | null,
-  labCopyElement: HTMLElement | null
+  labCopyElement: HTMLElement | null,
+  copies: 1 | 2 = 2
 ): Promise<{ success: boolean; printedCount: number }> {
-  if (!patientCopyElement || !labCopyElement) {
+  if (!patientCopyElement || (copies === 2 && !labCopyElement)) {
     throw new Error('Receipt elements not found');
   }
 
@@ -149,14 +147,12 @@ export async function printBothReceiptCopies(
     await printThermalReceipt(patientHTML);
     printedCount++;
 
-    // Wait before printing lab copy
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Print lab copy
-    console.log('🖨️ Printing lab copy...');
-    const labHTML = generateReceiptHTML(labCopyElement);
-    await printThermalReceipt(labHTML);
-    printedCount++;
+    if (copies === 2 && labCopyElement) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const labHTML = generateReceiptHTML(labCopyElement);
+      await printThermalReceipt(labHTML);
+      printedCount++;
+    }
 
     return { success: true, printedCount };
   } catch (error) {

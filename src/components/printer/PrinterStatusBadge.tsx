@@ -6,23 +6,23 @@ import { Link } from 'react-router-dom';
 export function PrinterStatusBadge() {
   const { settings, thermalConnected, webUsbSupported } = usePrinterContext();
 
+  if (settings.thermal.mode === 'standard') {
+    return (
+      <Link to="/reception/printer-setup">
+        <Badge variant="outline" className="gap-1 cursor-pointer">
+          <Printer className="w-3 h-3" />
+          Print Dialog Mode
+        </Badge>
+      </Link>
+    );
+  }
+
   if (!webUsbSupported) {
     return (
       <Badge variant="destructive" className="gap-1">
         <AlertCircle className="w-3 h-3" />
         WebUSB Not Supported
       </Badge>
-    );
-  }
-
-  if (!settings.thermal.enabled) {
-    return (
-      <Link to="/admin/printer-settings">
-        <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-secondary/80">
-          <Printer className="w-3 h-3" />
-          Thermal Printing Disabled
-        </Badge>
-      </Link>
     );
   }
 

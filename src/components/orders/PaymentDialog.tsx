@@ -118,12 +118,12 @@ export function PaymentDialog({
       }
 
       if (result.success) {
-        toast.success('Both receipts printed successfully');
+        toast.success(`${result.printedCount} receipt${result.printedCount === 1 ? '' : 's'} sent to printer`);
         setTimeout(() => {
           onOpenChange(false);
         }, 1000);
       } else {
-        toast.error(`Only ${result.printedCount} of 2 receipts printed`);
+        toast.error(`Only ${result.printedCount} of ${settings.thermal.copies} receipts sent to printer`);
       }
     } catch (error) {
       console.error('Print error:', error);
@@ -318,7 +318,7 @@ export function PaymentDialog({
               {/* Print Receipts Button */}
               <div className="space-y-3">
                 {/* Printer Status Indicator */}
-                {settings.thermal.enabled && thermalConnected ? (
+                {settings.thermal.mode === 'direct-usb' && thermalConnected ? (
                   <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                     <span>USB Thermal Printer Connected</span>
@@ -330,8 +330,7 @@ export function PaymentDialog({
                       <span>Using Browser Print Dialog</span>
                     </div>
                     <div className="text-xs text-muted-foreground px-3">
-                      {!settings.thermal.enabled && '• Thermal printing is disabled'}
-                      {settings.thermal.enabled && !thermalConnected && '• USB printer not connected'}
+                      {settings.thermal.mode === 'direct-usb' && !thermalConnected && '• USB printer not connected; print dialog will open'}
                     </div>
                   </div>
                 )}

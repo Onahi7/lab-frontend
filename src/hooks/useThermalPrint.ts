@@ -112,10 +112,8 @@ export const useThermalPrint = () => {
   /**
    * Prints both receipt copies (patient and lab).
    *
-   * Priority order:
-   * 1. If QZ Tray connected → Use QZ Tray (fully automatic, no dialog)
-   * 2. If USB thermal printer connected → Use ESC/POS (no dialog)
-   * 3. Otherwise → Use browser print with installed driver (shows dialog)
+   * Standard mode uses the installed printer through a print dialog.
+   * Direct USB mode tries WebUSB, then QZ Tray, then the print dialog.
    *
    * For installed printer drivers (XPrinter, etc.):
    * - Set printer as default in Windows
@@ -134,6 +132,10 @@ export const useThermalPrint = () => {
       receiptNumber: string,
       receiptData?: ReceiptData
     ): Promise<{ success: boolean; printedCount: number }> => {
+      if (settings.thermal.mode === 'standard') {
+        return printBothReceiptCopies(patientCopyElement, labCopyElement, settings.thermal.copies);
+      }
+
       console.log('🖨️ Print Debug:', {
         hasReceiptData: receiptData != null,
         qzTrayConnected,
@@ -194,21 +196,21 @@ export const useThermalPrint = () => {
         // Final fallback: Browser print dialog
         console.log('✅ Using browser print with installed driver (XPrinter)');
         console.log('💡 Tip: Set XPrinter as default printer to skip selection');
-        return await printBothReceiptCopies(patientCopyElement, labCopyElement);
+        return await printBothReceiptCopies(patientCopyElement, labCopyElement, settings.thermal.copies);
         
       } catch (error) {
         console.error('❌ Print error:', error);
         // Still try browser fallback even if everything else failed
         try {
           console.log('🔄 Final fallback: Browser print dialog');
-          return await printBothReceiptCopies(patientCopyElement, labCopyElement);
+          return await printBothReceiptCopies(patientCopyElement, labCopyElement, settings.thermal.copies);
         } catch (fallbackError) {
           console.error('❌ All print methods failed:', fallbackError);
           return { success: false, printedCount: 0 };
         }
       }
     },
-    [settings.thermal.copies, qzTrayConnected]
+    [settings.thermal.mode, settings.thermal.copies, qzTrayConnected]
   );
 
   return {

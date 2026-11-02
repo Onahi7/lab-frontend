@@ -15,8 +15,8 @@ import { useAuth } from '@/context/AuthContext';
 // ── Settings types ────────────────────────────────────────────────────────────
 
 export interface ThermalPrinterSettings {
-  /** Whether the thermal receipt path is active */
-  enabled: boolean;
+  /** Direct USB uses the saved WebUSB printer; standard opens the browser dialog. */
+  mode: 'standard' | 'direct-usb';
   /** 1 = patient copy only, 2 = patient + lab copy */
   copies: 1 | 2;
   /** Automatically print as soon as payment is confirmed */
@@ -41,7 +41,7 @@ export interface PrinterSettings {
 
 const DEFAULT_SETTINGS: PrinterSettings = {
   thermal: {
-    enabled: true,
+    mode: 'direct-usb',
     copies: 2,
     autoPrintOnPayment: true,
   },
@@ -118,10 +118,21 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
 
   // Attempt silent reconnect on mount
   useEffect(() => {
-    usbPrinterService.autoConnect().then(connected => {
-      setThermalConnected(connected);
-      if (connected) setThermalDevice(usbPrinterService.getSavedDevice());
-    });
+    const reconnect = () => {
+      void usbPrinterService.autoConnect().then(connected => {
+        setThermalConnected(connected);
+        if (connected) setThermalDevice(usbPrinterService.getSavedDevice());
+      });
+    };
+    const onDisconnect = (event: USBConnectionEvent) => {
+      if (usbPrinterService.handleUsbDisconnect(event.device)) setThermalConnected(false);
+    };
+    reconnect();
+
+    if (usbPrinterService.isSupported) {
+      navigator.usb.addEventListener('connect', reconnect);
+      navigator.usb.addEventListener('disconnect', onDisconnect);
+    }
 
     // Try to connect to QZ Tray on mount
     qzTrayService.isAvailable().then(available => {
@@ -139,6 +150,12 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         });
       }
     });
+    return () => {
+      if (usbPrinterService.isSupported) {
+        navigator.usb.removeEventListener('connect', reconnect);
+        navigator.usb.removeEventListener('disconnect', onDisconnect);
+      }
+    };
   }, []);
 
   // Sync printer settings from backend when authenticated
@@ -199,7 +216,8 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     const info = await usbPrinterService.requestAndConnect();
     setThermalDevice(info);
     setThermalConnected(true);
-  }, []);
+    updateThermalSettings({ mode: 'direct-usb' });
+  }, [updateThermalSettings]);
 
   const disconnectThermalPrinter = useCallback(async () => {
     await usbPrinterService.disconnect();

@@ -43,6 +43,16 @@ interface InterpretationRuleItem {
   flag?: 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
 }
 
+export interface CodedResultOption {
+  value: string;
+  label: string;
+  flag?: 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+  interpretation?: string;
+  clinicalRemark?: string;
+  isAbnormal?: boolean;
+  order?: number;
+}
+
 interface Test {
   _id: string;
   code: string;
@@ -61,6 +71,8 @@ interface Test {
   isActive: boolean;
   description?: string;
   isPanel?: boolean;
+  resultType?: 'numeric' | 'coded_select' | 'text' | 'multi_field';
+  resultOptions?: CodedResultOption[];
   reportArchetype?: string;
   interpretationRules?: InterpretationRuleItem[];
   displayOrder?: number;
@@ -123,6 +135,7 @@ export default function TestCatalogManagement() {
   const [formData, setFormData] = useState<Partial<Test>>({});
   const [referenceRanges, setReferenceRanges] = useState<ReferenceRange[]>([]);
   const [interpretationRules, setInterpretationRules] = useState<InterpretationRuleItem[]>([]);
+  const [resultOptions, setResultOptions] = useState<CodedResultOption[]>([]);
 
   // Panel dialog state
   const [isPanelDialogOpen, setIsPanelDialogOpen] = useState(false);
@@ -307,14 +320,19 @@ export default function TestCatalogManagement() {
   const handleOpenDialog = (test?: Test) => {
     if (test) {
       setEditingTest(test);
-      setFormData(test);
+      setFormData({
+        ...test,
+        resultType: test.resultType || (test.resultOptions && test.resultOptions.length > 0 ? 'coded_select' : 'numeric'),
+      });
       setReferenceRanges(test.referenceRanges || []);
       setInterpretationRules(test.interpretationRules || []);
+      setResultOptions(test.resultOptions || []);
     } else {
       setEditingTest(null);
-      setFormData({ isActive: true, reportArchetype: 'tabular_standard' });
+      setFormData({ isActive: true, reportArchetype: 'tabular_standard', resultType: 'numeric' });
       setReferenceRanges([]);
       setInterpretationRules([]);
+      setResultOptions([]);
     }
     setIsDialogOpen(true);
   };
@@ -325,6 +343,7 @@ export default function TestCatalogManagement() {
     setFormData({});
     setReferenceRanges([]);
     setInterpretationRules([]);
+    setResultOptions([]);
   };
 
   // Panel dialog handlers
@@ -401,8 +420,11 @@ export default function TestCatalogManagement() {
 
   const handleSubmit = () => {
     const { _id, createdAt, updatedAt, __v, ...cleanFormData } = formData as any;
+    const isCoded = formData.resultType === 'coded_select';
     const data: any = {
       ...cleanFormData,
+      resultType: formData.resultType || 'numeric',
+      resultOptions: isCoded && resultOptions.length > 0 ? resultOptions : undefined,
       referenceRanges: referenceRanges.length > 0 ? referenceRanges : undefined,
       interpretationRules: interpretationRules.length > 0 ? interpretationRules : undefined,
     };
@@ -467,6 +489,75 @@ export default function TestCatalogManagement() {
 
   const removeInterpretationRule = (index: number) => {
     setInterpretationRules(interpretationRules.filter((_, i) => i !== index));
+  };
+
+  // Coded Result Options handlers
+  const addResultOption = () => {
+    setResultOptions([
+      ...resultOptions,
+      { value: '', label: '', flag: 'normal', interpretation: '' },
+    ]);
+  };
+
+  const updateResultOption = (index: number, field: keyof CodedResultOption, value: any) => {
+    const updated = [...resultOptions];
+    updated[index] = { ...updated[index], [field]: value };
+    // Auto-populate display label if empty and user is typing value
+    if (field === 'value' && !updated[index].label) {
+      updated[index].label = value;
+    }
+    setResultOptions(updated);
+  };
+
+  const removeResultOption = (index: number) => {
+    setResultOptions(resultOptions.filter((_, i) => i !== index));
+  };
+
+  const loadGenotypePreset = () => {
+    setResultOptions([
+      { value: 'AA', label: 'AA (Normal)', flag: 'normal', interpretation: 'Normal hemoglobin genotype. No abnormal hemoglobin variant detected.' },
+      { value: 'AS', label: 'AS (Sickle Trait)', flag: 'high', interpretation: 'Sickle cell trait (carrier). Generally asymptomatic; genetic counselling recommended.' },
+      { value: 'SS', label: 'SS (Sickle Cell Anemia)', flag: 'critical_high', interpretation: 'Sickle cell disease (Hb SS). Clinical correlation and specialist management advised.' },
+      { value: 'SC', label: 'SC (Hb SC Disease)', flag: 'high', interpretation: 'Hemoglobin SC disease. Moderate sickle variant syndrome; medical follow-up recommended.' },
+      { value: 'AC', label: 'AC (Hb C Trait)', flag: 'high', interpretation: 'Hemoglobin C trait (carrier of Hb C). Generally asymptomatic; genetic counselling recommended.' },
+      { value: 'CC', label: 'CC (Hb C Disease)', flag: 'high', interpretation: 'Hemoglobin C disease (homozygous Hb C). Usually associated with mild hemolytic anemia.' },
+    ]);
+    toast.success('Loaded Genotype template');
+  };
+
+  const loadSerologyPreset = () => {
+    setResultOptions([
+      { value: 'Non-Reactive', label: 'Non-Reactive', flag: 'normal', interpretation: 'Negative. No antibody/antigen detected.' },
+      { value: 'Weakly Reactive', label: 'Weakly Reactive', flag: 'high', interpretation: 'Weakly Positive. Low titer detected; repeat or confirmatory testing suggested.' },
+      { value: 'Reactive', label: 'Reactive', flag: 'high', interpretation: 'Positive. Reactive result; clinical correlation and follow-up recommended.' },
+    ]);
+    toast.success('Loaded Serology template');
+  };
+
+  const loadDipstickPreset = () => {
+    setResultOptions([
+      { value: 'Negative', label: 'Negative', flag: 'normal', interpretation: 'Negative' },
+      { value: 'Trace', label: 'Trace', flag: 'normal', interpretation: 'Trace' },
+      { value: '1+', label: '1+ (Positive)', flag: 'high', interpretation: '1+ Positive' },
+      { value: '2+', label: '2+ (Positive)', flag: 'high', interpretation: '2+ Positive' },
+      { value: '3+', label: '3+ (Positive)', flag: 'critical_high', interpretation: '3+ Positive' },
+      { value: '4+', label: '4+ (Positive)', flag: 'critical_high', interpretation: '4+ Positive' },
+    ]);
+    toast.success('Loaded Urinalysis Dipstick template');
+  };
+
+  const loadBloodGroupPreset = () => {
+    setResultOptions([
+      { value: 'O Positive', label: 'O Positive (O+)', flag: 'normal', interpretation: 'Blood Group O, Rhesus D Positive' },
+      { value: 'O Negative', label: 'O Negative (O-)', flag: 'normal', interpretation: 'Blood Group O, Rhesus D Negative' },
+      { value: 'A Positive', label: 'A Positive (A+)', flag: 'normal', interpretation: 'Blood Group A, Rhesus D Positive' },
+      { value: 'A Negative', label: 'A Negative (A-)', flag: 'normal', interpretation: 'Blood Group A, Rhesus D Negative' },
+      { value: 'B Positive', label: 'B Positive (B+)', flag: 'normal', interpretation: 'Blood Group B, Rhesus D Positive' },
+      { value: 'B Negative', label: 'B Negative (B-)', flag: 'normal', interpretation: 'Blood Group B, Rhesus D Negative' },
+      { value: 'AB Positive', label: 'AB Positive (AB+)', flag: 'normal', interpretation: 'Blood Group AB, Rhesus D Positive' },
+      { value: 'AB Negative', label: 'AB Negative (AB-)', flag: 'normal', interpretation: 'Blood Group AB, Rhesus D Negative' },
+    ]);
+    toast.success('Loaded Blood Group template');
   };
 
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
@@ -683,6 +774,11 @@ export default function TestCatalogManagement() {
                                   {test.name}
                                   {test.panelName && (
                                     <span className="ml-2 text-xs text-muted-foreground">({test.panelName})</span>
+                                  )}
+                                  {test.resultType === 'coded_select' && (
+                                    <Badge variant="outline" className="ml-2 text-[10px] py-0 px-1.5 font-normal text-blue-700 bg-blue-50 border-blue-200">
+                                      Coded ({test.resultOptions?.length || 0})
+                                    </Badge>
                                   )}
                                 </td>
                                 <td className="px-5 py-2.5 text-muted-foreground">{test.unit || '—'}</td>
@@ -913,8 +1009,13 @@ export default function TestCatalogManagement() {
 
           <Tabs defaultValue="basic" className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="px-6 pt-3 pb-2 border-b bg-background shrink-0">
-              <TabsList className="grid w-full grid-cols-4 h-9">
+              <TabsList className={`grid w-full ${formData.resultType === 'coded_select' ? 'grid-cols-5' : 'grid-cols-4'} h-9`}>
                 <TabsTrigger value="basic" className="text-xs sm:text-sm">Basic Info</TabsTrigger>
+                {formData.resultType === 'coded_select' && (
+                  <TabsTrigger value="options" className="text-xs sm:text-sm font-semibold text-primary">
+                    Result Options {resultOptions.length > 0 && `(${resultOptions.length})`}
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="rules" className="text-xs sm:text-sm">Clinical Rules</TabsTrigger>
                 <TabsTrigger value="ranges" className="text-xs sm:text-sm">Ref. Ranges</TabsTrigger>
                 <TabsTrigger value="preview" className="text-xs sm:text-sm">Report Preview</TabsTrigger>
@@ -1040,6 +1141,37 @@ export default function TestCatalogManagement() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
+                  <Label>Result Entry Type *</Label>
+                  <Select
+                    value={formData.resultType || 'numeric'}
+                    onValueChange={(val: any) => {
+                      setFormData({
+                        ...formData,
+                        resultType: val,
+                        reportArchetype:
+                          val === 'coded_select' && (!formData.reportArchetype || formData.reportArchetype === 'tabular_standard')
+                            ? 'serology_qualitative'
+                            : formData.reportArchetype,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select result type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="numeric">Numeric Value (Quantitative - Glucose, WBC, etc.)</SelectItem>
+                      <SelectItem value="coded_select">Coded Dropdown Options (Qualitative - Genotype, Serology, Urinalysis)</SelectItem>
+                      <SelectItem value="text">Free Text / Narrative (Notes, Impressions)</SelectItem>
+                      <SelectItem value="multi_field">Multi-field / Structured (Differential, Microscopy)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formData.resultType === 'coded_select'
+                      ? '✓ Use the "Result Options" tab above to configure choices (e.g., AA, AS, AC, Reactive).'
+                      : 'Standard numeric input with reference range comparison.'}
+                  </p>
+                </div>
+                <div>
                   <Label>Report Archetype (Layout)</Label>
                   <Select
                     value={formData.reportArchetype || 'tabular_standard'}
@@ -1057,6 +1189,9 @@ export default function TestCatalogManagement() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label>Display Order (In Panel / Report)</Label>
                   <Input
@@ -1066,15 +1201,14 @@ export default function TestCatalogManagement() {
                     placeholder="0"
                   />
                 </div>
-              </div>
-
-              <div>
-                <Label>Description</Label>
-                <Input
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Optional description"
-                />
+                <div>
+                  <Label>Description</Label>
+                  <Input
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Optional description"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -1088,6 +1222,132 @@ export default function TestCatalogManagement() {
                 <Label htmlFor="isActive">Active (available for ordering)</Label>
               </div>
             </TabsContent>
+
+            {/* Coded Result Options Tab */}
+            {formData.resultType === 'coded_select' && (
+              <TabsContent value="options" className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div>
+                    <h4 className="font-medium text-sm">Standard Coded Dropdown Options</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Define choices (e.g., AA, AS, AC, Reactive). Result entry shows these options and auto-applies flags and clinical comments.
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={addResultOption}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Option
+                  </Button>
+                </div>
+
+                {/* Quick Template Presets */}
+                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-muted/40 rounded-lg border text-xs">
+                  <span className="font-semibold text-muted-foreground mr-1">Quick Templates:</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[11px] px-2"
+                    onClick={loadGenotypePreset}
+                  >
+                    Genotype (AA, AS, SS, SC, AC, CC)
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[11px] px-2"
+                    onClick={loadSerologyPreset}
+                  >
+                    Serology (Reactive / Non-Reactive)
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[11px] px-2"
+                    onClick={loadDipstickPreset}
+                  >
+                    Dipstick (Neg to 4+)
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[11px] px-2"
+                    onClick={loadBloodGroupPreset}
+                  >
+                    Blood Group (ABO/Rh)
+                  </Button>
+                </div>
+
+                {resultOptions.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 border border-dashed rounded-lg space-y-2">
+                    <p className="text-sm">No dropdown options defined yet.</p>
+                    <p className="text-xs text-muted-foreground">Click "Add Option" or pick one of the Quick Templates above.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {resultOptions.map((opt, idx) => (
+                      <Card key={idx} className="p-3 border">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-muted-foreground">Option #{idx + 1}</span>
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => removeResultOption(idx)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 mb-2.5">
+                          <div>
+                            <Label className="text-xs font-medium">Stored Value / Code *</Label>
+                            <Input
+                              value={opt.value}
+                              onChange={(e) => updateResultOption(idx, 'value', e.target.value)}
+                              placeholder="e.g. AC"
+                              className="h-8 text-xs font-mono font-semibold"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium">Display Label *</Label>
+                            <Input
+                              value={opt.label}
+                              onChange={(e) => updateResultOption(idx, 'label', e.target.value)}
+                              placeholder="e.g. AC"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium">Flag / Status</Label>
+                            <Select
+                              value={opt.flag || 'normal'}
+                              onValueChange={(val: any) => updateResultOption(idx, 'flag', val)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="normal">Normal</SelectItem>
+                                <SelectItem value="high">Abnormal / High</SelectItem>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="critical_high">Critical High</SelectItem>
+                                <SelectItem value="critical_low">Critical Low</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium">Clinical Interpretation / Report Remark</Label>
+                          <Input
+                            value={opt.interpretation || ''}
+                            onChange={(e) => updateResultOption(idx, 'interpretation', e.target.value)}
+                            placeholder="e.g. Hemoglobin AC trait (carrier of Hb C). Generally asymptomatic; genetic counselling advised."
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            )}
 
             {/* Dynamic Interpretation Rules Tab */}
             <TabsContent value="rules" className="space-y-4">

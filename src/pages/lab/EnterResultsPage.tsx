@@ -839,6 +839,8 @@ export default function EnterResultsPage() {
       allRanges,
       isHormoneTest,
       interpretationRules: test.interpretationRules || [],
+      resultType: test.resultType,
+      resultOptions: test.resultOptions || [],
     };
   };
 
@@ -918,8 +920,28 @@ export default function EnterResultsPage() {
       normalizedCriticalHigh,
     );
 
-    // Generate automatic interpretation for HB Genotype
+    let matchedOptionFlag: ResultFlag | undefined;
     let interpretation = '';
+
+    // Check coded result options defined in the test catalog first (dynamic qualitative tests)
+    if ((testInfo as any)?.resultOptions && (testInfo as any).resultOptions.length > 0 && value) {
+      const valLower = value.trim().toLowerCase();
+      const matchedOpt = (testInfo as any).resultOptions.find(
+        (opt: any) =>
+          (opt.value && opt.value.trim().toLowerCase() === valLower) ||
+          (opt.label && opt.label.trim().toLowerCase() === valLower)
+      );
+      if (matchedOpt) {
+        if (matchedOpt.interpretation) {
+          interpretation = matchedOpt.interpretation;
+        }
+        if (matchedOpt.flag) {
+          matchedOptionFlag = matchedOpt.flag as ResultFlag;
+        }
+      }
+    }
+
+    // Generate automatic interpretation for HB Genotype
     // Check dynamic interpretation rules configured in the test catalog first
     if (testInfo?.interpretationRules && testInfo.interpretationRules.length > 0 && value) {
       const matchedRule = testInfo.interpretationRules.find((r: any) =>
@@ -988,7 +1010,7 @@ export default function EnterResultsPage() {
         value: normalizedValue,
         unit: normalizeMchcUnit(testCode, testInfo.unit),
         referenceRange: normalizedReferenceRange,
-        flag,
+        flag: matchedOptionFlag || flag,
         interpretation,
         menstrualPhase: currentPhase,
         allReferenceRanges: testInfo.allRanges,
@@ -1105,6 +1127,11 @@ export default function EnterResultsPage() {
 
         // Add interpretation for Malaria, Gonorrhea, Chlamydia, HPAG, Widal
         if (['MALARIA', 'GONORRHEA', 'CHLAMYDIA', 'HPAG', 'WIDAL'].includes(entry.testCode) && entry.interpretation) {
+          payload.comments = entry.interpretation;
+        }
+
+        // Add automatic interpretation for any test that has one (covers all coded options, HBGENO, serology, etc.)
+        if (entry.interpretation && !payload.comments) {
           payload.comments = entry.interpretation;
         }
 
@@ -1460,14 +1487,26 @@ export default function EnterResultsPage() {
                     const testInfo = getTestInfo(testCode, patientAge, patientGender, entry?.menstrualPhase);
                     const phaseOptions = getPhaseOptions(testCode);
 
+                    const codedOptions = ((testInfo as any)?.resultOptions || [])
+                      .map((opt: any) => ({
+                        value: opt.value || opt.label,
+                        label: opt.label || opt.value,
+                      }));
+
                     const ruleOptions = (testInfo?.interpretationRules || [])
                       .filter((r: any) => r.conditionType === 'text_match' && r.matchValue)
-                      .map((r: any) => r.matchValue.trim());
+                      .map((r: any) => ({ value: r.matchValue.trim(), label: r.matchValue.trim() }));
 
-                    const qualitativeOptions = Array.from(new Set([
-                      ...(QUALITATIVE_OPTIONS[testCode] || []),
-                      ...ruleOptions,
-                    ]));
+                    const staticQualOptions = (QUALITATIVE_OPTIONS[testCode] || [])
+                      .map((v: string) => ({ value: v, label: v }));
+
+                    const mergedOptionsMap = new Map<string, string>();
+                    for (const opt of [...codedOptions, ...ruleOptions, ...staticQualOptions]) {
+                      if (opt.value && !mergedOptionsMap.has(opt.value)) {
+                        mergedOptionsMap.set(opt.value, opt.label);
+                      }
+                    }
+                    const qualitativeOptionsList = Array.from(mergedOptionsMap.entries()).map(([value, label]) => ({ value, label }));
                     const isTextarea = TEXTAREA_TESTS.has(testCode);
                     const isStoolMicro = STOOL_MICRO_TEST_CODES.has(normalizeTestCode(testCode));
                     const isHormoneTest = testInfo.isHormoneTest && patientGender === 'F';
@@ -1629,7 +1668,7 @@ export default function EnterResultsPage() {
                               <p className="text-xs text-muted-foreground">{testName}</p>
                             </div>
                             <div className="col-span-2">
-                              {qualitativeOptions && qualitativeOptions.length > 0 ? (
+                              {qualitativeOptionsList && qualitativeOptionsList.length > 0 ? (
                                 <Select
                                   value={entry?.value || ''}
                                   onValueChange={val => handleValueChange(test, val)}
@@ -1638,8 +1677,8 @@ export default function EnterResultsPage() {
                                     <SelectValue placeholder="Select..." />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {qualitativeOptions.map(opt => (
-                                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                    {qualitativeOptionsList.map(opt => (
+                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>

@@ -17,12 +17,15 @@ const SAVED_DEVICE_KEY = 'thermal_printer_device';
 export interface SavedDeviceInfo {
   vendorId: number;
   productId: number;
+  serialNumber?: string;
   manufacturerName?: string;
   productName?: string;
 }
 
 class USBPrinterService {
   private device: USBDevice | null = null;
+  private interfaceNumber: number | null = null;
+  private endpointNumber: number | null = null;
 
   /** True if the browser supports the WebUSB API */
   get isSupported(): boolean {
@@ -62,6 +65,7 @@ class USBPrinterService {
     const info: SavedDeviceInfo = {
       vendorId: device.vendorId,
       productId: device.productId,
+      serialNumber: device.serialNumber || undefined,
       manufacturerName: device.manufacturerName,
       productName: device.productName,
     };
@@ -75,18 +79,25 @@ class USBPrinterService {
    * Returns true if reconnect succeeded.
    */
   async autoConnect(): Promise<boolean> {
+    if (this.isConnected) return true;
     if (!this.isSupported) return false;
     const saved = this.getSavedDevice();
     if (!saved) return false;
 
     try {
       const devices = await navigator.usb.getDevices();
-      const match = devices.find(
-        d => d.vendorId === saved.vendorId && d.productId === saved.productId
+      const matches = devices.filter(
+        d => d.vendorId === saved.vendorId &&
+          d.productId === saved.productId &&
+          (!saved.serialNumber || d.serialNumber === saved.serialNumber)
       );
-      if (!match) return false;
+      if (matches.length !== 1) return false;
+      const match = matches[0];
 
       await this._openDevice(match);
+      if (!saved.serialNumber && match.serialNumber) {
+        localStorage.setItem(SAVED_DEVICE_KEY, JSON.stringify({ ...saved, serialNumber: match.serialNumber }));
+      }
       return true;
     } catch {
       return false;
@@ -100,9 +111,8 @@ class USBPrinterService {
   async disconnect(): Promise<void> {
     if (this.device) {
       try {
-        const iface = this._findInterface();
-        if (iface !== null) {
-          await this.device.releaseInterface(iface);
+        if (this.interfaceNumber !== null) {
+          await this.device.releaseInterface(this.interfaceNumber);
         }
         await this.device.close();
       } catch {
@@ -110,7 +120,17 @@ class USBPrinterService {
       }
       this.device = null;
     }
+    this.interfaceNumber = null;
+    this.endpointNumber = null;
     localStorage.removeItem(SAVED_DEVICE_KEY);
+  }
+
+  handleUsbDisconnect(device: USBDevice): boolean {
+    if (this.device !== device) return false;
+    this.device = null;
+    this.interfaceNumber = null;
+    this.endpointNumber = null;
+    return true;
   }
 
   /**
@@ -122,8 +142,7 @@ class USBPrinterService {
       throw new Error('Thermal printer is not connected.');
     }
 
-    const endpointNumber = this._findBulkOutEndpoint();
-    if (endpointNumber === null) {
+    if (this.endpointNumber === null) {
       throw new Error(
         'No bulk OUT endpoint found. The device may not be a printer.'
       );
@@ -131,19 +150,44 @@ class USBPrinterService {
 
     const CHUNK = 64;
     for (let offset = 0; offset < data.length; offset += CHUNK) {
-      await this.device.transferOut(endpointNumber, data.slice(offset, offset + CHUNK));
+      const result = await this.device.transferOut(this.endpointNumber, data.slice(offset, offset + CHUNK));
+      if (result.status !== 'ok') throw new Error(`Printer USB transfer failed: ${result.status}`);
     }
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────
 
   private async _openDevice(device: USBDevice): Promise<void> {
+    if (this.device === device && this.isConnected) return;
     try {
-      await device.open();
+      if (!device.opened) await device.open();
+
+      if (device.configuration === null) {
+        const configuration = device.configurations[0];
+        if (!configuration) throw new Error('USB device has no configuration.');
+        await device.selectConfiguration(configuration.configurationValue);
+      }
+
+      const interfaces = device.configuration!.interfaces;
+      const candidates = interfaces.map(iface => ({
+        interfaceNumber: iface.interfaceNumber,
+        interfaceClass: iface.alternate.interfaceClass,
+        endpointNumber: iface.alternate.endpoints.find(ep => ep.direction === 'out' && ep.type === 'bulk')?.endpointNumber,
+      })).filter(candidate => candidate.endpointNumber !== undefined);
+      const selected = candidates.find(candidate => candidate.interfaceClass === 7) ?? candidates[0];
+      if (!selected || selected.endpointNumber === undefined) {
+        throw new Error('No printer bulk OUT endpoint found. Choose the thermal printer in the USB picker.');
+      }
+
+      await device.claimInterface(selected.interfaceNumber);
+      this.device = device;
+      this.interfaceNumber = selected.interfaceNumber;
+      this.endpointNumber = selected.endpointNumber;
     } catch (err: unknown) {
+      if (device.opened) await device.close().catch(() => {});
       const isDenied =
         (err instanceof DOMException && err.name === 'SecurityError') ||
-        (err instanceof Error && err.message.toLowerCase().includes('access denied'));
+        (err instanceof Error && /access denied|unable to claim|protected class/i.test(err.message));
       if (isDenied) {
         throw new Error(
           'ACCESS_DENIED: Windows is blocking WebUSB access to this printer.\n\n' +
@@ -157,42 +201,6 @@ class USBPrinterService {
       }
       throw err;
     }
-
-    if (device.configuration === null) {
-      await device.selectConfiguration(1);
-    }
-
-    const interfaces = device.configuration!.interfaces;
-    if (interfaces.length === 0) {
-      throw new Error('USB device has no interfaces.');
-    }
-
-    // Prefer USB Printer Class (class 7); fall back to first interface
-    const iface =
-      interfaces.find(i => i.alternate.interfaceClass === 7) ?? interfaces[0];
-
-    await device.claimInterface(iface.interfaceNumber);
-    this.device = device;
-  }
-
-  private _findInterface(): number | null {
-    if (!this.device?.configuration) return null;
-    const interfaces = this.device.configuration.interfaces;
-    const iface =
-      interfaces.find(i => i.alternate.interfaceClass === 7) ?? interfaces[0];
-    return iface?.interfaceNumber ?? null;
-  }
-
-  private _findBulkOutEndpoint(): number | null {
-    if (!this.device?.configuration) return null;
-    for (const iface of this.device.configuration.interfaces) {
-      for (const ep of iface.alternate.endpoints) {
-        if (ep.direction === 'out' && ep.type === 'bulk') {
-          return ep.endpointNumber;
-        }
-      }
-    }
-    return null;
   }
 }
 

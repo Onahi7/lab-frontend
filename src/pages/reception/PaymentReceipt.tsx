@@ -94,10 +94,10 @@ export default function PaymentReceipt() {
       );
       setPrintCount(result.printedCount);
       if (result.success) {
-        toast.success('Both receipts printed successfully');
+        toast.success(`${result.printedCount} receipt${result.printedCount === 1 ? '' : 's'} sent to printer`);
         setTimeout(() => navigate('/reception/orders'), 2000);
       } else {
-        toast.error(`Only ${result.printedCount} of 2 receipts printed`);
+        toast.error(`Only ${result.printedCount} of ${settings.thermal.copies} receipts sent to printer`);
       }
     } catch (error) {
       toast.error('Failed to print receipts');
@@ -347,7 +347,7 @@ export default function PaymentReceipt() {
               {printCount > 0 && (
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                   <Check className="w-3 h-3 mr-1" />
-                  {printCount} of 2 printed
+                  {printCount} of {settings.thermal.copies} sent
                 </Badge>
               )}
               <Button 
@@ -356,7 +356,7 @@ export default function PaymentReceipt() {
                 size="lg"
               >
                 <Printer className="w-4 h-4 mr-2" />
-                {isPrinting ? 'Printing...' : 'Print Both Receipts'}
+                {isPrinting ? 'Printing...' : settings.thermal.copies === 1 ? 'Print Patient Receipt' : 'Print Both Receipts'}
               </Button>
             </div>
           </div>
@@ -408,8 +408,7 @@ export default function PaymentReceipt() {
               <ul className="text-sm text-blue-800 space-y-1">
                 <li>• Ensure thermal printer is connected and powered on</li>
                 <li>• Paper width should be set to 80mm</li>
-                <li>• Both receipts will print automatically in sequence</li>
-                <li>• Patient copy prints first, followed by lab copy</li>
+                <li>• Print the patient copy first{settings.thermal.copies === 2 ? ', then the lab copy' : ''}</li>
                 <li>• Give patient copy to the patient, keep lab copy for records</li>
               </ul>
             </div>

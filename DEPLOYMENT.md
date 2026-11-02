@@ -12,8 +12,8 @@ The app uses different environment configurations:
 The `.env.production` file is automatically used when building for production:
 
 ```bash
-VITE_API_URL=https://carefam-lab-1e0cbe42a3ac.herokuapp.com
-VITE_CLOUD_API_URL=https://carefam-lab-1e0cbe42a3ac.herokuapp.com
+VITE_API_URL=https://mute-ursa-onahi7-9837d3ec.koyeb.app
+VITE_CLOUD_API_URL=https://mute-ursa-onahi7-9837d3ec.koyeb.app
 ```
 
 ## Deployment Steps

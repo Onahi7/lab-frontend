@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { usePrinterContext } from '@/context/PrinterContext';
 import { usbPrinterService } from '@/services/usbPrinterService';
 import { buildReceiptESCPOS, type ReceiptData } from '@/utils/escpos';
-import { ThermalReceipt, thermalPrintStyles } from '@/components/receipts/ThermalReceipt';
+import { ThermalReceipt } from '@/components/receipts/ThermalReceipt';
+import { printThermalReceipt } from '@/services/browserThermalPrint';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,33 +62,6 @@ function buildTestReceiptData(cashier: string): ReceiptData {
   };
 }
 
-/** Opens a print popup from a hidden DOM element (same approach as useThermalPrint) */
-async function printElementAsBrowserReceipt(element: HTMLElement): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const html = `<html><head><title>Test Receipt</title><style>${thermalPrintStyles}</style></head><body>${element.innerHTML}</body></html>`;
-
-    // Electron: silent print via IPC
-    if ((window as unknown as { electronAPI?: { isElectron?: boolean; printHTML?: (html: string, opts: object) => Promise<{ success: boolean; error?: string }> } }).electronAPI?.isElectron) {
-      const printFn = (window as unknown as { electronAPI: { printHTML: (html: string, opts: object) => Promise<{ success: boolean; error?: string }> } }).electronAPI.printHTML;
-      printFn(html, { copies: 1, silent: true })
-        .then(result => result.success ? resolve() : reject(new Error(result.error ?? 'Silent print failed')))
-        .catch(reject);
-      return;
-    }
-
-    // Browser: popup window
-    const win = window.open('', '', 'width=302,height=600');
-    if (!win) { reject(new Error('Pop-up blocked — allow pop-ups for this site')); return; }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => {
-      win.print();
-      setTimeout(() => { win.close(); resolve(); }, 500);
-    }, 250);
-  });
-}
-
 // ── Standard Printer section ───────────────────────────────────────────────
 
 function StandardPrinterSection({
@@ -107,8 +81,8 @@ function StandardPrinterSection({
     if (!receiptRef.current) { toast.error('Receipt element not ready'); return; }
     setTestPrinting(true);
     try {
-      await printElementAsBrowserReceipt(receiptRef.current);
-      toast.success('Print dialog opened — choose your receipt printer and click Print.');
+      await printThermalReceipt(receiptRef.current.innerHTML);
+      toast.success('Print dialog opened. Choose your receipt printer and click Print.');
     } catch (err: unknown) {
       toast.error((err instanceof Error ? err.message : null) ?? 'Failed to open print dialog');
     } finally {
@@ -117,7 +91,7 @@ function StandardPrinterSection({
   };
 
   return (
-    <Card className="border-green-200">
+    <Card>
       {/* Hidden receipt DOM node used for printing */}
       <div className="hidden">
         <div ref={receiptRef}>
@@ -132,11 +106,11 @@ function StandardPrinterSection({
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <CardTitle className="text-base">Standard Printer</CardTitle>
-              <Badge className="bg-green-600 text-xs">Recommended</Badge>
+              <CardTitle className="text-base">Browser print dialog</CardTitle>
+              <Badge variant="secondary" className="text-xs">Fallback</Badge>
             </div>
             <CardDescription>
-              Works with any receipt printer already installed on this computer — no extra software needed
+              Uses a receipt printer installed in Windows
             </CardDescription>
           </div>
         </div>
@@ -147,9 +121,9 @@ function StandardPrinterSection({
         <Alert>
           <CheckCircle2 className="w-4 h-4 text-green-600" />
           <AlertDescription>
-            <strong>How to start:</strong> Plug the receipt printer into this computer with the USB cable
-            and switch it on. Windows will detect it automatically. Then click{' '}
-            <strong>Print Test Receipt</strong> below and select the printer from the list.
+            <strong>How to start:</strong> Plug in the receipt printer and switch it on. Then click{' '}
+            <strong>Print Test Receipt</strong> and choose it from the printer list. If it is missing,
+            follow the setup steps below.
           </AlertDescription>
         </Alert>
 
@@ -159,8 +133,7 @@ function StandardPrinterSection({
           <AlertDescription>
             <strong>First time using this printer?</strong> When the print dialog opens, set{' '}
             <strong>Paper size</strong> to <strong>80 mm roll</strong> (sometimes listed as "Receipt",
-            "POS-80", or "Roll Paper 80×297 mm"). You only need to do this once — the browser
-            will remember it.
+            "POS-80", or "Roll Paper 80×297 mm"). Check this setting again if you change printers.
           </AlertDescription>
         </Alert>
 
@@ -173,8 +146,25 @@ function StandardPrinterSection({
               <><TestTube2 className="w-4 h-4 mr-2" />Print Test Receipt</>
             )}
           </Button>
-          <span className="text-sm text-muted-foreground">Always available — no connection step needed</span>
+          <span className="text-sm text-muted-foreground">No connection step inside the app</span>
         </div>
+
+        <Accordion type="single" collapsible>
+          <AccordionItem value="windows-driver">
+            <AccordionTrigger>Printer missing from the list?</AccordionTrigger>
+            <AccordionContent>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                <li>Open Windows Settings, then Printers &amp; scanners.</li>
+                <li>Choose Add device and select the receipt printer if it appears.</li>
+                <li>If it does not appear, install the Windows driver for the exact printer model from its manufacturer or supplier, then try Add device again.</li>
+                <li>Print a Windows test page first. Then return here and print a test receipt.</li>
+              </ol>
+              <p className="text-sm text-muted-foreground mt-3">
+                Zadig is only for advanced direct USB mode. It does not install a Windows printer driver.
+              </p>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         {/* Everyday settings */}
         <div className="space-y-3 pt-2 border-t">
@@ -183,10 +173,10 @@ function StandardPrinterSection({
           <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
             <div className="space-y-0.5">
               <Label htmlFor="thermal-auto" className="text-sm font-medium">
-                Open print dialog after payment
+                Print receipt after payment
               </Label>
               <p className="text-xs text-muted-foreground">
-                Automatically opens the print dialog when payment is confirmed
+                Automatically sends the receipt to the saved USB printer when payment is confirmed
               </p>
             </div>
             <Switch
@@ -327,8 +317,8 @@ function AdvancedSilentSection({
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <CardTitle className="text-base">Silent Direct USB Mode</CardTitle>
-              <Badge variant="secondary" className="text-xs">IT / Admin only</Badge>
+              <CardTitle className="text-base">USB receipt printer</CardTitle>
+              <Badge className="bg-green-600 text-xs">Automatic printing</Badge>
               {thermalConnected && (
                 <Badge className="bg-green-600 text-xs">
                   <CheckCircle2 className="w-3 h-3 mr-1" /> Connected
@@ -336,7 +326,7 @@ function AdvancedSilentSection({
               )}
             </div>
             <CardDescription>
-              Prints receipts automatically without any dialog — requires a one-time IT setup per computer
+              Set up once on this computer, then receipts print without a dialog
             </CardDescription>
           </div>
         </div>
@@ -356,9 +346,16 @@ function AdvancedSilentSection({
         {deviceLabel && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded p-2">
             <Printer className="w-4 h-4 shrink-0" />
-            <span>{deviceLabel}</span>
+            <span>Saved printer: {deviceLabel}{!thermalConnected && ' (waiting to reconnect)'}</span>
           </div>
         )}
+
+        <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+          <li>Plug in the thermal printer, turn it on, and load the paper.</li>
+          <li>On this Windows computer, use Zadig below to set its USB driver to WinUSB.</li>
+          <li>Open this site in Chrome or Edge, then click Connect Printer and choose the thermal printer.</li>
+          <li>Click Silent Test Print. The printer choice is saved for this browser on this computer.</li>
+        </ol>
 
         {/* Connect / Disconnect */}
         <div className="flex flex-wrap gap-2">
@@ -398,16 +395,16 @@ function AdvancedSilentSection({
         <div className="flex items-center justify-between p-3 bg-muted/30 rounded">
           <div className="space-y-0.5">
             <Label htmlFor="silent-enabled" className="text-sm font-medium">
-              Use silent mode for receipts
+              Print receipts through this USB printer
             </Label>
             <p className="text-xs text-muted-foreground">
-              When on, receipts skip the print dialog entirely. When off, falls back to standard mode.
+              When on, receipts use the saved printer. If it is unavailable, the browser print dialog opens.
             </p>
           </div>
           <Switch
             id="silent-enabled"
-            checked={settings.thermal.enabled}
-            onCheckedChange={(checked) => updateThermalSettings({ enabled: checked })}
+            checked={settings.thermal.mode === 'direct-usb'}
+            onCheckedChange={(checked) => updateThermalSettings({ mode: checked ? 'direct-usb' : 'standard' })}
           />
         </div>
 
@@ -425,7 +422,7 @@ function AdvancedSilentSection({
                 )}
                 {driverBlocked
                   ? 'Action needed — run Zadig driver setup first'
-                  : 'One-time setup: Zadig USB driver (IT admin, once per computer)'}
+                  : 'One-time Windows setup: Zadig and WinUSB'}
               </span>
             </AccordionTrigger>
             <AccordionContent>
@@ -433,7 +430,7 @@ function AdvancedSilentSection({
                 <p>
                   Windows reserves the USB printer for itself, which blocks silent printing. The free{' '}
                   <strong>Zadig</strong> tool swaps the driver for a web-compatible one.{' '}
-                  <strong>This only needs to be done once per computer</strong> by an IT admin.
+                  <strong>This only needs to be done once per computer.</strong> Windows may ask for an administrator password.
                 </p>
 
                 {driverBlocked && (
@@ -462,7 +459,7 @@ function AdvancedSilentSection({
                   <li>Plug the Xprinter into this computer via USB and power it on.</li>
                   <li>Open the Zadig file you just downloaded.</li>
                   <li>In Zadig, click <strong>Options → List All Devices</strong>.</li>
-                  <li>Choose your <strong>Xprinter</strong> from the big dropdown.</li>
+                  <li>Choose the exact <strong>Xprinter</strong> model from the device list. Do not select another USB device.</li>
                   <li>In the box on the right, make sure it says <strong>WinUSB</strong>.</li>
                   <li>Click <strong>Replace Driver</strong> and wait (~30 seconds).</li>
                   <li>Unplug and re-plug the USB cable, then click <strong>Connect Printer</strong> above.</li>
@@ -471,8 +468,9 @@ function AdvancedSilentSection({
                 <Alert>
                   <AlertTriangle className="w-4 h-4" />
                   <AlertDescription>
-                    After this step, the Xprinter will no longer appear in Windows Printers & Scanners —
-                    that is expected. Only this app uses it, which is what makes printing fully automatic.
+                    After this step, the Xprinter may no longer appear as a Windows printer. This website
+                    can use it after you select it in Chrome or Edge. If browser permissions or site data
+                    are cleared, click Connect Printer again.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -488,8 +486,8 @@ function AdvancedSilentSection({
 
 /**
  * Thermal printer setup with two modes:
- * - Standard (default): works with any installed Windows printer via the browser print dialog — no Zadig required.
- * - Silent Direct USB (advanced): bypasses all dialogs via WebUSB + Zadig — one-time IT setup per computer.
+ * - Direct USB: remembers the selected WebUSB printer after the one-time WinUSB setup.
+ * - Browser print dialog: fallback for an installed system printer.
  */
 export function ThermalPrinterSetupWizard({ cashierName = 'Staff' }: ThermalPrinterSetupWizardProps) {
   const { settings, updateThermalSettings } = usePrinterContext();
@@ -500,24 +498,29 @@ export function ThermalPrinterSetupWizard({ cashierName = 'Staff' }: ThermalPrin
       <div>
         <h2 className="text-lg font-semibold">Receipt Printer Setup</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Most staff should use <strong>Standard Printer</strong> — just plug in and print.{' '}
-          Silent mode is for IT staff who want receipts to print with zero pop-ups.
+          Connect the thermal printer once. This browser will reconnect and print receipts automatically
+          while the printer is available.
         </p>
       </div>
 
-      {/* Mode 1: Standard — plug & play */}
-      <StandardPrinterSection
-        settings={settings}
-        updateThermalSettings={updateThermalSettings}
-        cashierName={cashierName}
-      />
-
-      {/* Mode 2: Silent USB — IT only */}
       <AdvancedSilentSection
         settings={settings}
         updateThermalSettings={updateThermalSettings}
         cashierName={cashierName}
       />
+
+      <Accordion type="single" collapsible>
+        <AccordionItem value="fallback">
+          <AccordionTrigger>Use a Windows printer instead</AccordionTrigger>
+          <AccordionContent>
+            <StandardPrinterSection
+              settings={settings}
+              updateThermalSettings={updateThermalSettings}
+              cashierName={cashierName}
+            />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
