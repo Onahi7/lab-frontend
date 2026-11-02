@@ -31,6 +31,39 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // Self-healing migration for existing lab staff devices:
+      // Automatically purge legacy Heroku URLs from localStorage and force Service Worker update
+      (function() {
+        try {
+          var legacyHost = 'carefam-lab-1e0cbe42a3ac.herokuapp.com';
+          var purged = false;
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            var v = localStorage.getItem(k);
+            if (v && v.indexOf(legacyHost) !== -1) {
+              localStorage.removeItem(k);
+              purged = true;
+            }
+          }
+          if (purged) {
+            console.log('[LIS Self-Healing] Legacy backend connection configuration cleaned from localStorage');
+          }
+
+          // Force Service Worker to update immediately for all active devices
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(reg) {
+                if (reg.waiting) {
+                  reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+                reg.update();
+              });
+            });
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -56,6 +56,14 @@ export const clearTokens = (): void => {
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Self-healing safeguard: redirect any legacy Heroku URL to active Koyeb backend
+    if (config.baseURL && config.baseURL.includes('herokuapp.com')) {
+      config.baseURL = 'https://mute-ursa-onahi7-9837d3ec.koyeb.app';
+    }
+    if (config.url && config.url.includes('herokuapp.com')) {
+      config.url = config.url.replace(/https?:\/\/[a-zA-Z0-9-]+\.herokuapp\.com/, 'https://mute-ursa-onahi7-9837d3ec.koyeb.app');
+    }
+
     const token = getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
