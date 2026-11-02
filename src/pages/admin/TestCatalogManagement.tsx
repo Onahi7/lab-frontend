@@ -128,6 +128,7 @@ export default function TestCatalogManagement() {
   const [isPanelDialogOpen, setIsPanelDialogOpen] = useState(false);
   const [editingPanel, setEditingPanel] = useState<TestPanel | null>(null);
   const [panelFormData, setPanelFormData] = useState<Partial<TestPanel>>({});
+  const [selectedTestToAdd, setSelectedTestToAdd] = useState<string>('');
 
   // Price history dialog state
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
@@ -329,7 +330,8 @@ export default function TestCatalogManagement() {
   // Panel dialog handlers
   const handleOpenPanelDialog = (panel: TestPanel) => {
     setEditingPanel(panel);
-    setPanelFormData(panel);
+    setPanelFormData({ ...panel, tests: panel.tests || [] });
+    setSelectedTestToAdd('');
     setIsPanelDialogOpen(true);
   };
 
@@ -337,16 +339,51 @@ export default function TestCatalogManagement() {
     setIsPanelDialogOpen(false);
     setEditingPanel(null);
     setPanelFormData({});
+    setSelectedTestToAdd('');
+  };
+
+  const handleAddTestToPanel = (testId: string) => {
+    if (!testId) return;
+    const target = tests.find((t: Test) => t._id === testId);
+    if (!target) return;
+    const currentTests = panelFormData.tests || [];
+    if (currentTests.some((t: any) => (t.testId || t._id) === target._id)) {
+      toast.error('Test already in this panel');
+      return;
+    }
+    setPanelFormData({
+      ...panelFormData,
+      tests: [...currentTests, { testId: target._id, testCode: target.code, testName: target.name }],
+    });
+    setSelectedTestToAdd('');
+  };
+
+  const handleRemoveTestFromPanel = (testId: string) => {
+    const currentTests = panelFormData.tests || [];
+    if (currentTests.length <= 2) {
+      toast.error('A panel must have at least 2 tests');
+      return;
+    }
+    setPanelFormData({
+      ...panelFormData,
+      tests: currentTests.filter((t: any) => (t.testId || t._id) !== testId),
+    });
   };
 
   const handlePanelSubmit = () => {
     if (!editingPanel) return;
+    const testIds = (panelFormData.tests || []).map((t: any) => t.testId || t._id || t.id);
+    if (testIds.length < 2) {
+      toast.error('A panel must contain at least 2 tests');
+      return;
+    }
     const data: any = {
       code: panelFormData.code,
       name: panelFormData.name,
       description: panelFormData.description,
       price: panelFormData.price !== undefined ? Number(panelFormData.price) : undefined,
       isActive: panelFormData.isActive,
+      testIds,
     };
     updatePanel.mutate({ id: editingPanel._id, data });
   };
@@ -1446,19 +1483,70 @@ export default function TestCatalogManagement() {
               <Label htmlFor="panelIsActive">Active</Label>
             </div>
 
-            {editingPanel?.tests && editingPanel.tests.length > 0 && (
-              <div className="border rounded p-3 bg-muted/30">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Tests in this panel ({editingPanel.tests.length})</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {editingPanel.tests.map((t) => (
-                    <Badge key={t.testId} variant="secondary" className="text-xs">
-                      {t.testCode} — {t.testName}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">Test membership cannot be changed here yet — use the API to modify panel composition.</p>
+            <div className="border rounded-lg p-3 bg-muted/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Tests in this Panel ({(panelFormData.tests || []).length})</Label>
+                <span className="text-[11px] text-muted-foreground">Min. 2 tests required</span>
               </div>
-            )}
+
+              {/* Current tests list with remove button */}
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {(panelFormData.tests || []).map((t: any) => {
+                  const testId = t.testId || t._id || t.id;
+                  return (
+                    <div
+                      key={testId}
+                      className="flex items-center justify-between bg-background border rounded px-2.5 py-1.5 text-xs shadow-sm"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-primary">{t.testCode}</span>
+                        <span className="text-muted-foreground truncate">{t.testName}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={() => handleRemoveTestFromPanel(testId)}
+                        title="Remove test from panel"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add more tests to this panel */}
+              <div className="pt-2 border-t flex gap-2">
+                <Select value={selectedTestToAdd} onValueChange={setSelectedTestToAdd}>
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue placeholder="Add another test to this panel..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-56">
+                    {tests
+                      .filter((t: Test) => !(panelFormData.tests || []).some((pt: any) => (pt.testId || pt._id) === t._id))
+                      .sort((a: Test, b: Test) => a.name.localeCompare(b.name))
+                      .map((t: Test) => (
+                        <SelectItem key={t._id} value={t._id} className="text-xs">
+                          {t.code} — {t.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 text-xs px-3 shrink-0"
+                  disabled={!selectedTestToAdd}
+                  onClick={() => handleAddTestToPanel(selectedTestToAdd)}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add
+                </Button>
+              </div>
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={handleClosePanelDialog}>Cancel</Button>

@@ -838,6 +838,7 @@ export default function EnterResultsPage() {
       criticalHigh: normalizeMchcThreshold(testCode, criticalHigh),
       allRanges,
       isHormoneTest,
+      interpretationRules: test.interpretationRules || [],
     };
   };
 
@@ -919,7 +920,17 @@ export default function EnterResultsPage() {
 
     // Generate automatic interpretation for HB Genotype
     let interpretation = '';
-    if (testCode === 'HBGENO' && value) {
+    // Check dynamic interpretation rules configured in the test catalog first
+    if (testInfo?.interpretationRules && testInfo.interpretationRules.length > 0 && value) {
+      const matchedRule = testInfo.interpretationRules.find((r: any) =>
+        r.conditionType === 'text_match' &&
+        r.matchValue?.trim().toLowerCase() === value.trim().toLowerCase()
+      );
+      if (matchedRule?.interpretation) {
+        interpretation = matchedRule.interpretation;
+      }
+    }
+    if (!interpretation && testCode === 'HBGENO' && value) {
       const interpretations: Record<string, string> = {
         'AA': 'Normal - No sickle cell trait or disease',
         'AS': 'Trait - Sickle cell trait (carrier), usually asymptomatic',
@@ -1449,7 +1460,14 @@ export default function EnterResultsPage() {
                     const testInfo = getTestInfo(testCode, patientAge, patientGender, entry?.menstrualPhase);
                     const phaseOptions = getPhaseOptions(testCode);
 
-                    const qualitativeOptions = QUALITATIVE_OPTIONS[testCode];
+                    const ruleOptions = (testInfo?.interpretationRules || [])
+                      .filter((r: any) => r.conditionType === 'text_match' && r.matchValue)
+                      .map((r: any) => r.matchValue.trim());
+
+                    const qualitativeOptions = Array.from(new Set([
+                      ...(QUALITATIVE_OPTIONS[testCode] || []),
+                      ...ruleOptions,
+                    ]));
                     const isTextarea = TEXTAREA_TESTS.has(testCode);
                     const isStoolMicro = STOOL_MICRO_TEST_CODES.has(normalizeTestCode(testCode));
                     const isHormoneTest = testInfo.isHormoneTest && patientGender === 'F';
