@@ -105,8 +105,8 @@ const QUALITATIVE_OPTIONS: Record<string, string[]> = {
   'HPAG': ['Negative', 'Positive'],
   // ── Hematology special ──────────────────────────────────────────────────
   'BLOODGROUP': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
-  'SICKLE': ['AA – Normal', 'AS – Sickle Cell Trait', 'SS – Sickle Cell Disease', 'SC – Sickle-Haemoglobin C'],
-  'HBGENO': ['AA', 'AS', 'SS', 'SC'],
+  'SICKLE': ['AA – Normal', 'AS – Sickle Cell Trait', 'SS – Sickle Cell Disease', 'SC – Sickle-Haemoglobin C', 'AC – Hemoglobin C Trait', 'CC – Hemoglobin C Disease'],
+  'HBGENO': ['AA', 'AS', 'SS', 'SC', 'AC', 'CC'],
 };
 
 // Tests that need a free-text area (complex/descriptive results)
@@ -924,7 +924,9 @@ export default function EnterResultsPage() {
         'AA': 'Normal - No sickle cell trait or disease',
         'AS': 'Trait - Sickle cell trait (carrier), usually asymptomatic',
         'SS': 'Sickle Cell Disease - Sickle cell anemia, requires medical management',
-        'SC': 'Sickling - Hemoglobin SC disease, mild to moderate symptoms'
+        'SC': 'Sickling - Hemoglobin SC disease, mild to moderate symptoms',
+        'AC': 'Hemoglobin C Trait - Carrier of Hemoglobin C, usually asymptomatic',
+        'CC': 'Hemoglobin C Disease - Mild hemolytic anemia, usually benign'
       };
       interpretation = interpretations[value] || '';
     }
